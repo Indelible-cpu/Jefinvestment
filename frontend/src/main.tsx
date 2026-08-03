@@ -20,3 +20,4 @@ createRoot(document.getElementById('root')!).render(
 // Triggering final deploy
 // Trigger frontend build with correct worker URL
 // Triggering after setting secret in Github
+// Deploy with GitHub secret API URL
