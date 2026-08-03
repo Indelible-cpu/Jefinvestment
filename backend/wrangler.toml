@@ -1,0 +1,19 @@
+name = "jef-erp-backend"
+main = "src/worker.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+placement = { mode = "smart" }
+
+[observability]
+enabled = true
+
+# These are non-secret environment variables.
+# Secrets (DATABASE_URL, JWT_SECRET) are set via: wrangler secret put SECRET_NAME
+[vars]
+ENVIRONMENT = "production"
+JWT_EXPIRES_IN = "1d"
+# Set this to your Cloudflare Pages URL after deployment
+CORS_ORIGIN = "https://jef-erp.pages.dev"
+
+[build]
+command = "npx prisma generate --no-engine"

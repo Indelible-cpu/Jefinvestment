@@ -1,0 +1,703 @@
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useCartStore, useProductStore, type CartItem } from '../store/cartStore';
+import { useSaleStore } from '../store/dataStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { useAuthStore } from '../store/authStore';
+import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine } from 'lucide-react';
+import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
+import BarcodeScanner from '../components/BarcodeScanner';
+import { generateInvoiceNumber } from '../utils/invoiceNumber';
+import { toast } from 'sonner';
+
+export default function POS() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [amountPaid, setAmountPaid] = useState<number | ''>('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [showHeldCarts, setShowHeldCarts] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [holdCartName, setHoldCartName] = useState('');
+  const [receiptData, setReceiptData] = useState<null | {
+    items: CartItem[]; subtotal: number; discount: number; taxAmount: number;
+    taxName: string; taxType: string; total: number; paymentMethod: string;
+    amountPaid: number; customerName?: string; customerPhone?: string; invoiceNumber: string;
+  }>(null);
+  const [txStatus, setTxStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const cart = useCartStore();
+  const { products, decrementStock } = useProductStore();
+  const { addSale } = useSaleStore();
+  const { taxRate, taxName, taxType } = useSettingsStore();
+  const [catFilter, setCatFilter] = useState('All');
+
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  const filteredProducts = products.filter(p => {
+    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCat = catFilter === 'All' || p.category === catFilter;
+    return matchSearch && matchCat;
+  });
+
+  const finalTotal = useMemo(() => {
+    const baseTotal = cart.getTotal();
+    if (taxRate > 0 && taxType === 'EXCLUSIVE') {
+      return baseTotal + (baseTotal * (taxRate / 100));
+    }
+    return baseTotal;
+  }, [cart.getTotal(), taxRate, taxType]);
+
+  useEffect(() => {
+    if (paymentMethod === 'CASH') {
+      setAmountPaid(finalTotal || '');
+    }
+  }, [paymentMethod, finalTotal]);
+
+const playSound = (type: 'success' | 'error') => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    if (type === 'success') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.1);
+    } else {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+    }
+  } catch (e) {
+    console.error('Audio playback failed', e);
+  }
+};
+
+  const handlePayNow = () => {
+    setErrorMsg('');
+
+    if (paymentMethod === 'CREDIT') {
+      if (!customerName.trim() || !customerPhone.trim()) {
+        playSound('error');
+        setTxStatus({ type: 'error', message: 'Customer Name and Phone Number are required for Credit Sales!' });
+        return;
+      }
+    }
+
+    const subtotal = cart.getSubtotal();
+    const discount = cart.globalDiscount;
+    const baseTotal = cart.getTotal();
+    
+    let taxAmount = 0;
+    if (taxRate > 0) {
+      if (taxType === 'EXCLUSIVE') {
+        taxAmount = baseTotal * (taxRate / 100);
+      } else {
+        // INCLUSIVE
+        taxAmount = baseTotal - (baseTotal / (1 + (taxRate / 100)));
+      }
+    }
+
+    if (paymentMethod === 'CASH') {
+      const paid = Number(amountPaid);
+      if (paid < finalTotal) {
+        playSound('error');
+        setTxStatus({ type: 'error', message: `Amount paid (MWK ${paid.toLocaleString()}) cannot be less than the total (MWK ${finalTotal.toLocaleString()}).` });
+        return;
+      }
+    }
+
+    const invoiceNumber = generateInvoiceNumber();
+
+    playSound('success');
+    setTxStatus({ type: 'success', message: 'Transaction completed successfully!' });
+
+    setTimeout(() => {
+      setTxStatus(null);
+      // Save receipt data and show preview modal (no auto-print)
+      setReceiptData({
+        items: [...cart.items],
+        subtotal,
+        discount,
+        taxAmount,
+        taxName,
+        taxType,
+        total: finalTotal,
+        paymentMethod,
+        amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+        invoiceNumber,
+      });
+
+      // Decrement stock for physical products
+      cart.items.forEach(item => {
+        if (!item.isService) {
+          decrementStock(item.id, item.quantity);
+        }
+      });
+
+      // Record the sale in global store
+      addSale({
+        invoiceNumber,
+        cashier: useAuthStore.getState().user?.name || 'Staff',
+        items: cart.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
+        subtotal,
+        discount,
+        taxAmount,
+        taxName,
+        taxType,
+        total: finalTotal,
+        paymentMethod,
+        amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+      });
+
+      cart.clearCart();
+      setCustomerName('');
+      setCustomerPhone('');
+      setDueDate('');
+      setAmountPaid('');
+    }, 1200);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === 'F8') {
+        e.preventDefault();
+        if (cart.items.length > 0) handlePayNow();
+      } else if (e.key === 'F9') {
+        e.preventDefault();
+        if (cart.items.length > 0) handleHoldCart();
+      } else if (e.key === 'F10') {
+        e.preventDefault();
+        cart.clearCart();
+      } else if (e.key === 'Escape') {
+        setShowHeldCarts(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cart.items.length, handlePayNow, paymentMethod, amountPaid, customerName, customerPhone]);
+
+  const handleBarcodeScan = (scannedSku: string) => {
+    // Find the product that matches the SKU exactly
+    const product = products.find(p => p.sku === scannedSku);
+    if (product) {
+      if (!product.isService && product.stock <= 0) {
+        toast.error('Out of stock', { description: `${product.name} has 0 stock remaining.` });
+      } else {
+        cart.addItem(product);
+        toast.success('Added to cart', { description: product.name });
+      }
+    } else {
+      toast.error('Product not found', { description: `No product matches SKU: ${scannedSku}` });
+    }
+    setSearchTerm('');
+    setShowScanner(false);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Hardware scanners typically append 'Enter' after typing the barcode rapidly
+      if (searchTerm) {
+        handleBarcodeScan(searchTerm);
+      }
+    }
+  };
+
+  const handleHoldCart = () => {
+    const name = `Held Cart - ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    cart.holdCart(name);
+    toast.success('Cart held successfully', { description: name });
+  };
+
+  return (
+    <div className="flex h-full flex-col p-4 bg-background">
+      <h1 className="text-3xl font-bold mb-4 text-primary">Point of Sale</h1>
+      
+      {errorMsg && (
+        <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg flex items-center gap-2">
+          <AlertCircle size={20} />
+          <span className="font-medium text-sm">{errorMsg}</span>
+        </div>
+      )}
+
+      <div className="flex flex-1 gap-6 overflow-hidden">
+        {/* Product Selection Area */}
+        <div className="flex-1 bg-card rounded-lg shadow border p-4 flex flex-col">
+          <div className="relative mb-3 flex items-center">
+            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search products or services by name or SKU... (F2)"
+              className="w-full pl-10 pr-12 py-2 border rounded-md focus:ring-2 focus:ring-primary outline-none"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+            />
+            <button 
+              onClick={() => setShowScanner(true)}
+              className="absolute right-2 top-2 p-1 text-gray-500 hover:text-primary hover:bg-blue-50 rounded transition"
+              title="Scan Barcode"
+            >
+              <ScanLine size={20} />
+            </button>
+          </div>
+
+          {showScanner && (
+            <BarcodeScanner 
+              onScan={handleBarcodeScan} 
+              onClose={() => setShowScanner(false)} 
+            />
+          )}
+
+          {/* Category Tabs */}
+          <div className="flex gap-2 flex-wrap mb-3">
+            {categories.map(c => (
+              <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1 rounded-full text-xs font-semibold transition ${catFilter === c ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex-1 overflow-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
+            {filteredProducts.length === 0 ? (
+              <div className="col-span-4 text-center py-12 text-gray-400">No products found.</div>
+            ) : filteredProducts.map(product => {
+              const outOfStock = !product.isService && product.stock === 0;
+              return (
+                <div
+                  key={product.id}
+                  onClick={() => !outOfStock && cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, quantity: 1, discount: 0, isService: product.isService })}
+                  className={`border p-3 rounded-lg flex flex-col justify-between h-32 transition ${
+                    outOfStock
+                      ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                      : 'cursor-pointer hover:border-primary hover:shadow-md bg-white'
+                  }`}
+                >
+                  <div>
+                    <h3 className="font-semibold text-sm line-clamp-2">{product.name}</h3>
+                    <span className="text-xs text-gray-500">{product.sku}</span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <div className="font-bold text-primary text-sm">MWK {product.sellingPrice.toLocaleString()}</div>
+                    {!product.isService && (
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                        product.stock <= product.reorderLevel ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                      }`}>
+                        {product.stock} {product.unit}
+                      </span>
+                    )}
+                    {product.isService && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Service</span>}
+                  </div>
+                  {outOfStock && <div className="text-xs text-red-500 font-semibold text-center">Out of Stock</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
+        {/* Cart & Checkout Area */}
+        <div className="w-[400px] bg-card rounded-lg shadow border flex flex-col">
+          <div className="p-4 border-b bg-gray-50 rounded-t-lg flex justify-between items-center">
+            <h2 className="font-bold text-lg">Current Sale</h2>
+            <div className="flex gap-2">
+              {cart.heldCarts.length > 0 && (
+                <button 
+                  onClick={() => setShowHeldCarts(true)}
+                  className="flex items-center gap-1 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition font-medium"
+                >
+                  <Clock size={16} />
+                  <span>{cart.heldCarts.length} Held</span>
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-auto p-4 space-y-4">
+            {cart.items.length === 0 ? (
+              <div className="text-center text-gray-500 mt-10">Cart is empty</div>
+            ) : (
+              cart.items.map((item: CartItem) => (
+                <div key={item.id} className="flex justify-between items-start border-b pb-4">
+                  <div className="flex-1">
+                    <h4 className="font-medium">{item.name}</h4>
+                    <div className="text-sm text-gray-500">MWK {item.unitPrice.toLocaleString()}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <button onClick={() => cart.updateQuantity(item.id, item.quantity - 1)} className="p-1 bg-gray-100 rounded hover:bg-gray-200">
+                        <Minus size={16} />
+                      </button>
+                      <input 
+                        type="number" 
+                        value={item.quantity} 
+                        onChange={(e) => cart.updateQuantity(item.id, Number(e.target.value) || 1)}
+                        onFocus={(e) => e.target.select()}
+                        className="w-12 text-center font-medium border rounded outline-none p-1 no-spinners"
+                      />
+                      <button onClick={() => cart.updateQuantity(item.id, item.quantity + 1)} className="p-1 bg-gray-100 rounded hover:bg-gray-200">
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end justify-between ml-4">
+                    <button onClick={() => cart.removeItem(item.id)} className="text-red-500 hover:text-red-700">
+                      <Trash2 size={18} />
+                    </button>
+                    <div className="font-bold mt-4 text-right">
+                      MWK {((item.unitPrice * item.quantity) - item.discount).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          
+          <div className="border-t bg-gray-50 rounded-b-lg flex flex-col flex-shrink-0">
+            <div className="p-4 overflow-y-auto max-h-[45vh] space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span>
+                  <span>MWK {cart.getSubtotal().toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Discount</span>
+                  <span>MWK {cart.globalDiscount.toLocaleString()}</span>
+                </div>
+                
+                {(() => {
+                  const baseTotal = cart.getTotal();
+                  let taxAmount = 0;
+                  let finalTotal = baseTotal;
+
+                  if (taxRate > 0) {
+                    if (taxType === 'EXCLUSIVE') {
+                      taxAmount = baseTotal * (taxRate / 100);
+                      finalTotal = baseTotal + taxAmount;
+                      return (
+                        <>
+                          <div className="flex justify-between text-gray-600">
+                            <span>{taxName} ({taxRate}%)</span>
+                            <span>MWK {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-2xl text-primary pt-2 border-t mt-2">
+                            <span>Total</span>
+                            <span>MWK {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                          </div>
+                        </>
+                      );
+                    } else {
+                      taxAmount = baseTotal - (baseTotal / (1 + (taxRate / 100)));
+                      return (
+                        <>
+                          <div className="flex justify-between text-gray-500 text-sm">
+                            <span>Includes {taxName} ({taxRate}%)</span>
+                            <span>MWK {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-2xl text-primary pt-2 border-t mt-2">
+                            <span>Total</span>
+                            <span>MWK {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                          </div>
+                        </>
+                      );
+                    }
+                  }
+
+                  return (
+                    <div className="flex justify-between font-bold text-2xl text-primary pt-2 border-t mt-2">
+                      <span>Total</span>
+                      <span>MWK {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Payment Method Selector */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">Payment Method</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button 
+                      onClick={() => setPaymentMethod('CASH')}
+                      className={`py-2 px-3 text-sm font-bold rounded-lg border-2 transition ${paymentMethod === 'CASH' ? 'border-primary bg-blue-50 text-primary' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                    >
+                      Cash
+                    </button>
+                    <button 
+                      onClick={() => setPaymentMethod('MOMO_AIRTEL')}
+                      className={`py-2 px-3 text-sm font-bold rounded-lg border-2 transition ${paymentMethod.startsWith('MOMO') ? 'border-primary bg-blue-50 text-primary' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                    >
+                      MoMo
+                    </button>
+                    <button 
+                      onClick={() => setPaymentMethod('BANK_NBS')}
+                      className={`py-2 px-3 text-sm font-bold rounded-lg border-2 transition ${paymentMethod.startsWith('BANK') ? 'border-primary bg-blue-50 text-primary' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                    >
+                      Bank
+                    </button>
+                    <button 
+                      onClick={() => setPaymentMethod('CREDIT')}
+                      className={`py-2 px-3 text-sm font-bold rounded-lg border-2 transition ${paymentMethod === 'CREDIT' ? 'border-primary bg-blue-50 text-primary' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                    >
+                      Credit
+                    </button>
+                  </div>
+                </div>
+
+                {/* Conditional MoMo Sub-Selector */}
+                {paymentMethod.startsWith('MOMO') && (
+                  <div className="flex gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
+                    <button 
+                      onClick={() => setPaymentMethod('MOMO_AIRTEL')}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'MOMO_AIRTEL' ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'}`}
+                    >
+                      Airtel Money
+                    </button>
+                    <button 
+                      onClick={() => setPaymentMethod('MOMO_MPAMBA')}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'MOMO_MPAMBA' ? 'bg-green-600 text-white shadow-sm' : 'bg-white text-green-700 border border-green-200 hover:bg-green-50'}`}
+                    >
+                      TNM Mpamba
+                    </button>
+                  </div>
+                )}
+
+                {/* Conditional Bank Sub-Selector */}
+                {paymentMethod.startsWith('BANK') && (
+                  <div className="flex gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
+                    <button 
+                      onClick={() => setPaymentMethod('BANK_NBS')}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'BANK_NBS' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}
+                    >
+                      NBS Bank
+                    </button>
+                    <button 
+                      onClick={() => setPaymentMethod('BANK_NBM')}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'BANK_NBM' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50'}`}
+                    >
+                      National Bank (NBM)
+                    </button>
+                  </div>
+                )}
+
+                {/* Conditional Credit Sale Inputs */}
+                {paymentMethod === 'CREDIT' && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                    <div className="text-xs font-bold text-amber-800">Credit Customer Details</div>
+                    <input 
+                      type="text" 
+                      placeholder="Customer Full Name *" 
+                      className="w-full p-2 text-sm border rounded"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Phone Number *" 
+                      className="w-full p-2 text-sm border rounded"
+                      value={customerPhone}
+                      onChange={e => setCustomerPhone(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                    />
+                    <input 
+                      type="date" 
+                      placeholder="Payment Due Date" 
+                      className="w-full p-2 text-sm border rounded text-gray-600"
+                      value={dueDate}
+                      onChange={e => setDueDate(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                    />
+                  </div>
+                )}
+
+                {/* Cash Payment Details */}
+                {paymentMethod === 'CASH' && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
+                    <div>
+                      <label className="block text-xs font-bold text-green-800 mb-1">Amount Paid (MWK)</label>
+                      <input 
+                        type="number" 
+                        placeholder="e.g. 10000" 
+                        className="w-full p-2 text-sm border border-green-300 rounded font-bold"
+                        value={amountPaid}
+                        onChange={e => setAmountPaid(e.target.value === '' ? '' : Number(e.target.value))}
+                        onFocus={e => e.target.select()}
+                        onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                      />
+                    </div>
+                    {amountPaid !== '' && Number(amountPaid) >= (taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal()) && (
+                      <div className="flex justify-between items-center text-sm font-bold text-green-700 bg-green-100 p-2 rounded">
+                        <span>Change Due:</span>
+                        <span className="text-lg">MWK {(Number(amountPaid) - (taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal())).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-4 border-t grid grid-cols-3 gap-2 bg-gray-100 rounded-b-lg">
+              <button 
+                onClick={cart.clearCart}
+                className="p-3 border text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition flex flex-col items-center justify-center gap-1"
+              >
+                <span>Clear</span>
+                <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">F10</span>
+              </button>
+              <button 
+                onClick={handleHoldCart}
+                disabled={cart.items.length === 0}
+                className="p-3 border text-amber-700 border-amber-200 bg-amber-50 rounded-lg font-medium hover:bg-amber-100 transition disabled:opacity-50 flex flex-col items-center justify-center gap-1"
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <Save size={18} />
+                  Hold
+                </div>
+                <span className="text-[10px] text-amber-600 bg-amber-200 px-1.5 py-0.5 rounded">F9</span>
+              </button>
+              <button 
+                onClick={handlePayNow}
+                className={`p-3 text-white rounded-lg font-bold transition shadow-md disabled:opacity-50 flex flex-col items-center justify-center gap-1 ${
+                  paymentMethod === 'CREDIT' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-primary hover:bg-blue-700'
+                }`}
+                disabled={cart.items.length === 0}
+              >
+                <span>{paymentMethod === 'CREDIT' ? 'Complete Credit Sale' : 'Pay Now'}</span>
+                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-normal">F8</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Held Carts Modal */}
+      {showHeldCarts && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowHeldCarts(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="font-bold text-lg flex items-center gap-2">
+                <Clock size={20} className="text-primary" />
+                Held Carts
+              </h2>
+              <button onClick={() => setShowHeldCarts(false)} className="text-gray-500 hover:bg-gray-100 p-1 rounded-full">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1 space-y-3">
+              {cart.heldCarts.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No held carts.</div>
+              ) : (
+                cart.heldCarts.map(hc => (
+                  <div key={hc.id} className="border rounded-lg p-3 hover:border-primary transition group">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-bold">{hc.name}</div>
+                        <div className="text-xs text-gray-500">{new Date(hc.timestamp).toLocaleTimeString()} - {hc.items.length} items</div>
+                      </div>
+                      <div className="font-bold text-primary">MWK {(hc.items.reduce((s, i) => s + (i.unitPrice * i.quantity) - i.discount, 0) - hc.globalDiscount).toLocaleString()}</div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-3">
+                      <button 
+                        onClick={() => {
+                          if (cart.items.length > 0) {
+                            toast('Current cart is not empty', {
+                              description: 'Would you like to hold it first or discard it?',
+                              action: { 
+                                label: 'Hold First', 
+                                onClick: () => { handleHoldCart(); cart.restoreCart(hc.id); setShowHeldCarts(false); } 
+                              },
+                              cancel: { 
+                                label: 'Discard & Restore', 
+                                onClick: () => { cart.restoreCart(hc.id); setShowHeldCarts(false); } 
+                              }
+                            });
+                          } else {
+                            cart.restoreCart(hc.id);
+                            setShowHeldCarts(false);
+                          }
+                        }}
+                        className="flex-1 bg-primary text-white py-1.5 rounded text-sm font-medium hover:bg-blue-700"
+                      >
+                        Restore
+                      </button>
+                      <button 
+                        onClick={() => cart.removeHeldCart(hc.id)}
+                        className="px-3 py-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Preview Modal */}
+      {/* Transaction Status Modal */}
+      {txStatus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onMouseDown={() => setTxStatus(null)}>
+          <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 text-center transform animate-in zoom-in duration-200" onMouseDown={e => e.stopPropagation()}>
+            {txStatus.type === 'success' ? (
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            ) : (
+              <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-6">
+                <X className="w-12 h-12 text-red-500" strokeWidth={3} />
+              </div>
+            )}
+            <h2 className={`text-2xl font-extrabold mb-2 ${txStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {txStatus.type === 'success' ? 'Success!' : 'Transaction Failed'}
+            </h2>
+            <p className="text-gray-600 text-lg mb-6">{txStatus.message}</p>
+            {txStatus.type === 'error' && (
+              <button onClick={() => setTxStatus(null)} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition">
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {receiptData && (
+        <ReceiptPreviewModal
+          {...receiptData}
+          onClose={() => setReceiptData(null)}
+        />
+      )}
+    </div>
+  )
+}
+

@@ -1,0 +1,4 @@
+# Cloudflare Pages SPA routing fix.
+# This tells Cloudflare Pages to serve index.html for all 404s,
+# which allows React Router client-side routing to work correctly.
+/*    /index.html   200

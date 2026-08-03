@@ -1,0 +1,430 @@
+import { useState, useRef } from 'react';
+import { useAuthStore } from '../store/authStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
+
+export default function Settings() {
+  const { user, updateProfile, users, resetPassword, addUser, deleteUser } = useAuthStore();
+  const settings = useSettingsStore();
+  const { updateSettings } = settings;
+  
+  const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '' });
+  const [brandForm, setBrandForm] = useState({ 
+    companyName: settings.companyName, 
+    address: settings.address, 
+    phone: settings.phone, 
+    email: settings.email, 
+    taxNumber: settings.taxNumber,
+    airtelNumber: settings.airtelNumber || '',
+    mpambaNumber: settings.mpambaNumber || '',
+    nbsDetails: settings.nbsDetails || '',
+    nbmDetails: settings.nbmDetails || ''
+  });
+
+  // User management state
+  const [resetTarget, setResetTarget] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({ name: '', username: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' });
+  const [showAddPw, setShowAddPw] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleProfileSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile(profileForm.name, profileForm.username);
+    showSuccess('Profile updated successfully!');
+  };
+
+  const handleBrandSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateSettings(brandForm);
+    showSuccess('Company settings saved!');
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updateSettings({ companyLogo: reader.result as string });
+        showSuccess('Company logo updated!');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleResetPassword = () => {
+    if (!resetTarget || !newPassword.trim()) return;
+    resetPassword(resetTarget, newPassword.trim());
+    setResetTarget(null);
+    setNewPassword('');
+    showSuccess('Password reset successfully!');
+  };
+
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserForm.name || !newUserForm.username || !newUserForm.password) return;
+    addUser(newUserForm);
+    const addedName = newUserForm.name;
+    setNewUserForm({ name: '', username: '', password: '', role: 'CASHIER' });
+    setShowAddUser(false);
+    showSuccess(`User "${addedName}" added successfully!`);
+  };
+
+  const handleDeleteUser = (userId: string, name: string) => {
+    if (userId === user?.id) { toast.error('You cannot delete your own account.'); return; }
+    toast(`Delete user "${name}"?`, {
+      description: 'This cannot be undone.',
+      action: { label: 'Delete', onClick: () => { deleteUser(userId); toast.success(`User "${name}" deleted.`); } },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
+  };
+
+  const handleExportData = () => {
+    try {
+      const allData: Record<string, string | null> = {
+        'jef-auth-storage': localStorage.getItem('jef-auth-storage'),
+        'jef-data-storage': localStorage.getItem('jef-data-storage'),
+        'jef-settings-storage': localStorage.getItem('jef-settings-storage')
+      };
+      const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Jef_ERP_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSuccess('Backup exported successfully!');
+    } catch (e) {
+      toast.error('Failed to export data');
+    }
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data['jef-auth-storage']) localStorage.setItem('jef-auth-storage', data['jef-auth-storage']);
+        if (data['jef-data-storage']) localStorage.setItem('jef-data-storage', data['jef-data-storage']);
+        if (data['jef-settings-storage']) localStorage.setItem('jef-settings-storage', data['jef-settings-storage']);
+        
+        toast.success('Data imported successfully! Reloading...');
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        toast.error('Invalid backup file');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFactoryReset = () => {
+    toast('Wipe all system data?', {
+      description: 'This will permanently delete all sales, inventory, and settings. Are you completely sure?',
+      action: { 
+        label: 'Wipe Data', 
+        onClick: () => {
+          localStorage.removeItem('jef-auth-storage');
+          localStorage.removeItem('jef-data-storage');
+          localStorage.removeItem('jef-settings-storage');
+          window.location.href = '/login';
+        }
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
+  };
+
+  const showSuccess = (msg: string) => toast.success(msg);
+
+  const isAdmin = user?.role === 'ADMIN';
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
+          <SettingsIcon size={32} /> Settings
+        </h1>
+        <p className="text-gray-500 mt-1">Manage your profile, users, and company configuration.</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Row 1: Profile + Branding */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Personal Profile */}
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+              <User size={18} /> Personal Profile
+            </div>
+            <form onSubmit={handleProfileSave} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+                <input type="text" value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+                <input type="text" value={profileForm.username} onChange={e => setProfileForm(f => ({ ...f, username: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Role</label>
+                <input type="text" value={user?.role || ''} disabled className="w-full p-2.5 border rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed" />
+              </div>
+              <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition">Save Profile</button>
+            </form>
+          </div>
+
+          {/* Company Branding */}
+          {isAdmin ? (
+            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+                <Briefcase size={18} /> Company Branding & Tax
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-6 pb-4 border-b">
+                  {settings.companyLogo ? (
+                    <img src={settings.companyLogo} alt="Logo" className="w-20 h-20 object-cover rounded-full border-2 p-1 shadow-sm" />
+                  ) : (
+                    <div className="w-20 h-20 bg-gray-100 rounded-full border-2 border-dashed flex items-center justify-center text-gray-400 text-xs">No Logo</div>
+                  )}
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-700 mb-1">Company Logo</h3>
+                    <p className="text-xs text-gray-500 mb-2">Appears on login screen and receipts.</p>
+                    <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleLogoUpload} />
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm bg-gray-100 border hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded flex items-center gap-1 transition"><Upload size={14} /> Upload</button>
+                      {settings.companyLogo && <button type="button" onClick={() => { updateSettings({ companyLogo: '' }); showSuccess('Logo removed!'); }} className="text-sm bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded transition">Remove</button>}
+                    </div>
+                  </div>
+                </div>
+                <form onSubmit={handleBrandSave} className="space-y-3">
+                  <div><label className="block text-sm font-semibold text-gray-700 mb-1">Company Name</label><input type="text" value={brandForm.companyName} onChange={e => setBrandForm(f => ({ ...f, companyName: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" required /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-sm font-semibold text-gray-700 mb-1">Phone</label><input type="text" value={brandForm.phone} onChange={e => setBrandForm(f => ({ ...f, phone: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                    <div><label className="block text-sm font-semibold text-gray-700 mb-1">TPIN</label><input type="text" value={brandForm.taxNumber} onChange={e => setBrandForm(f => ({ ...f, taxNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                  </div>
+                  <div><label className="block text-sm font-semibold text-gray-700 mb-1">Email</label><input type="email" value={brandForm.email} onChange={e => setBrandForm(f => ({ ...f, email: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                  <div><label className="block text-sm font-semibold text-gray-700 mb-1">Address</label><input type="text" value={brandForm.address} onChange={e => setBrandForm(f => ({ ...f, address: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                  <div className="pt-3 border-t">
+                    <h4 className="font-bold text-sm text-gray-700 mb-3">Payment Details (MoMo & Bank)</h4>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Airtel Money Number</label><input type="text" value={brandForm.airtelNumber} onChange={e => setBrandForm(f => ({ ...f, airtelNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. 0999000000" /></div>
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">TNM Mpamba Number</label><input type="text" value={brandForm.mpambaNumber} onChange={e => setBrandForm(f => ({ ...f, mpambaNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. 0888000000" /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">NBS Bank Account</label><input type="text" value={brandForm.nbsDetails} onChange={e => setBrandForm(f => ({ ...f, nbsDetails: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Acc: 1234567" /></div>
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">National Bank (NBM)</label><input type="text" value={brandForm.nbmDetails} onChange={e => setBrandForm(f => ({ ...f, nbmDetails: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Acc: 9876543" /></div>
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t">
+                    <h4 className="font-bold text-sm text-gray-700 mb-3">Tax Settings</h4>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Tax Name</label><input type="text" value={settings.taxName} onChange={e => updateSettings({ taxName: e.target.value })} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Rate (%)</label><input type="number" step="0.1" value={settings.taxRate} onChange={e => updateSettings({ taxRate: parseFloat(e.target.value) || 0 })} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Type</label><select value={settings.taxType} onChange={e => updateSettings({ taxType: e.target.value as 'INCLUSIVE' | 'EXCLUSIVE' })} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white"><option value="EXCLUSIVE">Exclusive</option><option value="INCLUSIVE">Inclusive</option></select></div>
+                    </div>
+                  </div>
+                  <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition">Save Settings</button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl shadow-sm border p-6 flex flex-col items-center justify-center text-center text-gray-500">
+              <Briefcase size={48} className="mb-4 text-gray-300" />
+              <h3 className="font-bold text-gray-700 mb-1">Admin Access Required</h3>
+              <p className="text-sm">Only administrators can modify company branding and settings.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Row 2: User Management (Admin only) */}
+        {isAdmin && (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
+              <div className="font-bold text-gray-700 flex items-center gap-2"><Users size={18} /> User Management & Password Reset</div>
+              <button onClick={() => setShowAddUser(true)} className="flex items-center gap-1.5 bg-primary text-white text-sm px-3 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium">
+                <Plus size={16} /> Add User
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b text-sm">
+                    <th className="p-4 font-semibold text-gray-600">Name</th>
+                    <th className="p-4 font-semibold text-gray-600">Username</th>
+                    <th className="p-4 font-semibold text-gray-600">Role</th>
+                    <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {users.map(u => (
+                    <tr key={u.id} className="hover:bg-gray-50 transition">
+                      <td className="p-4 font-medium">
+                        {u.name}
+                        {u.id === user?.id && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">You</span>}
+                      </td>
+                      <td className="p-4 text-gray-600 font-mono text-sm">{u.username}</td>
+                      <td className="p-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => { setResetTarget(u.id); setNewPassword(''); setShowNewPw(false); }}
+                            className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded font-medium transition"
+                          >
+                            <KeyRound size={14} /> Reset Password
+                          </button>
+                          {u.id !== user?.id && (
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.name)}
+                              className="flex items-center gap-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-2 py-1.5 rounded font-medium transition"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Row 3: Data Management */}
+        {isAdmin && (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+              <RefreshCw size={18} /> System Data & Backup
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+                <p className="text-sm text-blue-800 font-medium">
+                  Because this system operates entirely locally for maximum privacy and speed, <strong>it is your responsibility to download backups regularly</strong>. If you clear your browser data or switch devices without a backup, your data will be lost.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                    <Download className="text-blue-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-700 mb-1">Export Backup</h4>
+                  <p className="text-xs text-gray-500 mb-4">Download a full JSON backup of all sales, inventory, and settings.</p>
+                  <button onClick={handleExportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition">Download JSON</button>
+                </div>
+
+                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <Upload className="text-green-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-700 mb-1">Import Backup</h4>
+                  <p className="text-xs text-gray-500 mb-4">Restore a previously downloaded JSON backup file.</p>
+                  <label className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer text-center">
+                    Select File
+                    <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
+                  </label>
+                </div>
+
+                <div className="border border-red-100 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-red-50/30">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                    <AlertTriangle className="text-red-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-red-700 mb-1">Factory Reset</h4>
+                  <p className="text-xs text-gray-500 mb-4">Permanently wipe all data on this device and return to default state.</p>
+                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-100 text-red-700 rounded-lg text-sm font-bold hover:bg-red-200 transition">Wipe Data</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Reset Password Modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setResetTarget(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="bg-amber-100 p-2 rounded-full"><KeyRound size={20} className="text-amber-600" /></div>
+              <div>
+                <h2 className="font-bold text-gray-800">Reset Password</h2>
+                <p className="text-sm text-gray-500">{users.find(u => u.id === resetTarget)?.name}</p>
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">New Password</label>
+              <div className="relative">
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  className="w-full p-2.5 pr-10 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                  placeholder="Enter new password"
+                  autoFocus
+                />
+                <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                  {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setResetTarget(null)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+              <button onClick={handleResetPassword} disabled={!newPassword.trim()} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-lg font-bold transition disabled:opacity-50 flex items-center justify-center gap-2">
+                <ShieldCheck size={18} /> Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {showAddUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAddUser(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="bg-blue-100 p-2 rounded-full"><Users size={20} className="text-blue-600" /></div>
+              <h2 className="font-bold text-gray-800 text-lg">Add New User</h2>
+            </div>
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name *</label>
+                <input type="text" required value={newUserForm.name} onChange={e => setNewUserForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Jane Doe" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Username *</label>
+                <input type="text" required value={newUserForm.username} onChange={e => setNewUserForm(f => ({ ...f, username: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. jane" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Role</label>
+                <select value={newUserForm.role} onChange={e => setNewUserForm(f => ({ ...f, role: e.target.value as 'ADMIN' | 'CASHIER' }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white">
+                  <option value="CASHIER">Cashier</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Password *</label>
+                <div className="relative">
+                  <input type={showAddPw ? 'text' : 'password'} required value={newUserForm.password} onChange={e => setNewUserForm(f => ({ ...f, password: e.target.value }))} className="w-full p-2.5 pr-10 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="Set initial password" />
+                  <button type="button" onClick={() => setShowAddPw(!showAddPw)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                    {showAddPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddUser(false)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+                <button type="submit" className="flex-1 bg-primary hover:bg-blue-700 text-white py-2.5 rounded-lg font-bold transition">Add User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,208 @@
+import { useState } from 'react';
+import { Plus, Receipt, X, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  loggedBy: string;
+  amount: number;
+}
+
+const EXPENSE_CATEGORIES = [
+  'Store Supplies', 'Transport', 'Electricity', 'Printing', 'Maintenance',
+  'Staff Meal', 'Internet', 'Airtime', 'Rent', 'Other'
+];
+
+const today = new Date().toISOString().slice(0, 10);
+
+const mockExpenses: Expense[] = [
+  { id: '1', date: today, category: 'Transport', description: 'Delivery to client', loggedBy: 'Admin', amount: 3000 },
+  { id: '2', date: today, category: 'Store Supplies', description: 'Bought cleaning supplies', loggedBy: 'Admin', amount: 2500 },
+];
+
+const emptyForm = { category: 'Store Supplies', description: '', amount: 0, loggedBy: 'Cashier' };
+
+export default function Expenses() {
+  const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
+  const [dateFilter, setDateFilter] = useState(today);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState('');
+
+  const filtered = expenses.filter(e => !dateFilter || e.date === dateFilter);
+  const totalToday = filtered.reduce((sum, e) => sum + e.amount, 0);
+
+  const handleSave = () => {
+    setError('');
+    if (!form.description.trim()) { setError('Description is required.'); return; }
+    if (form.amount <= 0) { setError('Amount must be greater than zero.'); return; }
+    setExpenses(prev => [
+      { ...form, id: Date.now().toString(), date: today },
+      ...prev
+    ]);
+    setForm(emptyForm);
+    setShowModal(false);
+  };
+
+  const handleDelete = (id: string) => {
+    toast('Remove this expense entry?', {
+      action: {
+        label: 'Remove',
+        onClick: () => {
+          setExpenses(prev => prev.filter(e => e.id !== id));
+          toast.success('Expense removed');
+        }
+      },
+      cancel: { label: 'Cancel', onClick: () => {} }
+    });
+  };
+
+  return (
+    <div className="p-6 h-full flex flex-col">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
+            <Receipt size={32} /> Expense Management
+          </h1>
+          <p className="text-gray-500 mt-1">Log and track all petty cash and business expenses</p>
+        </div>
+        <button onClick={() => setShowModal(true)} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md">
+          <Plus size={20} /> Log Expense
+        </button>
+      </div>
+
+      {/* Summary Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white p-5 rounded-lg border shadow-sm">
+          <div className="text-sm text-gray-500 mb-1">Today's Total Expenses</div>
+          <div className="text-3xl font-bold text-red-600">MWK {totalToday.toLocaleString()}</div>
+        </div>
+        <div className="bg-white p-5 rounded-lg border shadow-sm">
+          <div className="text-sm text-gray-500 mb-1">Number of Entries (Today)</div>
+          <div className="text-3xl font-bold">{filtered.length}</div>
+        </div>
+        <div className="bg-white p-5 rounded-lg border shadow-sm">
+          <div className="text-sm text-gray-500 mb-1">Largest Single Expense</div>
+          <div className="text-3xl font-bold">
+            MWK {filtered.length > 0 ? Math.max(...filtered.map(e => e.amount)).toLocaleString() : '0'}
+          </div>
+        </div>
+      </div>
+
+      {/* Date filter */}
+      <div className="flex gap-4 items-center mb-4">
+        <label className="text-sm font-semibold text-gray-600">Filter by Date:</label>
+        <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary outline-none" />
+        <button onClick={() => setDateFilter('')} className="text-sm text-gray-500 hover:text-gray-800 underline">Show All</button>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-lg border shadow overflow-hidden flex-1">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50 border-b">
+              <th className="p-4 font-semibold text-gray-600">Date</th>
+              <th className="p-4 font-semibold text-gray-600">Category</th>
+              <th className="p-4 font-semibold text-gray-600">Description</th>
+              <th className="p-4 font-semibold text-gray-600">Logged By</th>
+              <th className="p-4 font-semibold text-gray-600 text-right">Amount (MWK)</th>
+              <th className="p-4 text-right"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={6} className="p-12 text-center text-gray-400">No expenses recorded for this date.</td></tr>
+            ) : filtered.map(e => (
+              <tr key={e.id} className="border-b hover:bg-gray-50 transition">
+                <td className="p-4 text-gray-600 text-sm">{e.date}</td>
+                <td className="p-4">
+                  <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded-full">{e.category}</span>
+                </td>
+                <td className="p-4">{e.description}</td>
+                <td className="p-4 text-gray-600">{e.loggedBy}</td>
+                <td className="p-4 text-right font-bold text-red-600">{e.amount.toLocaleString()}</td>
+                <td className="p-4 text-right">
+                  <button onClick={() => handleDelete(e.id)} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length > 0 && (
+              <tr className="bg-gray-50 font-bold border-t-2">
+                <td colSpan={4} className="p-4 text-right text-gray-700">Total</td>
+                <td className="p-4 text-right text-red-700 text-lg">MWK {totalToday.toLocaleString()}</td>
+                <td></td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Log Expense Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <Receipt size={22} /> Log Expense
+              </h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:bg-gray-100 p-1.5 rounded-full"><X size={20} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              {error && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none">
+                  {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Description *</label>
+                <input
+                  type="text"
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                  placeholder="e.g. Bought printer ink"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Amount (MWK) *</label>
+                <input
+                  type="number"
+                  value={form.amount || ''}
+                  onChange={e => setForm(f => ({ ...f, amount: parseFloat(e.target.value) || 0 }))}
+                  onFocus={(e) => e.target.select()}
+                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                  placeholder="0"
+                  min={1}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Logged By</label>
+                <input
+                  type="text"
+                  value={form.loggedBy}
+                  onChange={e => setForm(f => ({ ...f, loggedBy: e.target.value }))}
+                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                  placeholder="Cashier name"
+                />
+              </div>
+            </div>
+            <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end rounded-b-xl">
+              <button onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 font-medium">Cancel</button>
+              <button onClick={handleSave} className="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md">Save Expense</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
