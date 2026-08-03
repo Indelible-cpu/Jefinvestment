@@ -398,3 +398,4 @@ export default app;
 // Trigger deployment
 // trigger redeploy with secrets
 // fix secret injection
+// retry with JWT_SECRET
