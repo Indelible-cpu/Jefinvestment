@@ -25,7 +25,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         // Success callback
         onScan(decodedText);
       },
-      (error) => {
+      (_error) => {
         // Error callback (happens on every frame it doesn't detect a code)
       }
     );

@@ -89,10 +89,6 @@ export default function ReceiptPreviewModal({
     }
   };
 
-  const logoSection = settings.companyLogo
-    ? `<img src="${settings.companyLogo}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 8px;" />`
-    : '';
-
   return (
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"

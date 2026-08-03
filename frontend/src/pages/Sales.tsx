@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
 import {
   Search, Filter, ChevronLeft, ChevronRight, Eye, Printer, MoreVertical,
-  Ban, RefreshCcw, Download, CheckCircle2, AlertCircle, Clock, X, TrendingUp,
-  ShoppingBag, CreditCard, Banknote, WifiOff, Wifi, ArrowUpDown, CalendarRange,
-  Share2
+  Ban, RefreshCcw, Download, CheckCircle2, Clock, X,
+  ShoppingBag, Banknote, WifiOff, Wifi, ArrowUpDown, CalendarRange,
 } from 'lucide-react';
 import { useSaleStore, type SaleRecord } from '../store/dataStore';
 import { useAuthStore } from '../store/authStore';
@@ -542,7 +541,7 @@ export default function Sales() {
       {/* Reprint Modal */}
       {reprintSale && (
         <ReceiptPreviewModal
-          items={reprintSale.items.map(i => ({ ...i, id: i.name, discount: 0, isService: false }))}
+          items={reprintSale.items.map(i => ({ ...i, id: i.name, sku: '', discount: 0, isService: false }))}
           subtotal={reprintSale.subtotal}
           discount={reprintSale.discount}
           taxAmount={reprintSale.taxAmount}

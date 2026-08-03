@@ -19,7 +19,7 @@ export default function POS() {
   const [errorMsg, setErrorMsg] = useState('');
   const [showHeldCarts, setShowHeldCarts] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [holdCartName, setHoldCartName] = useState('');
+
   const [receiptData, setReceiptData] = useState<null | {
     items: CartItem[]; subtotal: number; discount: number; taxAmount: number;
     taxName: string; taxType: string; total: number; paymentMethod: string;
@@ -209,7 +209,15 @@ const playSound = (type: 'success' | 'error') => {
       if (!product.isService && product.stock <= 0) {
         toast.error('Out of stock', { description: `${product.name} has 0 stock remaining.` });
       } else {
-        cart.addItem(product);
+        cart.addItem({
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          unitPrice: product.sellingPrice,
+          quantity: 1,
+          discount: 0,
+          isService: product.isService,
+        });
         toast.success('Added to cart', { description: product.name });
       }
     } else {
@@ -514,7 +522,7 @@ const playSound = (type: 'success' | 'error') => {
                       className="w-full p-2 text-sm border rounded"
                       value={customerName}
                       onChange={e => setCustomerName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                     />
                     <input 
                       type="text" 
@@ -522,7 +530,7 @@ const playSound = (type: 'success' | 'error') => {
                       className="w-full p-2 text-sm border rounded"
                       value={customerPhone}
                       onChange={e => setCustomerPhone(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                     />
                     <input 
                       type="date" 
@@ -530,7 +538,7 @@ const playSound = (type: 'success' | 'error') => {
                       className="w-full p-2 text-sm border rounded text-gray-600"
                       value={dueDate}
                       onChange={e => setDueDate(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                     />
                   </div>
                 )}
@@ -547,7 +555,7 @@ const playSound = (type: 'success' | 'error') => {
                         value={amountPaid}
                         onChange={e => setAmountPaid(e.target.value === '' ? '' : Number(e.target.value))}
                         onFocus={e => e.target.select()}
-                        onKeyDown={e => e.key === 'Enter' && handleCheckout()}
+                        onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                       />
                     </div>
                     {amountPaid !== '' && Number(amountPaid) >= (taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal()) && (
