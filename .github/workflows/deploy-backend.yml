@@ -25,16 +25,9 @@ jobs:
         run: npm ci
         working-directory: backend
 
-      - name: Generate Prisma Client (edge/no-engine)
-        run: npx prisma generate --no-engine
+      - name: Generate Prisma Client
+        run: npx prisma generate
         working-directory: backend
-
-      - name: Run Database Migrations
-        run: npx prisma db push
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
