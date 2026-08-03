@@ -35,13 +35,13 @@ jobs:
         run: npm install -g wrangler
 
       - name: Create Pages project (if not exists)
-        run: wrangler pages project create jef-erp-frontend --production-branch=main || true
+        run: wrangler pages project create jefinvestment --production-branch=main || true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy to Cloudflare Pages
-        run: wrangler pages deploy frontend/dist --project-name=jef-erp-frontend --commit-dirty=true
+        run: wrangler pages deploy frontend/dist --project-name=jefinvestment --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

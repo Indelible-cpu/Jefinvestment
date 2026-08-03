@@ -13,7 +13,7 @@ enabled = true
 ENVIRONMENT = "production"
 JWT_EXPIRES_IN = "1d"
 # Set this to your Cloudflare Pages URL after deployment
-CORS_ORIGIN = "https://jef-erp.pages.dev"
+CORS_ORIGIN = "https://jefinvestment.pages.dev"
 
 [build]
 command = "npx prisma generate --no-engine"
