@@ -15,6 +15,4 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
-// Trigger deployment
-
-
+// v2
