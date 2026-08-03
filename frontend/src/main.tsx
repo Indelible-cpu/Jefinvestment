@@ -18,3 +18,4 @@ createRoot(document.getElementById('root')!).render(
 // v2
 // Final deploy trigger
 // Triggering final deploy
+// Trigger frontend build with correct worker URL
