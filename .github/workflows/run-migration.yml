@@ -1,0 +1,35 @@
+name: Run Database Migration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/run-migration.yml'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci
+        working-directory: backend
+      - name: Run Prisma DB Push
+        run: |
+          DIRECT_URL=${DATABASE_URL/-pooler/}
+          export DATABASE_URL=$DIRECT_URL
+          npx prisma db push --accept-data-loss
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Run Seed
+        run: |
+          DIRECT_URL=${DATABASE_URL/-pooler/}
+          export DATABASE_URL=$DIRECT_URL
+          npm run db:seed
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
