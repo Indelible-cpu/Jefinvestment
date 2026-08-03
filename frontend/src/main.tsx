@@ -21,3 +21,4 @@ createRoot(document.getElementById('root')!).render(
 // Trigger frontend build with correct worker URL
 // Triggering after setting secret in Github
 // Deploy with GitHub secret API URL
+// Fresh deploy to jefinvestment.pages.dev
