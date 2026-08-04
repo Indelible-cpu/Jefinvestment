@@ -128,9 +128,41 @@ export default function Layout() {
         </div>
       </aside>
       
-      <main className="flex-1 overflow-auto bg-gray-50 pt-16 md:pt-0 h-full w-full">
+      <main className="flex-1 overflow-auto bg-gray-50 pt-16 md:pt-0 pb-16 md:pb-0 h-full w-full">
         <Outlet />
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center pb-safe z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+        {isAdmin && (
+          <Link to="/" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/' ? 'text-primary' : 'text-gray-500'}`}>
+            <LayoutDashboard size={20} className="mb-1" />
+            <span className="text-[10px] font-medium">Dashboard</span>
+          </Link>
+        )}
+        
+        <Link to="/sales" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/sales' ? 'text-primary' : 'text-gray-500'}`}>
+          <ClipboardList size={20} className="mb-1" />
+          <span className="text-[10px] font-medium">Sales</span>
+        </Link>
+        
+        <Link to="/pos" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/pos' ? 'text-primary' : 'text-gray-500'}`}>
+          <div className={`p-2 rounded-full ${location.pathname === '/pos' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>
+            <ShoppingCart size={22} />
+          </div>
+          <span className="text-[10px] font-medium mt-0.5">POS</span>
+        </Link>
+        
+        <Link to="/inventory" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/inventory' ? 'text-primary' : 'text-gray-500'}`}>
+          <Package size={20} className="mb-1" />
+          <span className="text-[10px] font-medium">Inventory</span>
+        </Link>
+        
+        <button onClick={() => setMobileMenuOpen(true)} className={`flex flex-col items-center py-2 px-3 text-gray-500`}>
+          <Menu size={20} className="mb-1" />
+          <span className="text-[10px] font-medium">More</span>
+        </button>
+      </div>
     </div>
   )
 }
