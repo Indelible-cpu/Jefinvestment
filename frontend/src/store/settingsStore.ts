@@ -15,6 +15,7 @@ interface SettingsState {
   mpambaNumber: string;
   nbsDetails: string;
   nbmDetails: string;
+  quickActions: string[];
   updateSettings: (settings: Partial<Omit<SettingsState, 'updateSettings' | 'loadSettings'>>) => void;
   loadSettings: () => Promise<void>;
 }
@@ -37,6 +38,7 @@ export const useSettingsStore = create<SettingsState>()(
       mpambaNumber: '',
       nbsDetails: '',
       nbmDetails: '',
+      quickActions: ['new-sale', 'add-item', 'print-service', 'tech-service'],
       updateSettings: (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
         // Sync to backend asynchronously

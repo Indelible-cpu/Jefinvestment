@@ -76,6 +76,7 @@ interface SaleState {
   getTodayTransferTotal: () => number;
   getTodayTotal: () => number;
   loadSales: () => Promise<void>;
+  syncPendingSales: () => Promise<void>;
 }
 
 import api from '../utils/api';
@@ -139,6 +140,22 @@ export const useSaleStore = create<SaleState>()(
         }).catch(err => {
           console.error('Failed to sync sale', err);
         });
+      },
+      syncPendingSales: async () => {
+        const pending = get().sales.filter(s => s.syncStatus === 'pending');
+        if (pending.length === 0) return;
+
+        // Try syncing all pending sales
+        for (const sale of pending) {
+          try {
+            await api.post('/api/v1/sales', { ...sale, syncId: sale.id });
+            set((state) => ({
+              sales: state.sales.map(s => s.id === sale.id ? { ...s, syncStatus: 'synced' } : s)
+            }));
+          } catch (err) {
+            console.error('Failed to sync pending sale', sale.id, err);
+          }
+        }
       },
       updateSaleStatus: (id, status) => set((state) => ({
         sales: state.sales.map(s => s.id === id ? { ...s, status } : s)

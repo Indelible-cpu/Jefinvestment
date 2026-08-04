@@ -3,16 +3,17 @@ import { Link } from 'react-router-dom';
 import { useSaleStore } from '../store/dataStore';
 import { useCreditStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { useState } from 'react';
 
-const quickActions = [
-  { label: 'New Sale (POS)', icon: ShoppingCart, link: '/pos', color: 'text-blue-500' },
-  { label: 'Add Item (Stock)', icon: Package, link: '/inventory', color: 'text-green-500' },
-  { label: 'New Expense', icon: CreditCard, link: '/expenses', color: 'text-orange-500' },
-  { label: 'Print Service', icon: Printer, link: '/pos', color: 'text-purple-500' },
-  { label: 'Tech Service', icon: Wrench, link: '/pos', color: 'text-teal-500' },
-  { label: 'Find Receipt', icon: Search, link: '/sales', color: 'text-red-500' },
-  { label: 'Stock In', icon: Download, link: '/inventory', color: 'text-blue-600' },
-  { label: 'More Actions', icon: Grip, link: '/', color: 'text-gray-500' },
+const ALL_ACTIONS = [
+  { id: 'new-sale', label: 'New Sale (POS)', icon: ShoppingCart, link: '/pos', color: 'text-blue-500' },
+  { id: 'add-item', label: 'Add Item (Stock)', icon: Package, link: '/inventory', color: 'text-green-500' },
+  { id: 'new-expense', label: 'New Expense', icon: CreditCard, link: '/expenses', color: 'text-orange-500' },
+  { id: 'print-service', label: 'Print Service', icon: Printer, link: '/pos?category=Services&search=Photocopy', color: 'text-purple-500' },
+  { id: 'tech-service', label: 'Tech Service', icon: Wrench, link: '/pos?category=Services&search=Software', color: 'text-teal-500' },
+  { id: 'find-receipt', label: 'Find Receipt', icon: Search, link: '/sales', color: 'text-red-500' },
+  { id: 'stock-in', label: 'Stock In', icon: Download, link: '/inventory', color: 'text-blue-600' },
 ];
 
 export default function Dashboard() {
@@ -23,6 +24,9 @@ export default function Dashboard() {
   const { getTodayTotal, sales } = useSaleStore();
   const { getTotalOutstanding } = useCreditStore();
   const { products } = useProductStore();
+  const settings = useSettingsStore();
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [tempActions, setTempActions] = useState<string[]>(settings.quickActions);
 
   const todayTotal = getTodayTotal();
   const outstandingCredit = getTotalOutstanding();
@@ -88,15 +92,19 @@ export default function Dashboard() {
         <div className="col-span-1 lg:col-span-3">
           <div className="flex justify-between items-center mb-3">
             <h2 className="font-bold text-gray-800">Quick Actions</h2>
-            <button className="text-xs text-blue-600 font-medium flex items-center gap-1">⚙️ Customize</button>
+            <button onClick={() => { setTempActions(settings.quickActions); setShowCustomize(true); }} className="text-xs text-blue-600 font-medium flex items-center gap-1">⚙️ Customize</button>
           </div>
           <div className="grid grid-cols-4 gap-2 md:gap-4">
-            {quickActions.map(action => (
-              <Link key={action.label} to={action.link} className="bg-white border rounded-xl p-3 md:p-5 shadow-sm hover:shadow-md transition flex flex-col items-center justify-center text-center">
+            {ALL_ACTIONS.filter(a => settings.quickActions.includes(a.id)).map(action => (
+              <Link key={action.id} to={action.link} className="bg-white border rounded-xl p-3 md:p-5 shadow-sm hover:shadow-md transition flex flex-col items-center justify-center text-center">
                 <action.icon size={28} className={`${action.color} mb-2`} />
                 <span className="text-[10px] md:text-sm font-medium text-gray-700 leading-tight">{action.label.split(' (')[0]}<br/><span className="text-gray-400 font-normal">{action.label.includes('(') ? `(${action.label.split('(')[1]}` : ''}</span></span>
               </Link>
             ))}
+            <button onClick={() => { setTempActions(settings.quickActions); setShowCustomize(true); }} className="bg-white border rounded-xl p-3 md:p-5 shadow-sm hover:shadow-md transition flex flex-col items-center justify-center text-center">
+              <Grip size={28} className="text-gray-400 mb-2" />
+              <span className="text-[10px] md:text-sm font-medium text-gray-500 leading-tight">More Actions</span>
+            </button>
           </div>
         </div>
 
@@ -129,6 +137,42 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {showCustomize && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6">
+            <h3 className="font-bold text-lg mb-4">Customize Quick Actions</h3>
+            <p className="text-sm text-gray-500 mb-4">Select up to 7 actions to display on your dashboard.</p>
+            <div className="space-y-2 mb-6 max-h-[60vh] overflow-y-auto">
+              {ALL_ACTIONS.map(action => (
+                <label key={action.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer border">
+                  <input 
+                    type="checkbox" 
+                    checked={tempActions.includes(action.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        if (tempActions.length >= 7) return;
+                        setTempActions([...tempActions, action.id]);
+                      } else {
+                        setTempActions(tempActions.filter(id => id !== action.id));
+                      }
+                    }}
+                    className="w-4 h-4 text-primary rounded"
+                  />
+                  <div className={`p-1.5 rounded-md bg-gray-100 ${action.color}`}>
+                    <action.icon size={16} />
+                  </div>
+                  <span className="text-sm font-medium">{action.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCustomize(false)} className="flex-1 py-2 border rounded-lg font-medium text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => { settings.updateSettings({ quickActions: tempActions }); setShowCustomize(false); }} className="flex-1 py-2 bg-primary text-white font-bold rounded-lg hover:bg-blue-700 transition">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

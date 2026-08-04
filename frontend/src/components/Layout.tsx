@@ -2,13 +2,16 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { useSaleStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore } from '../store/dataStore';
+import { useProductStore } from '../store/cartStore';
 import { useEffect, useState } from 'react';
 
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const { companyName, companyLogo, loadSettings } = useSettingsStore();
-  const { loadSales } = useSaleStore();
+  const { products } = useProductStore();
+  const { syncPendingSales, sales, loadSales } = useSaleStore();
+  const { credits } = useCreditStore();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -16,7 +19,19 @@ export default function Layout() {
     // Initial data load on login/mount
     loadSettings();
     loadSales();
+    
+    // Background auto-sync
+    syncPendingSales();
+    const interval = setInterval(() => {
+      syncPendingSales();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
+  const overdueCreditCount = credits?.filter(c => c.status === 'OVERDUE').length || 0;
+  const pendingSyncCount = sales?.filter(s => s.syncStatus === 'pending').length || 0;
+  const notificationCount = lowStockCount + overdueCreditCount + pendingSyncCount;
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -43,10 +58,12 @@ export default function Layout() {
           </div>
         </div>
         <div className="flex items-center gap-4 mt-1">
-           <div className="relative">
+           <Link to="/inventory" className="relative cursor-pointer">
              <Bell size={24} />
-             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#004bb4]">3</span>
-           </div>
+             {notificationCount > 0 && (
+               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#004bb4]">{notificationCount}</span>
+             )}
+           </Link>
            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm">
              {user?.profilePic ? (
                <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />

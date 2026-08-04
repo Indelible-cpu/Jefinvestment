@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useCartStore, useProductStore, type CartItem } from '../store/cartStore';
 import { useSaleStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -10,7 +11,12 @@ import { generateInvoiceNumber } from '../utils/invoiceNumber';
 import { toast } from 'sonner';
 
 export default function POS() {
-  const [searchTerm, setSearchTerm] = useState('');
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  
+  const [searchTerm, setSearchTerm] = useState(queryParams.get('search') || '');
+  const [catFilter, setCatFilter] = useState(queryParams.get('category') || 'All');
+  
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -36,7 +42,6 @@ export default function POS() {
   const { products, decrementStock } = useProductStore();
   const { addSale } = useSaleStore();
   const { taxRate, taxName, taxType } = useSettingsStore();
-  const [catFilter, setCatFilter] = useState('All');
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
   const filteredProducts = products.filter(p => {
