@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Printer, MessageCircle, X, FileText, Receipt } from 'lucide-react';
+import { Printer, MessageCircle, X, FileText, Receipt, ShoppingCart } from 'lucide-react';
 import { useSettingsStore } from '../store/settingsStore';
 import type { CartItem } from '../store/cartStore';
 import html2canvas from 'html2canvas';
@@ -18,11 +18,12 @@ interface ReceiptPreviewModalProps {
   customerPhone?: string;
   invoiceNumber: string;
   onClose: () => void;
+  onNewSale?: () => void;
 }
 
 export default function ReceiptPreviewModal({
   items, subtotal, discount, taxAmount, taxName, taxType, total,
-  paymentMethod, amountPaid, customerName, customerPhone, invoiceNumber, onClose
+  paymentMethod, amountPaid, customerName, customerPhone, invoiceNumber, onClose, onNewSale
 }: ReceiptPreviewModalProps) {
   const [view, setView] = useState<'receipt' | 'invoice'>('receipt');
   const [sharing, setSharing] = useState(false);
@@ -261,21 +262,31 @@ export default function ReceiptPreviewModal({
         </div>
 
         {/* Action Buttons */}
-        <div className="p-4 border-t bg-gray-50 rounded-b-2xl flex gap-3 shrink-0">
-          <button
-            onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-lg transition"
-          >
-            <Printer size={18} /> Print
-          </button>
-          <button
-            onClick={handleWhatsApp}
-            disabled={sharing}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-60"
-          >
-            <MessageCircle size={18} />
-            {sharing ? 'Capturing...' : 'Share via WhatsApp'}
-          </button>
+        <div className="p-4 border-t bg-gray-50 rounded-b-2xl flex flex-col gap-2 shrink-0">
+          <div className="flex gap-3">
+            <button
+              onClick={handlePrint}
+              className="flex-1 flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-lg transition"
+            >
+              <Printer size={18} /> Print
+            </button>
+            <button
+              onClick={handleWhatsApp}
+              disabled={sharing}
+              className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-60"
+            >
+              <MessageCircle size={18} />
+              {sharing ? 'Capturing...' : 'Share via WhatsApp'}
+            </button>
+          </div>
+          {onNewSale && (
+            <button
+              onClick={() => { onClose(); onNewSale(); }}
+              className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition"
+            >
+              <ShoppingCart size={18} /> New Sale
+            </button>
+          )}
         </div>
       </div>
     </div>

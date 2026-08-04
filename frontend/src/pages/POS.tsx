@@ -30,6 +30,7 @@ export default function POS() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
   const cartActionsRef = useRef<HTMLDivElement>(null);
+  const productGridRef = useRef<HTMLDivElement>(null);
   const prevCartLengthRef = useRef(0);
 
   const cart = useCartStore();
@@ -256,6 +257,15 @@ const playSound = (type: 'success' | 'error') => {
     toast.success('Cart held successfully', { description: name });
   };
 
+  const productSectionRef = useRef<HTMLDivElement>(null);
+
+  const handleNewSale = () => {
+    if (window.innerWidth < 1024) {
+      productSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    setTimeout(() => searchInputRef.current?.focus(), 300);
+  };
+
   return (
     <div className="flex h-full flex-col p-3 md:p-4 bg-background">
       <h1 className="text-xl md:text-3xl font-bold mb-3 md:mb-4 text-primary">Point of Sale</h1>
@@ -269,7 +279,7 @@ const playSound = (type: 'success' | 'error') => {
 
       <div className="flex flex-col lg:flex-row flex-1 gap-6 overflow-y-auto lg:overflow-hidden pb-20 md:pb-0">
         {/* Product Selection Area */}
-        <div className="flex-1 bg-card rounded-lg shadow border p-4 flex flex-col min-h-[500px] lg:min-h-0">
+        <div ref={productSectionRef} className="flex-1 bg-card rounded-lg shadow border p-4 flex flex-col min-h-[500px] lg:min-h-0">
           <div className="relative mb-3 flex items-center">
             <Search className="absolute left-3 top-3 text-gray-400" size={20} />
             <input
@@ -720,6 +730,7 @@ const playSound = (type: 'success' | 'error') => {
         <ReceiptPreviewModal
           {...receiptData}
           onClose={() => setReceiptData(null)}
+          onNewSale={handleNewSale}
         />
       )}
     </div>
