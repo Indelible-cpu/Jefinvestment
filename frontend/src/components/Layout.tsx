@@ -141,16 +141,14 @@ export default function Layout() {
           </Link>
         )}
         
-        <Link to="/sales" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/sales' ? 'text-primary' : 'text-gray-500'}`}>
-          <ClipboardList size={20} className="mb-1" />
-          <span className="text-[10px] font-medium">Sales</span>
+        <Link to="/pos" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/pos' ? 'text-primary' : 'text-gray-500'}`}>
+          <ShoppingCart size={22} className="mb-1" />
+          <span className="text-[10px] font-medium mt-0.5">POS</span>
         </Link>
         
-        <Link to="/pos" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/pos' ? 'text-primary' : 'text-gray-500'}`}>
-          <div className={`p-2 rounded-full ${location.pathname === '/pos' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>
-            <ShoppingCart size={22} />
-          </div>
-          <span className="text-[10px] font-medium mt-0.5">POS</span>
+        <Link to="/sales" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/sales' ? 'text-primary' : 'text-gray-500'}`}>
+          <ClipboardList size={22} className="mb-1" />
+          <span className="text-[10px] font-medium mt-0.5">Sales</span>
         </Link>
         
         <Link to="/inventory" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/inventory' ? 'text-primary' : 'text-gray-500'}`}>
