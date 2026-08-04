@@ -18,6 +18,7 @@ export type Env = {
 
 // Helper: get prisma for a given env
 function getPrisma(env: Env) {
+  if (!env.DATABASE_URL) throw new Error('DATABASE_URL secret is not set in Cloudflare Worker');
   neonConfig.webSocketConstructor = WebSocket;
   const pool = new Pool({ connectionString: env.DATABASE_URL });
   const adapter = new PrismaNeon(pool);
@@ -66,11 +67,26 @@ async function requireAuth(c: any, next: any) {
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/v1/health/db', async (c) => {
+  try {
+    const prisma = getPrisma(c.env);
+    await prisma.$queryRaw`SELECT 1`;
+    return c.json({ status: 'ok', db: 'connected', url_set: !!c.env.DATABASE_URL });
+  } catch (err: any) {
+    return c.json({ status: 'error', message: err.message, name: err.name, url_set: !!c.env.DATABASE_URL }, 500);
+  }
+});
 
 // ─── Auth Routes ───────────────────────────────────────────────────────────────
 app.post('/api/v1/auth/login', async (c) => {
   const { username, password } = await c.req.json();
-  const prisma = getPrisma(c.env);
+  let prisma: any;
+  try {
+    prisma = getPrisma(c.env);
+  } catch (err: any) {
+    console.error('getPrisma failed:', err.message, err.name);
+    return c.json({ status: 'error', message: 'DB init failed: ' + err.message }, 500);
+  }
 
   try {
     const user = await prisma.user.findFirst({
