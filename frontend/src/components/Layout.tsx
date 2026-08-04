@@ -15,6 +15,9 @@ export default function Layout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const now = new Date();
+  const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
+
   useEffect(() => {
     // Initial data load on login/mount
     loadSettings();
@@ -54,7 +57,7 @@ export default function Layout() {
           </button>
           <div className="flex flex-col mt-0.5">
             <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">Jef Investment</h1>
-            <p className="text-sm text-blue-100 mt-0.5">Good morning, {user?.name?.split(' ')[0] || 'Jef'} 👋</p>
+            <p className="text-sm text-blue-100 mt-0.5">{greeting}, {user?.name?.split(' ')[0] || 'Jef'} 👋</p>
           </div>
         </div>
         <div className="flex items-center gap-4 mt-1">
@@ -87,7 +90,13 @@ export default function Layout() {
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         {/* Branding Area */}
-        <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5">
+        <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5 relative">
+          <Link to="/inventory" className="absolute top-4 right-4 text-blue-200 hover:text-white transition">
+            <Bell size={20} />
+            {notificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[16px] h-[16px] rounded-full flex items-center justify-center border border-primary">{notificationCount}</span>
+            )}
+          </Link>
           {companyLogo ? (
             <img src={companyLogo} alt={companyName} className="h-16 w-16 object-cover bg-white rounded-full p-1 mb-3 shadow-md" />
           ) : (
@@ -143,9 +152,18 @@ export default function Layout() {
             <SettingsIcon size={20} /> <span>Settings</span>
           </Link>
           <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg mb-8 md:mb-0">
-            <div className="flex flex-col overflow-hidden">
-              <span className="font-bold text-sm truncate">{user?.name}</span>
-              <span className="text-xs text-blue-300 capitalize">{user?.role.toLowerCase()}</span>
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm shrink-0">
+                {user?.profilePic ? (
+                  <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={18} />
+                )}
+              </div>
+              <div className="flex flex-col overflow-hidden">
+                <span className="font-bold text-sm truncate">{user?.name}</span>
+                <span className="text-xs text-blue-300 capitalize">{user?.role.toLowerCase()}</span>
+              </div>
             </div>
             <button onClick={logout} className="text-blue-300 hover:text-white p-2 hover:bg-red-500/20 rounded transition" title="Sign Out">
               <LogOut size={18} />

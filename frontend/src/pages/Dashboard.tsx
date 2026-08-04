@@ -32,6 +32,24 @@ export default function Dashboard() {
   const outstandingCredit = getTotalOutstanding();
   const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
 
+  const today = new Date().toISOString().slice(0, 10);
+  const todaysSales = sales.filter(s => s.date === today);
+  
+  let serviceIncome = 0;
+  let productsIncome = 0;
+  
+  todaysSales.forEach(sale => {
+    sale.items.forEach(item => {
+      const product = products.find(p => p.name === item.name);
+      const itemTotal = item.quantity * item.unitPrice;
+      if (product?.isService) {
+        serviceIncome += itemTotal;
+      } else {
+        productsIncome += itemTotal;
+      }
+    });
+  });
+
   const stats = [
     { label: "Today's Sales", value: `MWK ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports' },
     { label: 'Outstanding Credit', value: `MWK ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits' },
@@ -77,13 +95,17 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-col items-center flex-1">
           <div className="bg-green-50 text-green-500 p-2 rounded-lg mb-1"><Printer size={18} /></div>
-          <div className="font-bold text-lg leading-tight">0</div>
-          <div className="text-[10px] text-gray-500 text-center leading-tight">Print Shop<br/>Income</div>
+          <div className="font-bold text-lg leading-tight">
+            {serviceIncome > 0 ? (serviceIncome >= 1000 ? `${(serviceIncome / 1000).toFixed(1)}k` : serviceIncome) : '0'}
+          </div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Service<br/>Income</div>
         </div>
         <div className="flex flex-col items-center flex-1">
-          <div className="bg-purple-50 text-purple-500 p-2 rounded-lg mb-1"><Wrench size={18} /></div>
-          <div className="font-bold text-lg leading-tight">0</div>
-          <div className="text-[10px] text-gray-500 text-center leading-tight">Tech Services<br/>Income</div>
+          <div className="bg-purple-50 text-purple-500 p-2 rounded-lg mb-1"><Package size={18} /></div>
+          <div className="font-bold text-lg leading-tight">
+            {productsIncome > 0 ? (productsIncome >= 1000 ? `${(productsIncome / 1000).toFixed(1)}k` : productsIncome) : '0'}
+          </div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Products<br/>Income</div>
         </div>
       </div>
 
