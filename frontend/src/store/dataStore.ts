@@ -61,6 +61,7 @@ export interface SaleRecord {
   amountPaid: number;
   customerName?: string;
   customerPhone?: string;
+  customerId?: string;
   status: 'completed' | 'refunded' | 'voided';
   syncStatus: 'synced' | 'pending';
   branch?: string;

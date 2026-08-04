@@ -16,6 +16,7 @@ interface ReceiptPreviewModalProps {
   amountPaid: number;
   customerName?: string;
   customerPhone?: string;
+  customerId?: string;
   invoiceNumber: string;
   onClose: () => void;
   onNewSale?: () => void;
@@ -23,7 +24,7 @@ interface ReceiptPreviewModalProps {
 
 export default function ReceiptPreviewModal({
   items, subtotal, discount, taxAmount, taxName, taxType, total,
-  paymentMethod, amountPaid, customerName, customerPhone, invoiceNumber, onClose, onNewSale
+  paymentMethod, amountPaid, customerName, customerPhone, customerId, invoiceNumber, onClose, onNewSale
 }: ReceiptPreviewModalProps) {
   const [view, setView] = useState<'receipt' | 'invoice'>('receipt');
   const [sharing, setSharing] = useState(false);
@@ -135,6 +136,7 @@ export default function ReceiptPreviewModal({
                 <div style={{ borderBottom: '1px dashed #000', paddingBottom: '8px', marginBottom: '8px', fontSize: '12px' }}>
                   <div><strong>Customer:</strong> {customerName}</div>
                   {customerPhone && <div><strong>Phone:</strong> {customerPhone}</div>}
+                  {customerId && <div><strong>ID:</strong> {customerId}</div>}
                 </div>
               )}
 

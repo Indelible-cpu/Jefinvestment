@@ -19,7 +19,8 @@ export default function POS() {
   
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('0');
+  const [customerId, setCustomerId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [amountPaid, setAmountPaid] = useState<number | ''>('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -29,7 +30,7 @@ export default function POS() {
   const [receiptData, setReceiptData] = useState<null | {
     items: CartItem[]; subtotal: number; discount: number; taxAmount: number;
     taxName: string; taxType: string; total: number; paymentMethod: string;
-    amountPaid: number; customerName?: string; customerPhone?: string; invoiceNumber: string;
+    amountPaid: number; customerName?: string; customerPhone?: string; customerId?: string; invoiceNumber: string;
   }>(null);
   const [txStatus, setTxStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
@@ -117,6 +118,16 @@ const playSound = (type: 'success' | 'error') => {
         setTxStatus({ type: 'error', message: 'Customer Name and Phone Number are required for Credit Sales!' });
         return;
       }
+      if (customerPhone.length !== 10) {
+        playSound('error');
+        setTxStatus({ type: 'error', message: 'Phone number must be exactly 10 digits.' });
+        return;
+      }
+      if (customerId && customerId.length !== 8) {
+        playSound('error');
+        setTxStatus({ type: 'error', message: 'National ID must be exactly 8 characters.' });
+        return;
+      }
     }
 
     const subtotal = cart.getSubtotal();
@@ -162,6 +173,7 @@ const playSound = (type: 'success' | 'error') => {
         amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
+        customerId: customerId || undefined,
         invoiceNumber,
       });
 
@@ -187,11 +199,13 @@ const playSound = (type: 'success' | 'error') => {
         amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
+        customerId: customerId || undefined,
       });
 
       cart.clearCart();
       setCustomerName('');
-      setCustomerPhone('');
+      setCustomerPhone('0');
+      setCustomerId('');
       setDueDate('');
       setAmountPaid('');
     }, 50);
@@ -266,8 +280,11 @@ const playSound = (type: 'success' | 'error') => {
   const handleNewSale = () => {
     if (window.innerWidth < 1024) {
       productSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Don't focus search on mobile — avoids triggering the virtual keyboard
+    } else {
+      // Only auto-focus search on desktop where there's a physical keyboard
+      setTimeout(() => searchInputRef.current?.focus(), 100);
     }
-    setTimeout(() => searchInputRef.current?.focus(), 300);
   };
 
   return (
@@ -556,11 +573,31 @@ const playSound = (type: 'success' | 'error') => {
                       onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                     />
                     <input 
-                      type="text" 
-                      placeholder="Phone Number *" 
+                      type="tel" 
+                      placeholder="Phone Number * (10 digits)" 
                       className="w-full p-2 text-sm border rounded"
                       value={customerPhone}
-                      onChange={e => setCustomerPhone(e.target.value)}
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        // Ensure starts with 0
+                        if (!val.startsWith('0')) val = '0' + val;
+                        // Max 10 digits
+                        if (val.length > 10) val = val.slice(0, 10);
+                        setCustomerPhone(val);
+                      }}
+                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="National ID (8 chars, optional)" 
+                      className="w-full p-2 text-sm border rounded uppercase tracking-widest"
+                      maxLength={8}
+                      value={customerId}
+                      onChange={e => {
+                        // Only allow letters and numbers, auto uppercase
+                        const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                        setCustomerId(val);
+                      }}
                       onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                     />
                     <input 
