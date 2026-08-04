@@ -1,10 +1,10 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
-import { useEffect, useState } from 'react';
 
 export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
@@ -43,6 +43,31 @@ export default function Layout() {
   }, [location.pathname]);
 
   const isAdmin = user?.role === 'ADMIN';
+
+  const navRef = useRef<HTMLElement>(null);
+
+  const handleNavKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const links = Array.from(navRef.current?.querySelectorAll('a') || []);
+      const currentIndex = links.indexOf(document.activeElement as HTMLAnchorElement);
+      
+      if (currentIndex !== -1) {
+        e.preventDefault();
+        let nextIndex = currentIndex;
+        
+        if (e.key === 'ArrowDown') {
+          nextIndex = (currentIndex + 1) % links.length;
+        } else if (e.key === 'ArrowUp') {
+          nextIndex = (currentIndex - 1 + links.length) % links.length;
+        }
+        
+        links[nextIndex].focus();
+      } else if (links.length > 0) {
+        e.preventDefault();
+        links[0].focus();
+      }
+    }
+  };
 
   const navLinkClass = (path: string) => `flex items-center gap-3 p-3 rounded-lg transition font-medium ${
     location.pathname === path ? 'bg-blue-700 text-white' : 'hover:bg-blue-800 text-blue-100 hover:text-white'
@@ -109,7 +134,11 @@ export default function Layout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar">
+        <nav 
+          ref={navRef}
+          onKeyDown={handleNavKeyDown}
+          className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar"
+        >
           {isAdmin && (
             <Link to="/" className={navLinkClass('/')}>
               <LayoutDashboard size={20} /> <span>Dashboard</span>
