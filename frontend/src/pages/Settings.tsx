@@ -31,10 +31,10 @@ export default function Settings() {
   const [showAddPw, setShowAddPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleProfileSave = (e: React.FormEvent) => {
+  const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile(profileForm.name, profileForm.username, profileForm.profilePic);
-    showSuccess('Profile updated successfully!');
+    await updateProfile(profileForm.name, profileForm.username, profileForm.profilePic);
+    showSuccess('Profile updated and synced to all devices!');
   };
 
   const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

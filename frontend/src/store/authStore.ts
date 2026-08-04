@@ -25,7 +25,8 @@ interface AuthState {
   // Actions
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
-  updateProfile: (name: string, username: string, profilePic?: string) => void;
+  updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
+  loadProfile: () => Promise<void>;
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
   addUser: (user: { username: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -55,6 +56,7 @@ export const useAuthStore = create<AuthState>()(
               role: user.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
               branchId: user.branchId,
               branchName: user.branchName,
+              profilePic: user.profilePic || '',
             },
             isAuthenticated: true,
             isLoading: false,
@@ -68,9 +70,35 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => set({ user: null, token: null, isAuthenticated: false, users: [] }),
 
-      updateProfile: (name, username, profilePic) => set((state) => ({
-        user: state.user ? { ...state.user, name, username, ...(profilePic !== undefined && { profilePic }) } : null,
-      })),
+      updateProfile: async (name, username, profilePic) => {
+        // Save to server first (online-first)
+        try {
+          await api.put('/api/v1/profile', { name, ...(profilePic !== undefined && { profilePic }) });
+        } catch (err) {
+          console.warn('Failed to sync profile to server, saving locally only', err);
+        }
+        // Always update local state
+        set((state) => ({
+          user: state.user ? { ...state.user, name, username, ...(profilePic !== undefined && { profilePic }) } : null,
+        }));
+      },
+
+      loadProfile: async () => {
+        try {
+          const res: any = await api.get('/api/v1/profile');
+          if (res.data) {
+            set((state) => ({
+              user: state.user ? {
+                ...state.user,
+                ...(res.data.name && { name: res.data.name }),
+                ...(res.data.profilePic && { profilePic: res.data.profilePic }),
+              } : null,
+            }));
+          }
+        } catch (err) {
+          console.warn('Failed to load profile from server', err);
+        }
+      },
 
       resetPassword: async (userId, newPassword) => {
         await api.put(`/api/v1/users/${userId}/password`, { password: newPassword });

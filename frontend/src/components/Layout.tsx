@@ -7,7 +7,7 @@ import { useProductStore } from '../store/cartStore';
 import { useEffect, useState } from 'react';
 
 export default function Layout() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, loadProfile } = useAuthStore();
   const { companyName, companyLogo, loadSettings } = useSettingsStore();
   const { products } = useProductStore();
   const { syncPendingSales, sales, loadSales } = useSaleStore();
@@ -19,9 +19,10 @@ export default function Layout() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   useEffect(() => {
-    // Initial data load on login/mount
+    // Initial data load on login/mount — always online-first
     loadSettings();
     loadSales();
+    loadProfile(); // Fetch latest profile (name, pic) from server
     
     // Background auto-sync
     syncPendingSales();

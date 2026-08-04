@@ -117,16 +117,64 @@ app.post('/api/v1/auth/login', async (c) => {
 
     await prisma.user.update({ where: { id: user.id }, data: { lastLogin: new Date() } });
 
-    const payload = { id: user.id, username: user.username, name: user.username, role: user.role.name, branchId: user.branchId };
+    // Load per-user profile (name, profilePic) from settings table
+    const profileRows = await prisma.settings.findMany({
+      where: { key: { in: [`user_name_${user.id}`, `user_pic_${user.id}`] } }
+    });
+    const profileMap: Record<string, string> = {};
+    profileRows.forEach((r: any) => { profileMap[r.key] = r.value; });
+    const displayName = profileMap[`user_name_${user.id}`] || user.username;
+    const profilePic = profileMap[`user_pic_${user.id}`] || '';
+
+    const payload = { id: user.id, username: user.username, name: displayName, role: user.role.name, branchId: user.branchId };
     const token = await sign(payload, c.env.JWT_SECRET, c.env.JWT_EXPIRES_IN || '1d');
 
     return c.json({
       status: 'success',
       data: {
         token,
-        user: { id: user.id, username: user.username, name: user.username, role: user.role.name, branchId: user.branchId, branchName: user.branch?.name },
+        user: { id: user.id, username: user.username, name: displayName, profilePic, role: user.role.name, branchId: user.branchId, branchName: user.branch?.name },
       },
     });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+// ─── Profile (current user) ────────────────────────────────────────────────────
+app.get('/api/v1/profile', requireAuth, async (c) => {
+  const authUser = c.get('user') as any;
+  const prisma = getPrisma(c.env);
+  try {
+    const profileRows = await prisma.settings.findMany({
+      where: { key: { in: [`user_name_${authUser.id}`, `user_pic_${authUser.id}`] } }
+    });
+    const profileMap: Record<string, string> = {};
+    profileRows.forEach((r: any) => { profileMap[r.key] = r.value; });
+    return c.json({
+      status: 'success',
+      data: {
+        name: profileMap[`user_name_${authUser.id}`] || authUser.name,
+        profilePic: profileMap[`user_pic_${authUser.id}`] || '',
+      }
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+app.put('/api/v1/profile', requireAuth, async (c) => {
+  const authUser = c.get('user') as any;
+  const { name, profilePic } = await c.req.json();
+  const prisma = getPrisma(c.env);
+  try {
+    const updates: Array<{ key: string; value: string }> = [];
+    if (name !== undefined) updates.push({ key: `user_name_${authUser.id}`, value: name });
+    if (profilePic !== undefined) updates.push({ key: `user_pic_${authUser.id}`, value: profilePic });
+    for (const { key, value } of updates) {
+      await prisma.settings.upsert({ where: { key }, update: { value }, create: { key, value } });
+    }
+    return c.json({ status: 'success', data: { name, profilePic } });
   } finally {
     await prisma.$disconnect();
   }
