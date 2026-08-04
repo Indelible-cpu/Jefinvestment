@@ -30,7 +30,6 @@ export default function POS() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
   const cartActionsRef = useRef<HTMLDivElement>(null);
-  const productGridRef = useRef<HTMLDivElement>(null);
   const prevCartLengthRef = useRef(0);
 
   const cart = useCartStore();
