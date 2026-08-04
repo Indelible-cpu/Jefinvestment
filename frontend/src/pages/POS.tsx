@@ -29,6 +29,8 @@ export default function POS() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
+  const cartActionsRef = useRef<HTMLDivElement>(null);
+  const prevCartLengthRef = useRef(0);
 
   const cart = useCartStore();
   const { products, decrementStock } = useProductStore();
@@ -57,6 +59,16 @@ export default function POS() {
       setAmountPaid(finalTotal || '');
     }
   }, [paymentMethod, finalTotal]);
+
+  // Auto-scroll to action buttons whenever a new item is added on mobile
+  useEffect(() => {
+    if (cart.items.length > prevCartLengthRef.current && window.innerWidth < 1024) {
+      setTimeout(() => {
+        cartActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 50);
+    }
+    prevCartLengthRef.current = cart.items.length;
+  }, [cart.items.length]);
 
 const playSound = (type: 'success' | 'error') => {
   try {
@@ -305,9 +317,6 @@ const playSound = (type: 'success' | 'error') => {
                   onClick={() => {
                     if (!outOfStock) {
                       cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, quantity: 1, discount: 0, isService: product.isService });
-                      if (window.innerWidth < 1024) {
-                        cartSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-                      }
                     }
                   }}
                   className={`border p-3 rounded-lg flex flex-col justify-between h-32 transition ${
@@ -577,7 +586,7 @@ const playSound = (type: 'success' | 'error') => {
               </div>
             </div>
             
-            <div className="p-4 border-t grid grid-cols-3 gap-2 bg-gray-100 rounded-b-lg">
+            <div ref={cartActionsRef} className="p-4 border-t grid grid-cols-3 gap-2 bg-gray-100 rounded-b-lg">
               <button 
                 onClick={cart.clearCart}
                 className="p-3 border text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition flex flex-col items-center justify-center gap-1"
