@@ -61,16 +61,16 @@ export default function Expenses() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="p-4 md:p-6 h-full flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-            <Receipt size={32} /> Expense Management
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
+            <Receipt size={28} /> Expense Management
           </h1>
-          <p className="text-gray-500 mt-1">Log and track all petty cash and business expenses</p>
+          <p className="text-gray-500 mt-1 text-sm">Log and track all petty cash and business expenses</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md">
+        <button onClick={() => setShowModal(true)} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md self-start">
           <Plus size={20} /> Log Expense
         </button>
       </div>
@@ -100,8 +100,8 @@ export default function Expenses() {
         <button onClick={() => setDateFilter('')} className="text-sm text-gray-500 hover:text-gray-800 underline">Show All</button>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg border shadow overflow-hidden flex-1">
+      {/* Table - wrapped for horizontal scroll on mobile */}
+      <div className="bg-white rounded-lg border shadow overflow-hidden flex-1 overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-gray-50 border-b">

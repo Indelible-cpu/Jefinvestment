@@ -69,20 +69,20 @@ export default function Inventory() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="p-4 md:p-6 h-full flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-            <Package size={32} /> Inventory Management
+          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
+            <Package size={28} /> Inventory Management
           </h1>
-          <p className="text-gray-500 mt-1">{products.length} products · {products.filter(p => !p.isService).reduce((s, p) => s + p.stock, 0)} units in stock</p>
+          <p className="text-gray-500 mt-1 text-sm">{products.length} products · {products.filter(p => !p.isService).reduce((s, p) => s + p.stock, 0)} units in stock</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           {lowStockCount > 0 && (
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2 rounded-lg text-sm font-medium">
               <AlertTriangle size={16} />
-              {lowStockCount} low stock alert{lowStockCount > 1 ? 's' : ''}
+              {lowStockCount} low stock
             </div>
           )}
           <button onClick={openAdd} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md">

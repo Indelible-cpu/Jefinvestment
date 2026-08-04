@@ -59,15 +59,15 @@ export default function Employees() {
   };
 
   return (
-    <div className="p-8 bg-background min-h-full">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-8 bg-background min-h-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Employee & HR Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Employee &amp; HR Management</h1>
           <p className="text-gray-500 text-sm mt-1">Manage staff records, roles, salary, and daily attendance.</p>
         </div>
         <button 
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow"
+          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow self-start"
         >
           <UserPlus size={18} />
           Add Employee
@@ -75,8 +75,8 @@ export default function Employees() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-card p-6 rounded-lg border shadow-sm flex items-center gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-8">
+        <div className="bg-card p-4 md:p-6 rounded-lg border shadow-sm flex items-center gap-4">
           <div className="p-3 bg-blue-100 text-primary rounded-full">
             <Users size={24} />
           </div>

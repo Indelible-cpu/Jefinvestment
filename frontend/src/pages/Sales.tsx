@@ -257,9 +257,9 @@ export default function Sales() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900">Sales Transactions</h1>
           <p className="text-gray-500 text-sm mt-0.5">{isAdmin ? 'All sales across the system' : 'Your personal sales history'}</p>
@@ -267,7 +267,7 @@ export default function Sales() {
         {isAdmin && (
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition self-start"
           >
             <Download size={16} /> Export CSV
           </button>
@@ -275,7 +275,7 @@ export default function Sales() {
       </div>
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Transactions', value: filtered.length.toLocaleString(), icon: ShoppingBag, color: 'bg-blue-500' },
           { label: 'Revenue (Completed)', value: `MWK ${totalRevenue.toLocaleString()}`, icon: Banknote, color: 'bg-emerald-500' },

@@ -30,11 +30,54 @@
   
   * {
     border-color: var(--color-border);
+    -webkit-tap-highlight-color: transparent;
   }
   
   body {
     background-color: var(--background);
     color: var(--foreground);
     font-family: 'Inter', system-ui, sans-serif;
+    /* Prevent horizontal scrolling on mobile */
+    overflow-x: hidden;
+  }
+
+  /* iOS safe area padding support */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+  }
+
+  /* Better touch targets on mobile */
+  @media (max-width: 768px) {
+    button, a {
+      min-height: 40px;
+    }
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep scrolling */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.2) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(255,255,255,0.2);
+    border-radius: 2px;
+  }
+
+  /* Remove number input spinners */
+  .no-spinners::-webkit-outer-spin-button,
+  .no-spinners::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .no-spinners {
+    -moz-appearance: textfield;
   }
 }

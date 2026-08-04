@@ -244,8 +244,8 @@ const playSound = (type: 'success' | 'error') => {
   };
 
   return (
-    <div className="flex h-full flex-col p-4 bg-background">
-      <h1 className="text-3xl font-bold mb-4 text-primary">Point of Sale</h1>
+    <div className="flex h-full flex-col p-3 md:p-4 bg-background">
+      <h1 className="text-xl md:text-3xl font-bold mb-3 md:mb-4 text-primary">Point of Sale</h1>
       
       {errorMsg && (
         <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg flex items-center gap-2">
@@ -254,9 +254,9 @@ const playSound = (type: 'success' | 'error') => {
         </div>
       )}
 
-      <div className="flex flex-1 gap-6 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 gap-6 overflow-y-auto lg:overflow-hidden pb-20 md:pb-0">
         {/* Product Selection Area */}
-        <div className="flex-1 bg-card rounded-lg shadow border p-4 flex flex-col">
+        <div className="flex-1 bg-card rounded-lg shadow border p-4 flex flex-col min-h-[500px] lg:min-h-0">
           <div className="relative mb-3 flex items-center">
             <Search className="absolute left-3 top-3 text-gray-400" size={20} />
             <input
@@ -331,7 +331,7 @@ const playSound = (type: 'success' | 'error') => {
         </div>
         
         {/* Cart & Checkout Area */}
-        <div className="w-[400px] bg-card rounded-lg shadow border flex flex-col">
+        <div className="w-full lg:w-[400px] bg-card rounded-lg shadow border flex flex-col flex-shrink-0 min-h-[600px] lg:min-h-0">
           <div className="p-4 border-b bg-gray-50 rounded-t-lg flex justify-between items-center">
             <h2 className="font-bold text-lg">Current Sale</h2>
             <div className="flex gap-2">

@@ -1,21 +1,27 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, X } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore } from '../store/dataStore';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const { companyName, companyLogo, loadSettings } = useSettingsStore();
   const { loadSales } = useSaleStore();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Initial data load on login/mount
     loadSettings();
     loadSales();
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -24,10 +30,38 @@ export default function Layout() {
   }`;
 
   return (
-    <div className="flex h-screen bg-background">
-      <aside className="w-64 bg-primary text-primary-foreground flex flex-col shadow-xl z-10">
+    <div className="flex h-screen bg-background overflow-hidden relative">
+      {/* Mobile Top Bar */}
+      <div className="md:hidden absolute top-0 left-0 right-0 h-16 bg-primary text-white flex items-center justify-between px-4 z-20 shadow-md">
+        <div className="flex items-center gap-3">
+          {companyLogo ? (
+            <img src={companyLogo} alt={companyName} className="h-8 w-8 object-cover bg-white rounded-full p-0.5" />
+          ) : (
+            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+              <span className="font-bold">{companyName.charAt(0)}</span>
+            </div>
+          )}
+          <h1 className="font-bold text-lg truncate max-w-[200px]">{companyName}</h1>
+        </div>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 bg-blue-800 rounded-lg">
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* Backdrop overlay for mobile menu */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`w-64 bg-primary text-primary-foreground flex flex-col shadow-xl z-40 fixed md:relative h-full transition-transform duration-300 ${
+        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
         {/* Branding Area */}
-        <div className="p-5 border-b border-blue-700/50 flex flex-col items-center">
+        <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5">
           {companyLogo ? (
             <img src={companyLogo} alt={companyName} className="h-16 w-16 object-cover bg-white rounded-full p-1 mb-3 shadow-md" />
           ) : (
@@ -78,7 +112,7 @@ export default function Layout() {
         </nav>
 
         {/* User Profile & Footer Actions */}
-        <div className="p-4 border-t border-blue-700/50 bg-blue-900/30">
+        <div className="p-4 border-t border-blue-700/50 bg-blue-900/30 pb-safe">
           <Link to="/settings" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-800 text-blue-100 transition font-medium mb-2">
             <SettingsIcon size={20} /> <span>Settings</span>
           </Link>
@@ -94,7 +128,7 @@ export default function Layout() {
         </div>
       </aside>
       
-      <main className="flex-1 overflow-auto bg-gray-50">
+      <main className="flex-1 overflow-auto bg-gray-50 pt-16 md:pt-0 h-full w-full">
         <Outlet />
       </main>
     </div>

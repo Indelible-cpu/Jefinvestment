@@ -50,17 +50,17 @@ export default function CreditManagement() {
   };
 
   return (
-    <div className="p-8 bg-background min-h-full">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-4 md:p-8 bg-background min-h-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Credit Sales & Debt Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Credit Sales &amp; Debt Management</h1>
           <p className="text-gray-500 text-sm mt-1">Track customer debts, due dates, and record partial or full repayments.</p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-card p-6 rounded-lg border shadow-sm flex items-center gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="bg-card p-4 md:p-6 rounded-lg border shadow-sm flex items-center gap-4">
           <div className="p-3 bg-amber-100 text-amber-700 rounded-full">
             <CreditCard size={24} />
           </div>
@@ -92,7 +92,7 @@ export default function CreditManagement() {
       </div>
 
       {/* Credit Table */}
-      <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-600 text-sm font-semibold">

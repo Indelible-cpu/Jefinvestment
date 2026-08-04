@@ -34,15 +34,15 @@ export default function Dashboard() {
   const recentSales = sales.slice(0, 5);
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Greeting */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">{greeting}, Jef Investment! 👋</h1>
-        <p className="text-gray-500 mt-1">{dateStr}</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, Jef Investment! 👋</h1>
+        <p className="text-gray-500 mt-1 text-sm">{dateStr}</p>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {stats.map(stat => (
           <Link to={stat.link} key={stat.label} className={`${stat.bg} ${stat.border} border rounded-xl p-5 hover:shadow-md transition group`}>
             <div className="flex justify-between items-start mb-4">
@@ -55,7 +55,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
         <div className="bg-white rounded-xl border shadow-sm p-5">
           <h2 className="font-bold text-gray-700 mb-4">Quick Actions</h2>
