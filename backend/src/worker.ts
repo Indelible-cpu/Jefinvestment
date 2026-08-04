@@ -68,12 +68,18 @@ async function requireAuth(c: any, next: any) {
 // ─── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/api/v1/health/db', async (c) => {
+  const dbUrl = c.env.DATABASE_URL || '';
+  const urlInfo = {
+    length: dbUrl.length,
+    startsWithPostgres: dbUrl.startsWith('postgres'),
+    prefix: dbUrl.substring(0, 10)
+  };
   try {
     const prisma = getPrisma(c.env);
     await prisma.$queryRaw`SELECT 1`;
-    return c.json({ status: 'ok', db: 'connected', url_set: !!c.env.DATABASE_URL });
+    return c.json({ status: 'ok', db: 'connected', urlInfo });
   } catch (err: any) {
-    return c.json({ status: 'error', message: err.message, name: err.name, url_set: !!c.env.DATABASE_URL }, 500);
+    return c.json({ status: 'error', message: err.message, name: err.name, urlInfo }, 500);
   }
 });
 
