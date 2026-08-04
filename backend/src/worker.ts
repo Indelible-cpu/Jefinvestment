@@ -23,8 +23,7 @@ function getPrisma(env: Env) {
   // Clean up any accidental whitespace/quotes from secret injection
   let dbUrl = env.DATABASE_URL.trim().replace(/^['"]|['"]$/g, '');
 
-  const sql = neon(dbUrl);
-  const adapter = new PrismaNeonHttp(sql);
+  const adapter = new PrismaNeonHttp(dbUrl);
   return new PrismaClient({ adapter } as any);
 }
 
