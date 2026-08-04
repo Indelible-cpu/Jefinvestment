@@ -21,8 +21,11 @@ function getPrisma(env: Env) {
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL secret is not set in Cloudflare Worker');
   neonConfig.webSocketConstructor = WebSocket;
   
-  // Clean up the URL: remove whitespace/newlines, and ensure it uses postgres:// for the neon driver
+  // Clean up the URL: remove whitespace/newlines and quotes
   let dbUrl = env.DATABASE_URL.trim();
+  if (dbUrl.startsWith('"') && dbUrl.endsWith('"')) dbUrl = dbUrl.slice(1, -1);
+  if (dbUrl.startsWith("'") && dbUrl.endsWith("'")) dbUrl = dbUrl.slice(1, -1);
+  
   if (dbUrl.startsWith('postgresql://')) {
     dbUrl = dbUrl.replace('postgresql://', 'postgres://');
   }
@@ -75,11 +78,15 @@ async function requireAuth(c: any, next: any) {
 // ─── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/api/v1/health/db', async (c) => {
-  const dbUrl = c.env.DATABASE_URL || '';
+  let dbUrl = c.env.DATABASE_URL || '';
+  dbUrl = dbUrl.trim();
+  if (dbUrl.startsWith('"') && dbUrl.endsWith('"')) dbUrl = dbUrl.slice(1, -1);
+  if (dbUrl.startsWith("'") && dbUrl.endsWith("'")) dbUrl = dbUrl.slice(1, -1);
+  
   const urlInfo = {
     length: dbUrl.length,
-    startsWithPostgres: dbUrl.startsWith('postgres'),
-    prefix: dbUrl.substring(0, 10)
+    rawPrefix: (c.env.DATABASE_URL || '').substring(0, 15),
+    cleanedPrefix: dbUrl.substring(0, 15),
   };
   try {
     const prisma = getPrisma(c.env);
