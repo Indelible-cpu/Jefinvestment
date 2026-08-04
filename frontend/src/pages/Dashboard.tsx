@@ -22,13 +22,15 @@ export default function Dashboard() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
   const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  const { user } = useAuthStore();
   const { getTodayTotal, sales } = useSaleStore();
   const { getTotalOutstanding } = useCreditStore();
   const { products } = useProductStore();
   const settings = useSettingsStore();
+  const { user } = useAuthStore();
   const [showCustomize, setShowCustomize] = useState(false);
   const [tempActions, setTempActions] = useState<string[]>(settings.quickActions);
+
+  const firstName = user?.name?.split(' ')[0] || 'there';
 
   const todayTotal = getTodayTotal();
   const outstandingCredit = getTotalOutstanding();
@@ -65,7 +67,7 @@ export default function Dashboard() {
     <div className="p-4 md:p-6 md:pt-6 relative -mt-4 md:mt-0">
       {/* Greeting (Desktop Only) */}
       <div className="hidden md:block mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, {user?.name?.split(' ')[0] || 'Admin'}! 👋</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, {firstName}! 👋</h1>
         <p className="text-gray-500 mt-1 text-sm">{dateStr}</p>
       </div>
 
