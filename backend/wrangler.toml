@@ -16,4 +16,4 @@ JWT_EXPIRES_IN = "1d"
 CORS_ORIGIN = "https://jefinvestment.pages.dev"
 
 [build]
-command = "npx prisma generate --no-engine"
+command = "npx prisma generate"
