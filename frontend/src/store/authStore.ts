@@ -9,6 +9,7 @@ export interface User {
   role: 'ADMIN' | 'CASHIER' | 'MANAGER';
   branchId?: string | null;
   branchName?: string;
+  profilePic?: string;
 }
 
 export interface UserAccount extends User {
@@ -24,7 +25,7 @@ interface AuthState {
   // Actions
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
-  updateProfile: (name: string, username: string) => void;
+  updateProfile: (name: string, username: string, profilePic?: string) => void;
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
   addUser: (user: { username: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -67,8 +68,8 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => set({ user: null, token: null, isAuthenticated: false, users: [] }),
 
-      updateProfile: (name, username) => set((state) => ({
-        user: state.user ? { ...state.user, name, username } : null,
+      updateProfile: (name, username, profilePic) => set((state) => ({
+        user: state.user ? { ...state.user, name, username, ...(profilePic !== undefined && { profilePic }) } : null,
       })),
 
       resetPassword: async (userId, newPassword) => {

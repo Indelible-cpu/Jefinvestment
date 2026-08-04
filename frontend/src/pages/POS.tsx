@@ -28,6 +28,7 @@ export default function POS() {
   const [txStatus, setTxStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const cartSectionRef = useRef<HTMLDivElement>(null);
 
   const cart = useCartStore();
   const { products, decrementStock } = useProductStore();
@@ -176,7 +177,7 @@ const playSound = (type: 'success' | 'error') => {
       setCustomerPhone('');
       setDueDate('');
       setAmountPaid('');
-    }, 1200);
+    }, 50);
   };
 
   useEffect(() => {
@@ -301,7 +302,14 @@ const playSound = (type: 'success' | 'error') => {
               return (
                 <div
                   key={product.id}
-                  onClick={() => !outOfStock && cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, quantity: 1, discount: 0, isService: product.isService })}
+                  onClick={() => {
+                    if (!outOfStock) {
+                      cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, quantity: 1, discount: 0, isService: product.isService });
+                      if (window.innerWidth < 1024) {
+                        cartSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }
+                  }}
                   className={`border p-3 rounded-lg flex flex-col justify-between h-32 transition ${
                     outOfStock
                       ? 'opacity-50 cursor-not-allowed bg-gray-50'
@@ -331,7 +339,7 @@ const playSound = (type: 'success' | 'error') => {
         </div>
         
         {/* Cart & Checkout Area */}
-        <div className="w-full lg:w-[400px] bg-card rounded-lg shadow border flex flex-col flex-shrink-0 min-h-[600px] lg:min-h-0">
+        <div ref={cartSectionRef} className="w-full lg:w-[400px] bg-card rounded-lg shadow border flex flex-col flex-shrink-0 min-h-[600px] lg:min-h-0">
           <div className="p-4 border-b bg-gray-50 rounded-t-lg flex justify-between items-center">
             <h2 className="font-bold text-lg">Current Sale</h2>
             <div className="flex gap-2">

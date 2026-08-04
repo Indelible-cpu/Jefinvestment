@@ -48,7 +48,11 @@ export default function Layout() {
              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#004bb4]">3</span>
            </div>
            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm">
-             <User size={22} />
+             {user?.profilePic ? (
+               <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
+             ) : (
+               <User size={22} />
+             )}
            </div>
         </div>
       </div>
@@ -146,14 +150,14 @@ export default function Layout() {
           </Link>
         )}
         
-        <Link to="/pos" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/pos' ? 'text-primary' : 'text-gray-500'}`}>
-          <ShoppingCart size={22} className="mb-1" />
-          <span className="text-[10px] font-medium mt-0.5">POS</span>
-        </Link>
-        
         <Link to="/sales" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/sales' ? 'text-primary' : 'text-gray-500'}`}>
           <ClipboardList size={22} className="mb-1" />
           <span className="text-[10px] font-medium mt-0.5">Sales</span>
+        </Link>
+        
+        <Link to="/pos" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/pos' ? 'text-primary' : 'text-gray-500'}`}>
+          <ShoppingCart size={22} className="mb-1" />
+          <span className="text-[10px] font-medium mt-0.5">POS</span>
         </Link>
         
         <Link to="/inventory" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/inventory' ? 'text-primary' : 'text-gray-500'}`}>
@@ -161,7 +165,7 @@ export default function Layout() {
           <span className="text-[10px] font-medium">Inventory</span>
         </Link>
         
-        <button onClick={() => setMobileMenuOpen(true)} className={`flex flex-col items-center py-2 px-3 text-gray-500`}>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className={`flex flex-col items-center py-2 px-3 text-gray-500`}>
           <Menu size={20} className="mb-1" />
           <span className="text-[10px] font-medium">More</span>
         </button>

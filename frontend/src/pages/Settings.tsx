@@ -9,7 +9,7 @@ export default function Settings() {
   const settings = useSettingsStore();
   const { updateSettings } = settings;
   
-  const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '' });
+  const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
     companyName: settings.companyName, 
     address: settings.address, 
@@ -33,8 +33,19 @@ export default function Settings() {
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile(profileForm.name, profileForm.username);
+    updateProfile(profileForm.name, profileForm.username, profileForm.profilePic);
     showSuccess('Profile updated successfully!');
+  };
+
+  const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileForm(f => ({ ...f, profilePic: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleBrandSave = (e: React.FormEvent) => {
@@ -161,6 +172,22 @@ export default function Settings() {
               <User size={18} /> Personal Profile
             </div>
             <form onSubmit={handleProfileSave} className="p-6 space-y-4">
+              <div className="flex items-center gap-6 pb-4 border-b mb-4">
+                {profileForm.profilePic ? (
+                  <img src={profileForm.profilePic} alt="Profile" className="w-16 h-16 object-cover rounded-full shadow-sm" />
+                ) : (
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
+                    <User size={24} />
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-1">Profile Picture</h3>
+                  <label className="text-sm bg-gray-100 border hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded flex items-center gap-1 transition cursor-pointer w-max">
+                    <Upload size={14} /> Upload New
+                    <input type="file" accept="image/*" className="hidden" onChange={handleProfilePicUpload} />
+                  </label>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
                 <input type="text" value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />

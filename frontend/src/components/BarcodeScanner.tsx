@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { X } from 'lucide-react';
 
 interface BarcodeScannerProps {
@@ -8,32 +8,31 @@ interface BarcodeScannerProps {
 }
 
 export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
-    // Initialize scanner
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      { fps: 10, qrbox: { width: 250, height: 150 }, disableFlip: false },
-      /* verbose= */ false
-    );
+    const html5QrCode = new Html5Qrcode("reader");
+    scannerRef.current = html5QrCode;
 
-    scannerRef.current = scanner;
-
-    scanner.render(
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
       (decodedText) => {
         // Success callback
-        onScan(decodedText);
+        html5QrCode.stop().then(() => {
+          onScan(decodedText);
+        }).catch(console.error);
       },
       (_error) => {
-        // Error callback (happens on every frame it doesn't detect a code)
+        // Error callback
       }
-    );
+    ).catch(err => {
+      console.error("Error starting scanner:", err);
+    });
 
     return () => {
-      // Cleanup on unmount
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(console.error);
       }
     };
   }, [onScan]);
