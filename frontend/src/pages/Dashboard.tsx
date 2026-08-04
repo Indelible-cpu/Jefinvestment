@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, Users, AlertTriangle, ArrowRight, Printer, Wrench, Search, Download, Grip } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, Users, AlertTriangle, Printer, Wrench, Search, Download, Grip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSaleStore } from '../store/dataStore';
 import { useCreditStore } from '../store/dataStore';
