@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, X } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, X, Bell, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore } from '../store/dataStore';
@@ -32,32 +32,37 @@ export default function Layout() {
   return (
     <div className="flex h-screen bg-background overflow-hidden relative">
       {/* Mobile Top Bar */}
-      <div className="md:hidden absolute top-0 left-0 right-0 h-16 bg-primary text-white flex items-center justify-between px-4 z-20 shadow-md">
-        <div className="flex items-center gap-3">
-          {companyLogo ? (
-            <img src={companyLogo} alt={companyName} className="h-8 w-8 object-cover bg-white rounded-full p-0.5" />
-          ) : (
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-              <span className="font-bold">{companyName.charAt(0)}</span>
-            </div>
-          )}
-          <h1 className="font-bold text-lg truncate max-w-[200px]">{companyName}</h1>
+      <div className="md:hidden absolute top-0 left-0 right-0 h-24 bg-[#004bb4] text-white flex items-start justify-between px-4 pt-4 z-20">
+        <div className="flex items-start gap-4">
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-1 -ml-1">
+            <Menu size={28} />
+          </button>
+          <div className="flex flex-col mt-0.5">
+            <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">Jef Investment</h1>
+            <p className="text-sm text-blue-100 mt-0.5">Good morning, {user?.name?.split(' ')[0] || 'Jef'} 👋</p>
+          </div>
         </div>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 bg-blue-800 rounded-lg">
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="flex items-center gap-4 mt-1">
+           <div className="relative">
+             <Bell size={24} />
+             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#004bb4]">3</span>
+           </div>
+           <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm">
+             <User size={22} />
+           </div>
+        </div>
       </div>
 
       {/* Backdrop overlay for mobile menu */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`w-64 bg-primary text-primary-foreground flex flex-col shadow-xl z-40 fixed md:relative h-full transition-transform duration-300 ${
+      <aside className={`w-64 bg-primary text-primary-foreground flex flex-col shadow-xl z-50 fixed md:relative h-full transition-transform duration-300 ${
         mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         {/* Branding Area */}
@@ -112,11 +117,11 @@ export default function Layout() {
         </nav>
 
         {/* User Profile & Footer Actions */}
-        <div className="p-4 border-t border-blue-700/50 bg-blue-900/30 pb-safe">
-          <Link to="/settings" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-800 text-blue-100 transition font-medium mb-2">
+        <div className="p-4 border-t border-blue-700/50 bg-blue-900/30 pb-safe md:pb-4 mt-auto">
+          <Link to="/settings" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-800 text-blue-100 transition font-medium mb-4">
             <SettingsIcon size={20} /> <span>Settings</span>
           </Link>
-          <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg mb-8 md:mb-0">
             <div className="flex flex-col overflow-hidden">
               <span className="font-bold text-sm truncate">{user?.name}</span>
               <span className="text-xs text-blue-300 capitalize">{user?.role.toLowerCase()}</span>
@@ -128,7 +133,7 @@ export default function Layout() {
         </div>
       </aside>
       
-      <main className="flex-1 overflow-auto bg-gray-50 pt-16 md:pt-0 pb-16 md:pb-0 h-full w-full">
+      <main className="flex-1 overflow-auto bg-gray-50 pt-24 md:pt-0 pb-16 md:pb-0 h-full w-full">
         <Outlet />
       </main>
 

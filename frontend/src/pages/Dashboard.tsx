@@ -1,14 +1,18 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, Users, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, Users, AlertTriangle, ArrowRight, Printer, Wrench, Search, Download, Grip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSaleStore } from '../store/dataStore';
 import { useCreditStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 
 const quickActions = [
-  { label: 'Open POS', icon: ShoppingCart, link: '/pos', color: 'bg-primary hover:bg-blue-700', text: 'text-white' },
-  { label: 'Manage Inventory', icon: Package, link: '/inventory', color: 'bg-white hover:bg-gray-50', text: 'text-gray-700' },
-  { label: 'View Reports', icon: TrendingUp, link: '/reports', color: 'bg-white hover:bg-gray-50', text: 'text-gray-700' },
-  { label: 'Credit Sales', icon: CreditCard, link: '/credits', color: 'bg-white hover:bg-gray-50', text: 'text-gray-700' },
+  { label: 'New Sale (POS)', icon: ShoppingCart, link: '/pos', color: 'text-blue-500' },
+  { label: 'Add Item (Stock)', icon: Package, link: '/inventory', color: 'text-green-500' },
+  { label: 'New Expense', icon: CreditCard, link: '/expenses', color: 'text-orange-500' },
+  { label: 'Print Service', icon: Printer, link: '/pos', color: 'text-purple-500' },
+  { label: 'Tech Service', icon: Wrench, link: '/pos', color: 'text-teal-500' },
+  { label: 'Find Receipt', icon: Search, link: '/sales', color: 'text-red-500' },
+  { label: 'Stock In', icon: Download, link: '/inventory', color: 'text-blue-600' },
+  { label: 'More Actions', icon: Grip, link: '/', color: 'text-gray-500' },
 ];
 
 export default function Dashboard() {
@@ -34,49 +38,75 @@ export default function Dashboard() {
   const recentSales = sales.slice(0, 5);
 
   return (
-    <div className="p-4 md:p-6">
-      {/* Greeting */}
-      <div className="mb-6">
+    <div className="p-4 md:p-6 md:pt-6 relative -mt-4 md:mt-0">
+      {/* Greeting (Desktop Only) */}
+      <div className="hidden md:block mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, Jef Investment! 👋</h1>
         <p className="text-gray-500 mt-1 text-sm">{dateStr}</p>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4">
         {stats.map(stat => (
-          <Link to={stat.link} key={stat.label} className={`${stat.bg} ${stat.border} border rounded-xl p-5 hover:shadow-md transition group`}>
-            <div className="flex justify-between items-start mb-4">
-              <stat.icon className={stat.color} size={24} />
-              <ArrowRight size={16} className="text-gray-300 group-hover:text-gray-500 transition" />
+          <Link to={stat.link} key={stat.label} className={`bg-white border rounded-xl p-3 md:p-5 shadow-sm hover:shadow-md transition flex flex-col items-center text-center relative z-10`}>
+            <div className={`p-2 rounded-lg ${stat.bg} ${stat.color} mb-2`}>
+              <stat.icon size={20} />
             </div>
-            <div className={`text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
-            <div className="text-sm text-gray-500 font-medium">{stat.label}</div>
+            <div className="text-[11px] md:text-sm text-gray-500 font-medium mb-1">{stat.label}</div>
+            <div className={`text-sm md:text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
+            <div className="text-[10px] md:text-xs text-gray-400 mt-1">View details &gt;</div>
           </Link>
         ))}
       </div>
 
+      {/* Secondary Stats Row */}
+      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6 flex justify-between divide-x divide-gray-100 relative z-10">
+        <div className="flex flex-col items-center flex-1">
+          <div className="bg-red-50 text-red-500 p-2 rounded-lg mb-1"><AlertTriangle size={18} /></div>
+          <div className="font-bold text-lg leading-tight">{lowStockCount}</div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Low Stock<br/>Items</div>
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <div className="bg-blue-50 text-blue-500 p-2 rounded-lg mb-1"><Users size={18} /></div>
+          <div className="font-bold text-lg leading-tight">4</div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Active<br/>Staff</div>
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <div className="bg-green-50 text-green-500 p-2 rounded-lg mb-1"><Printer size={18} /></div>
+          <div className="font-bold text-lg leading-tight">0</div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Print Shop<br/>Income</div>
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <div className="bg-purple-50 text-purple-500 p-2 rounded-lg mb-1"><Wrench size={18} /></div>
+          <div className="font-bold text-lg leading-tight">0</div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Tech Services<br/>Income</div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h2 className="font-bold text-gray-700 mb-4">Quick Actions</h2>
-          <div className="space-y-2">
+        <div className="col-span-1 lg:col-span-3">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-bold text-gray-800">Quick Actions</h2>
+            <button className="text-xs text-blue-600 font-medium flex items-center gap-1">⚙️ Customize</button>
+          </div>
+          <div className="grid grid-cols-4 gap-2 md:gap-4">
             {quickActions.map(action => (
-              <Link key={action.label} to={action.link} className={`${action.color} ${action.text} border flex items-center gap-3 p-3 rounded-lg font-medium transition`}>
-                <action.icon size={20} />
-                <span>{action.label}</span>
-                <ArrowRight size={16} className="ml-auto opacity-50" />
+              <Link key={action.label} to={action.link} className="bg-white border rounded-xl p-3 md:p-5 shadow-sm hover:shadow-md transition flex flex-col items-center justify-center text-center">
+                <action.icon size={28} className={`${action.color} mb-2`} />
+                <span className="text-[10px] md:text-sm font-medium text-gray-700 leading-tight">{action.label.split(' (')[0]}<br/><span className="text-gray-400 font-normal">{action.label.includes('(') ? `(${action.label.split('(')[1]}` : ''}</span></span>
               </Link>
             ))}
           </div>
         </div>
 
         {/* Recent Sales */}
-        <div className="bg-white rounded-xl border shadow-sm p-5 col-span-2">
+        <div className="bg-white rounded-xl border shadow-sm p-4 col-span-1 lg:col-span-3 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold text-gray-700">Recent Sales</h2>
-            <Link to="/reports" className="text-sm text-primary hover:underline">View all</Link>
+            <h2 className="font-bold text-gray-800">Recent Transactions</h2>
+            <Link to="/reports" className="text-sm font-bold text-blue-600 hover:underline">View All</Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-0">
             {recentSales.map(tx => (
               <div key={tx.invoiceNumber} className="flex items-center justify-between border-b pb-3 last:border-0">
                 <div className="flex flex-col">
