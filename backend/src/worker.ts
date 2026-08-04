@@ -19,7 +19,17 @@ export type Env = {
 // Helper: get prisma for a given env
 function getPrisma(env: Env) {
   neonConfig.webSocketConstructor = WebSocket;
-  const dbUrl = 'postgresql://neondb_owner:npg_cZivLq7JXh4S@ep-wandering-flower-axpx499e-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require';
+
+  if (!env.DATABASE_URL) throw new Error('DATABASE_URL secret is not set in Cloudflare Worker');
+
+  // Clean up any accidental whitespace/quotes from secret injection
+  let dbUrl = env.DATABASE_URL.trim().replace(/^['"]|['"]$/g, '');
+
+  // @neondatabase/serverless only accepts postgres:// (not postgresql://)
+  if (dbUrl.startsWith('postgresql://')) {
+    dbUrl = 'postgres://' + dbUrl.slice('postgresql://'.length);
+  }
+
   const pool = new Pool({ connectionString: dbUrl });
   const adapter = new PrismaNeon(pool);
   return new PrismaClient({ adapter } as any);
