@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
-import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaNeonHttp } from '@prisma/adapter-neon';
 import { PrismaClient } from '@prisma/client';
-import { neonConfig, Pool } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 import { sign, verify } from './utils/jwt';
 import bcrypt from 'bcryptjs';
 
@@ -16,31 +16,15 @@ export type Env = {
   ENVIRONMENT: string;
 };
 
-// Parse postgres connection string manually (avoids relying on Node.js url.parse
-// which is not available or broken in Cloudflare Workers bundles)
-function parseDbUrl(rawUrl: string) {
-  const url = rawUrl.trim().replace(/^['"]|['"]$/g, '');
-  // Matches: postgres(ql)://user:password@host/database?params
-  const m = url.match(/^postgres(?:ql)?:\/\/([^:]+):([^@]+)@([^\/]+)\/([^?]+)/);
-  if (!m) throw new Error(`DATABASE_URL could not be parsed. Got prefix: ${url.substring(0, 20)}`);
-  return {
-    user: m[1],
-    password: decodeURIComponent(m[2]),
-    host: m[3],
-    database: m[4],
-    ssl: true,
-  };
-}
-
 // Helper: get prisma for a given env
 function getPrisma(env: Env) {
-  neonConfig.webSocketConstructor = WebSocket;
-
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL secret is not set in Cloudflare Worker');
 
-  const connParams = parseDbUrl(env.DATABASE_URL);
-  const pool = new Pool(connParams);
-  const adapter = new PrismaNeon(pool);
+  // Clean up any accidental whitespace/quotes from secret injection
+  let dbUrl = env.DATABASE_URL.trim().replace(/^['"]|['"]$/g, '');
+
+  const sql = neon(dbUrl);
+  const adapter = new PrismaNeonHttp(sql);
   return new PrismaClient({ adapter } as any);
 }
 
