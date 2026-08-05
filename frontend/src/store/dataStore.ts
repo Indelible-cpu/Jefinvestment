@@ -101,6 +101,8 @@ export interface SaleRecord {
   status: 'completed' | 'refunded' | 'voided';
   syncStatus: 'synced' | 'pending';
   branch?: string;
+  dueDate?: string;
+  isCredit?: boolean;
 }
 
 interface SaleState {
@@ -151,7 +153,7 @@ export const useSaleStore = create<SaleState>()(
       const clientTxId = crypto.randomUUID(); // Requires window.crypto
 
       try {
-        const res: any = await api.post('/api/v1/sales', { ...sale, clientTxId });
+        await api.post('/api/v1/sales', { ...sale, clientTxId });
         // The server was successful. We refresh the sales list immediately.
         get().loadSales();
       } catch (err: any) {

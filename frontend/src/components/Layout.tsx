@@ -11,7 +11,7 @@ export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
   const { companyName, companyLogo, loadSettings } = useSettingsStore();
   const { products, loadProducts } = useProductStore();
-  const { sales, loadSales } = useSaleStore();
+  const { loadSales } = useSaleStore();
   const { credits, loadCredits } = useCreditStore();
   const { loadExpenses } = useExpenseStore();
   const { loadEmployees } = useEmployeeStore();
