@@ -5,7 +5,6 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
-import { useCreditStore } from '../store/dataStore';
 
 export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
