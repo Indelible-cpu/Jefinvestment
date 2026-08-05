@@ -470,8 +470,160 @@ app.get('/api/v1/reports/summary', requireAuth, async (c) => {
   }
 });
 
+// ─── Expenses ──────────────────────────────────────────────────────────────────
+app.get('/api/v1/expenses', requireAuth, async (c) => {
+  const prisma = getPrisma(c.env);
+  try {
+    const expenses = await prisma.expense.findMany({
+      include: { category: true, user: { select: { username: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return c.json({ status: 'success', data: expenses });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+app.post('/api/v1/expenses', requireAuth, async (c) => {
+  const user = c.get('user') as any;
+  const { category, description, amount } = await c.req.json();
+  const prisma = getPrisma(c.env);
+  try {
+    let catObj = await prisma.expenseCategory.findFirst({ where: { name: category } });
+    if (!catObj) {
+      catObj = await prisma.expenseCategory.create({ data: { name: category } });
+    }
+    const branchId = user.branchId || (await prisma.branch.findFirst())?.id;
+    const expense = await prisma.expense.create({
+      data: {
+        categoryId: catObj.id,
+        description,
+        amount: Number(amount),
+        userId: user.id,
+        branchId: branchId || '',
+      },
+      include: { category: true, user: { select: { username: true } } },
+    });
+    return c.json({ status: 'success', data: expense }, 201);
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+app.delete('/api/v1/expenses/:id', requireAuth, async (c) => {
+  const { id } = c.req.param();
+  const prisma = getPrisma(c.env);
+  try {
+    await prisma.expense.delete({ where: { id } });
+    return c.json({ status: 'success', message: 'Expense deleted' });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+// ─── Credits ───────────────────────────────────────────────────────────────────
+app.get('/api/v1/credits', requireAuth, async (c) => {
+  const prisma = getPrisma(c.env);
+  try {
+    const credits = await prisma.sale.findMany({
+      where: { isCredit: true },
+      include: { creditHistory: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return c.json({ status: 'success', data: credits });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+app.put('/api/v1/credits/:id/repay', requireAuth, async (c) => {
+  const { id } = c.req.param();
+  const { amount, method } = await c.req.json();
+  const prisma = getPrisma(c.env);
+  try {
+    const sale = await prisma.sale.findUnique({ where: { id } });
+    if (!sale) return c.json({ status: 'error', message: 'Credit record not found' }, 404);
+
+    const newPaid = Number(sale.creditPaid) + Number(amount);
+    const fullyPaid = newPaid >= Number(sale.total);
+
+    const updated = await prisma.sale.update({
+      where: { id },
+      data: {
+        creditPaid: newPaid,
+        status: fullyPaid ? 'COMPLETED' : 'CREDIT',
+        creditHistory: {
+          create: { amount: Number(amount), method: method || 'CASH' },
+        },
+      },
+      include: { creditHistory: true },
+    });
+    return c.json({ status: 'success', data: updated });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+// ─── Employees ─────────────────────────────────────────────────────────────────
+app.get('/api/v1/employees', requireAuth, async (c) => {
+  const prisma = getPrisma(c.env);
+  try {
+    const employees = await prisma.employee.findMany({
+      include: { attendances: { orderBy: { date: 'desc' }, take: 1 } },
+      orderBy: { firstName: 'asc' },
+    });
+    return c.json({ status: 'success', data: employees });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+app.post('/api/v1/employees', requireAuth, async (c) => {
+  const { firstName, lastName, phone, role, salary, status } = await c.req.json();
+  const prisma = getPrisma(c.env);
+  try {
+    const emp = await prisma.employee.create({
+      data: {
+        firstName,
+        lastName,
+        phone,
+        role,
+        salary: Number(salary) || 0,
+        attendances: {
+          create: { date: new Date(), status: status || 'PRESENT' },
+        },
+      },
+      include: { attendances: true },
+    });
+    return c.json({ status: 'success', data: emp }, 201);
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+app.put('/api/v1/employees/:id/status', requireAuth, async (c) => {
+  const { id } = c.req.param();
+  const { status } = await c.req.json();
+  const prisma = getPrisma(c.env);
+  try {
+    await prisma.attendance.create({
+      data: { employeeId: id, date: new Date(), status },
+    });
+    return c.json({ status: 'success', message: 'Employee status updated' });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
+app.delete('/api/v1/employees/:id', requireAuth, async (c) => {
+  const { id } = c.req.param();
+  const prisma = getPrisma(c.env);
+  try {
+    await prisma.employee.delete({ where: { id } });
+    return c.json({ status: 'success', message: 'Employee deleted' });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
 export default app;
-// Trigger deployment
-// trigger redeploy with secrets
-// fix secret injection
-// retry with JWT_SECRET

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Package, AlertTriangle, ScanLine, RefreshCw } from 'lucide-react';
 import { useProductStore, type Product } from '../store/cartStore';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -11,7 +11,11 @@ const emptyForm: Omit<Product, 'id'> = {
 };
 
 export default function Inventory() {
-  const { products, addProduct, updateProduct, deleteProduct } = useProductStore();
+  const { products, addProduct, updateProduct, deleteProduct, loadProducts } = useProductStore();
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);

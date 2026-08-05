@@ -13,6 +13,7 @@ export interface Expense {
 
 interface ExpenseState {
   expenses: Expense[];
+  loadExpenses: () => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => void;
   deleteExpense: (id: string) => void;
   getTodayTotal: () => number;
@@ -22,15 +23,34 @@ export const useExpenseStore = create<ExpenseState>()(
   persist(
     (set, get) => ({
       expenses: [],
-      addExpense: (expense) => set((state) => ({
-        expenses: [
-          { ...expense, id: Date.now().toString(), date: new Date().toISOString().slice(0, 10) },
-          ...state.expenses,
-        ]
-      })),
-      deleteExpense: (id) => set((state) => ({
-        expenses: state.expenses.filter(e => e.id !== id)
-      })),
+      loadExpenses: async () => {
+        try {
+          const res: any = await api.get('/api/v1/expenses');
+          if (res.data && Array.isArray(res.data)) {
+            const mapped = res.data.map((e: any) => ({
+              id: e.id,
+              date: new Date(e.createdAt).toISOString().slice(0, 10),
+              category: e.category?.name || 'General',
+              description: e.description,
+              loggedBy: e.user?.username || 'Admin',
+              amount: Number(e.amount) || 0,
+            }));
+            set({ expenses: mapped });
+          }
+        } catch (err) {
+          console.warn('Failed to load expenses from API', err);
+        }
+      },
+      addExpense: (expense) => {
+        const id = Date.now().toString();
+        const date = new Date().toISOString().slice(0, 10);
+        set((state) => ({ expenses: [{ ...expense, id, date }, ...state.expenses] }));
+        api.post('/api/v1/expenses', expense).catch(err => console.error('Failed to sync expense', err));
+      },
+      deleteExpense: (id) => {
+        set((state) => ({ expenses: state.expenses.filter(e => e.id !== id) }));
+        api.delete(`/api/v1/expenses/${id}`).catch(err => console.error('Failed to delete expense', err));
+      },
       getTodayTotal: () => {
         const today = new Date().toISOString().slice(0, 10);
         return get().expenses.filter(e => e.date === today).reduce((sum, e) => sum + e.amount, 0);
@@ -186,6 +206,7 @@ export interface CreditRecord {
 
 interface CreditState {
   credits: CreditRecord[];
+  loadCredits: () => Promise<void>;
   addCredit: (credit: Omit<CreditRecord, 'id' | 'status' | 'paidAmount' | 'date'>) => void;
   recordRepayment: (id: string, amount: number) => void;
   getTotalOutstanding: () => number;
@@ -195,6 +216,27 @@ export const useCreditStore = create<CreditState>()(
   persist(
     (set, get) => ({
       credits: [],
+      loadCredits: async () => {
+        try {
+          const res: any = await api.get('/api/v1/credits');
+          if (res.data && Array.isArray(res.data)) {
+            const mapped = res.data.map((c: any) => ({
+              id: c.id,
+              invoiceNumber: c.invoiceNumber,
+              customerName: c.customerName || 'Customer',
+              customerPhone: c.customerPhone || '',
+              totalAmount: Number(c.total),
+              paidAmount: Number(c.creditPaid) || 0,
+              dueDate: c.dueDate ? new Date(c.dueDate).toISOString().slice(0, 10) : '',
+              date: new Date(c.createdAt).toISOString().slice(0, 10),
+              status: Number(c.creditPaid) >= Number(c.total) ? 'FULLY_PAID' : 'PENDING',
+            }));
+            set({ credits: mapped });
+          }
+        } catch (err) {
+          console.warn('Failed to load credits from API', err);
+        }
+      },
       addCredit: (credit) => set((state) => ({
         credits: [
           {
@@ -207,17 +249,21 @@ export const useCreditStore = create<CreditState>()(
           ...state.credits,
         ]
       })),
-      recordRepayment: (id, amount) => set((state) => ({
-        credits: state.credits.map(c => {
-          if (c.id !== id) return c;
-          const newPaid = c.paidAmount + amount;
-          return {
-            ...c,
-            paidAmount: newPaid,
-            status: newPaid >= c.totalAmount ? 'FULLY_PAID' : c.status,
-          };
-        })
-      })),
+      recordRepayment: (id, amount) => {
+        set((state) => ({
+          credits: state.credits.map(c => {
+            if (c.id !== id) return c;
+            const newPaid = c.paidAmount + amount;
+            return {
+              ...c,
+              paidAmount: newPaid,
+              status: newPaid >= c.totalAmount ? 'FULLY_PAID' : c.status,
+            };
+          })
+        }));
+        api.put(`/api/v1/credits/${id}/repay`, { amount, method: 'CASH' })
+          .catch(err => console.error('Failed to sync credit repayment', err));
+      },
       getTotalOutstanding: () =>
         get().credits.filter(c => c.status !== 'FULLY_PAID').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0),
     }),
@@ -238,6 +284,7 @@ export interface Employee {
 
 interface EmployeeState {
   employees: Employee[];
+  loadEmployees: () => Promise<void>;
   addEmployee: (emp: Omit<Employee, 'id'>) => void;
   updateStatus: (id: string, status: Employee['status']) => void;
   deleteEmployee: (id: string) => void;
@@ -248,15 +295,50 @@ export const useEmployeeStore = create<EmployeeState>()(
   persist(
     (set, get) => ({
       employees: [],
-      addEmployee: (emp) => set((state) => ({
-        employees: [...state.employees, { ...emp, id: Date.now().toString() }]
-      })),
-      updateStatus: (id, status) => set((state) => ({
-        employees: state.employees.map(e => e.id === id ? { ...e, status } : e)
-      })),
-      deleteEmployee: (id) => set((state) => ({
-        employees: state.employees.filter(e => e.id !== id)
-      })),
+      loadEmployees: async () => {
+        try {
+          const res: any = await api.get('/api/v1/employees');
+          if (res.data && Array.isArray(res.data)) {
+            const mapped = res.data.map((e: any) => ({
+              id: e.id,
+              firstName: e.firstName,
+              lastName: e.lastName,
+              phone: e.phone || '',
+              role: e.role,
+              salary: Number(e.salary) || 0,
+              status: (e.attendances?.[0]?.status as any) || 'PRESENT',
+            }));
+            set({ employees: mapped });
+          }
+        } catch (err) {
+          console.warn('Failed to load employees from API', err);
+        }
+      },
+      addEmployee: (emp) => {
+        const localId = Date.now().toString();
+        set((state) => ({ employees: [...state.employees, { ...emp, id: localId }] }));
+        api.post('/api/v1/employees', emp)
+          .then((res: any) => {
+            if (res.data?.id) {
+              set((state) => ({
+                employees: state.employees.map(e => e.id === localId ? { ...e, id: res.data.id } : e)
+              }));
+            }
+          })
+          .catch(err => console.error('Failed to sync employee to server', err));
+      },
+      updateStatus: (id, status) => {
+        set((state) => ({
+          employees: state.employees.map(e => e.id === id ? { ...e, status } : e)
+        }));
+        api.put(`/api/v1/employees/${id}/status`, { status })
+          .catch(err => console.error('Failed to sync employee status', err));
+      },
+      deleteEmployee: (id) => {
+        set((state) => ({ employees: state.employees.filter(e => e.id !== id) }));
+        api.delete(`/api/v1/employees/${id}`)
+          .catch(err => console.error('Failed to delete employee from server', err));
+      },
       getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
     }),
     { name: 'jef-employees-storage' }

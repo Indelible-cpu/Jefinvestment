@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +14,11 @@ const today = new Date().toISOString().slice(0, 10);
 const emptyForm = { category: 'Store Supplies', description: '', amount: 0, loggedBy: 'Cashier' };
 
 export default function Expenses() {
-  const { expenses, addExpense, deleteExpense } = useExpenseStore();
+  const { expenses, addExpense, deleteExpense, loadExpenses } = useExpenseStore();
+
+  useEffect(() => {
+    loadExpenses();
+  }, []);
   const [dateFilter, setDateFilter] = useState(today);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);

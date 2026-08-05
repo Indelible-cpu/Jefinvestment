@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import api from '../utils/api';
 
 // ─── Shared Product Store ─────────────────────────────────────────────────────
 export interface Product {
@@ -17,6 +18,8 @@ export interface Product {
 
 interface ProductState {
   products: Product[];
+  isLoading: boolean;
+  loadProducts: () => Promise<void>;
   setProducts: (products: Product[]) => void;
   addProduct: (product: Product) => void;
   updateProduct: (product: Product) => void;
@@ -38,10 +41,70 @@ export const useProductStore = create<ProductState>()(
   persist(
     (set) => ({
       products: DEFAULT_PRODUCTS,
+      isLoading: false,
+
+      loadProducts: async () => {
+        set({ isLoading: true });
+        try {
+          const res: any = await api.get('/api/v1/inventory');
+          if (res.data && Array.isArray(res.data)) {
+            const mapped = res.data.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              sku: p.sku,
+              category: p.category?.name || 'General',
+              costPrice: Number(p.costPrice) || 0,
+              sellingPrice: Number(p.sellingPrice) || 0,
+              stock: p.branches?.[0]?.quantity ?? 0,
+              reorderLevel: p.reorderLevel || 0,
+              isService: !!p.isService,
+              unit: p.unit || 'pcs',
+            }));
+            set({ products: mapped, isLoading: false });
+          } else {
+            set({ isLoading: false });
+          }
+        } catch (err) {
+          console.warn('Failed to load products from API', err);
+          set({ isLoading: false });
+        }
+      },
+
       setProducts: (products) => set({ products }),
-      addProduct: (product) => set((state) => ({ products: [...state.products, product] })),
-      updateProduct: (product) => set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) })),
-      deleteProduct: (id) => set((state) => ({ products: state.products.filter(p => p.id !== id) })),
+
+      addProduct: (product) => {
+        set((state) => ({ products: [...state.products, product] }));
+        api.post('/api/v1/inventory', {
+          name: product.name,
+          sku: product.sku,
+          categoryId: 'general',
+          costPrice: product.costPrice,
+          sellingPrice: product.sellingPrice,
+          reorderLevel: product.reorderLevel,
+          isService: product.isService,
+          unit: product.unit,
+          initialStock: product.stock,
+        }).catch(err => console.error('Failed to sync new product to server', err));
+      },
+
+      updateProduct: (product) => {
+        set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
+        api.put(`/api/v1/inventory/${product.id}`, {
+          name: product.name,
+          sku: product.sku,
+          costPrice: product.costPrice,
+          sellingPrice: product.sellingPrice,
+          reorderLevel: product.reorderLevel,
+          isService: product.isService,
+          unit: product.unit,
+        }).catch(err => console.error('Failed to sync updated product to server', err));
+      },
+
+      deleteProduct: (id) => {
+        set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+        api.delete(`/api/v1/inventory/${id}`).catch(err => console.error('Failed to delete product from server', err));
+      },
+
       decrementStock: (id, qty) => set((state) => ({
         products: state.products.map(p => p.id === id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)
       })),

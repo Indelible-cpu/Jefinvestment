@@ -1,32 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CreditCard, DollarSign, Calendar, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface CreditRecord {
-  id: string;
-  invoiceNumber: string;
-  customerName: string;
-  customerPhone: string;
-  totalAmount: number;
-  paidAmount: number;
-  dueDate: string;
-  status: 'PENDING' | 'OVERDUE' | 'FULLY_PAID';
-}
-
-const mockCreditSales: CreditRecord[] = [
-  { id: '1', invoiceNumber: 'INV-882190', customerName: 'Blessings Musopole', customerPhone: '+265 999 555 444', totalAmount: 850000, paidAmount: 300000, dueDate: '2026-08-15', status: 'PENDING' },
-  { id: '2', invoiceNumber: 'INV-773102', customerName: 'Yamikani Phiri', customerPhone: '+265 888 111 222', totalAmount: 45000, paidAmount: 0, dueDate: '2026-08-01', status: 'OVERDUE' },
-  { id: '3', invoiceNumber: 'INV-551044', customerName: 'Grace Chinkhata', customerPhone: '+265 991 333 777', totalAmount: 12000, paidAmount: 12000, dueDate: '2026-07-28', status: 'FULLY_PAID' },
-];
+import { useCreditStore } from '../store/dataStore';
 
 export default function CreditManagement() {
-  const [credits, setCredits] = useState<CreditRecord[]>(mockCreditSales);
-  const [selectedRecord, setSelectedRecord] = useState<CreditRecord | null>(null);
+  const { credits, loadCredits, recordRepayment } = useCreditStore();
+  const [selectedRecord, setSelectedRecord] = useState<string | null>(null);
   const [repayAmount, setRepayAmount] = useState('');
   const [repayMethod, setRepayMethod] = useState('CASH');
 
+  useEffect(() => {
+    loadCredits();
+  }, []);
+
   const totalOutstanding = credits.filter(c => c.status !== 'FULLY_PAID').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0);
   const totalOverdue = credits.filter(c => c.status === 'OVERDUE').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0);
+
+  const selectedCreditRecord = credits.find(c => c.id === selectedRecord) || null;
 
   const handleRepay = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,15 +25,7 @@ export default function CreditManagement() {
     const amountNum = parseFloat(repayAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    setCredits(credits.map(c => {
-      if (c.id === selectedRecord.id) {
-        const newPaid = c.paidAmount + amountNum;
-        const newStatus = newPaid >= c.totalAmount ? 'FULLY_PAID' : c.status;
-        return { ...c, paidAmount: newPaid, status: newStatus };
-      }
-      return c;
-    }));
-
+    recordRepayment(selectedRecord, amountNum);
     setSelectedRecord(null);
     setRepayAmount('');
     toast.success('Repayment of MWK ' + amountNum.toLocaleString() + ' recorded.');
@@ -130,8 +112,8 @@ export default function CreditManagement() {
                   </td>
                   <td className="p-4 text-right">
                     {c.status !== 'FULLY_PAID' && (
-                      <button 
-                        onClick={() => setSelectedRecord(c)}
+                       <button 
+                        onClick={() => setSelectedRecord(c.id)}
                         className="flex items-center gap-1 text-xs bg-primary text-white hover:bg-blue-700 px-3 py-1.5 rounded font-medium transition ml-auto"
                       >
                         <DollarSign size={14} />
@@ -151,20 +133,20 @@ export default function CreditManagement() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setSelectedRecord(null)}>
           <div className="bg-card w-full max-w-md rounded-lg shadow-lg border p-6" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-1">Record Credit Repayment</h2>
-            <p className="text-sm text-gray-500 mb-4">{selectedRecord.customerName} - {selectedRecord.invoiceNumber}</p>
+            <p className="text-sm text-gray-500 mb-4">{selectedCreditRecord?.customerName} - {selectedCreditRecord?.invoiceNumber}</p>
             
             <div className="p-3 bg-gray-50 border rounded mb-4 text-sm space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-500">Total Credit:</span>
-                <span className="font-mono">MWK {selectedRecord.totalAmount.toLocaleString()}</span>
+                <span className="font-mono">MWK {selectedCreditRecord?.totalAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Already Paid:</span>
-                <span className="font-mono">MWK {selectedRecord.paidAmount.toLocaleString()}</span>
+                <span className="font-mono">MWK {selectedCreditRecord?.paidAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between font-bold text-red-600 pt-1 border-t">
                 <span>Remaining Balance:</span>
-                <span className="font-mono">MWK {(selectedRecord.totalAmount - selectedRecord.paidAmount).toLocaleString()}</span>
+                <span className="font-mono">MWK {((selectedCreditRecord?.totalAmount || 0) - (selectedCreditRecord?.paidAmount || 0)).toLocaleString()}</span>
               </div>
             </div>
 

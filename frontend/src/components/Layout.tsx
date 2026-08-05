@@ -3,15 +3,17 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { useSaleStore, useCreditStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 
 export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
   const { companyName, companyLogo, loadSettings } = useSettingsStore();
-  const { products } = useProductStore();
+  const { products, loadProducts } = useProductStore();
   const { syncPendingSales, sales, loadSales } = useSaleStore();
-  const { credits } = useCreditStore();
+  const { credits, loadCredits } = useCreditStore();
+  const { loadExpenses } = useExpenseStore();
+  const { loadEmployees } = useEmployeeStore();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -22,6 +24,10 @@ export default function Layout() {
     // Initial data load on login/mount — always online-first
     loadSettings();
     loadSales();
+    loadProducts();
+    loadExpenses();
+    loadCredits();
+    loadEmployees();
     loadProfile(); // Fetch latest profile (name, pic) from server
     
     // Background auto-sync
