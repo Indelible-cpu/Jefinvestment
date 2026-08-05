@@ -1,6 +1,6 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useSaleStore, useCreditStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
@@ -23,6 +23,7 @@ export default function Dashboard() {
 
   const { getTodayTotal, sales } = useSaleStore();
   const { getTotalOutstanding } = useCreditStore();
+  const { getActiveCount } = useEmployeeStore();
   const { products } = useProductStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -33,6 +34,7 @@ export default function Dashboard() {
 
   const todayTotal = getTodayTotal();
   const outstandingCredit = getTotalOutstanding();
+  const activeStaff = getActiveCount();
   const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -57,6 +59,7 @@ export default function Dashboard() {
     { label: "Today's Sales", value: `MWK ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports' },
     { label: 'Outstanding Credit', value: `MWK ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits' },
     { label: 'Low Stock Items', value: `${lowStockCount} items`, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', link: '/inventory' },
+    { label: 'Active Employees', value: `${activeStaff} staff`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees' },
   ];
 
   const recentSales = sales.slice(0, 5);
@@ -104,6 +107,11 @@ export default function Dashboard() {
             {productsIncome > 0 ? (productsIncome >= 1000 ? `${(productsIncome / 1000).toFixed(1)}k` : productsIncome) : '0'}
           </div>
           <div className="text-[10px] text-gray-500 text-center leading-tight">Products<br/>Income</div>
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <div className="bg-blue-50 text-blue-500 p-2 rounded-lg mb-1"><Users size={18} /></div>
+          <div className="font-bold text-lg leading-tight">{activeStaff}</div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Active<br/>Staff</div>
         </div>
       </div>
 

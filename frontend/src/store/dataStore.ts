@@ -224,3 +224,42 @@ export const useCreditStore = create<CreditState>()(
     { name: 'jef-credits-storage' }
   )
 );
+
+// ─── Employee Store ─────────────────────────────────────────────────────────────
+export interface Employee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  role: string;
+  salary: number;
+  status: 'PRESENT' | 'ABSENT' | 'LEAVE';
+}
+
+interface EmployeeState {
+  employees: Employee[];
+  addEmployee: (emp: Omit<Employee, 'id'>) => void;
+  updateStatus: (id: string, status: Employee['status']) => void;
+  deleteEmployee: (id: string) => void;
+  getActiveCount: () => number;
+}
+
+export const useEmployeeStore = create<EmployeeState>()(
+  persist(
+    (set, get) => ({
+      employees: [],
+      addEmployee: (emp) => set((state) => ({
+        employees: [...state.employees, { ...emp, id: Date.now().toString() }]
+      })),
+      updateStatus: (id, status) => set((state) => ({
+        employees: state.employees.map(e => e.id === id ? { ...e, status } : e)
+      })),
+      deleteEmployee: (id) => set((state) => ({
+        employees: state.employees.filter(e => e.id !== id)
+      })),
+      getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
+    }),
+    { name: 'jef-employees-storage' }
+  )
+);
+

@@ -5,7 +5,7 @@
  * Creates:
  *  - Roles: ADMIN, CASHIER, MANAGER
  *  - Default Branch: Main Branch
- *  - Admin user:  username=admin  password=Admin@1234
+ *  - Admin user:  username=jefinvestmentmw@gmail.com  password=admin1234#
  *  - Default Product Categories
  *  - Default Expense Categories
  */
@@ -52,14 +52,14 @@ async function main() {
   console.log('✅ Default branch created:', branch.name);
 
   // ─── Admin User ────────────────────────────────────────────────────────────
-  const adminPasswordHash = await bcrypt.hash('Admin@1234', 12);
+  const adminPasswordHash = await bcrypt.hash('admin1234#', 12);
 
   const adminUser = await prisma.user.upsert({
-    where: { username: 'admin' },
+    where: { username: 'jefinvestmentmw@gmail.com' },
     update: {},
     create: {
-      username: 'admin',
-      email: 'admin@jefinvestment.com',
+      username: 'jefinvestmentmw@gmail.com',
+      email: 'jefinvestmentmw@gmail.com',
       passwordHash: adminPasswordHash,
       roleId: adminRole.id,
       branchId: branch.id,
@@ -67,7 +67,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Admin user created:', adminUser.username, '/ password: Admin@1234');
+  console.log('✅ Admin user created:', adminUser.username, '/ password: admin1234#');
 
   // ─── Default Cashier ───────────────────────────────────────────────────────
   const cashierPasswordHash = await bcrypt.hash('Cashier@1234', 12);
@@ -148,7 +148,7 @@ async function main() {
   console.log('✅ Default settings seeded');
   console.log('\n🎉 Seed complete!');
   console.log('─────────────────────────────────────');
-  console.log('Admin Login:   admin / Admin@1234');
+  console.log('Admin Login:   jefinvestmentmw@gmail.com / admin1234#');
   console.log('Cashier Login: cashier / Cashier@1234');
   console.log('─────────────────────────────────────');
 }

@@ -1,24 +1,9 @@
 import { useState } from 'react';
 import { Users, UserPlus, CheckCircle, Clock } from 'lucide-react';
-
-interface Employee {
-  id: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  role: string;
-  salary: number;
-  status: 'PRESENT' | 'ABSENT' | 'LEAVE';
-}
-
-const mockEmployees: Employee[] = [
-  { id: '1', firstName: 'Chifundo', lastName: 'Banda', phone: '+265 999 123 456', role: 'Cashier', salary: 150000, status: 'PRESENT' },
-  { id: '2', firstName: 'Kondwani', lastName: 'Phiri', phone: '+265 888 654 321', role: 'Technician', salary: 200000, status: 'PRESENT' },
-  { id: '3', firstName: 'Mercy', lastName: 'Mwale', phone: '+265 991 112 233', role: 'Print Shop Operator', salary: 140000, status: 'LEAVE' },
-];
+import { useEmployeeStore } from '../store/dataStore';
 
 export default function Employees() {
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
+  const { employees, addEmployee, updateStatus } = useEmployeeStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
@@ -30,17 +15,7 @@ export default function Employees() {
     e.preventDefault();
     if (!newFirstName || !newLastName) return;
 
-    const newEmp: Employee = {
-      id: Date.now().toString(),
-      firstName: newFirstName,
-      lastName: newLastName,
-      phone: newPhone,
-      role: newRole,
-      salary: parseFloat(newSalary) || 0,
-      status: 'PRESENT'
-    };
-
-    setEmployees([...employees, newEmp]);
+    addEmployee({ firstName: newFirstName, lastName: newLastName, phone: newPhone, role: newRole, salary: Number(newSalary), status: 'PRESENT' });
     setShowAddModal(false);
     setNewFirstName('');
     setNewLastName('');
@@ -48,14 +23,8 @@ export default function Employees() {
     setNewSalary('');
   };
 
-  const toggleAttendance = (id: string) => {
-    setEmployees(employees.map(emp => {
-      if (emp.id === id) {
-        const nextStatus: Employee['status'] = emp.status === 'PRESENT' ? 'ABSENT' : emp.status === 'ABSENT' ? 'LEAVE' : 'PRESENT';
-        return { ...emp, status: nextStatus };
-      }
-      return emp;
-    }));
+  const handleToggleStatus = (id: string, current: string) => {
+    updateStatus(id, current === 'PRESENT' ? 'ABSENT' : current === 'ABSENT' ? 'LEAVE' : 'PRESENT');
   };
 
   return (
@@ -141,7 +110,7 @@ export default function Employees() {
                 </td>
                 <td className="p-4 text-right">
                   <button 
-                    onClick={() => toggleAttendance(emp.id)}
+                    onClick={() => handleToggleStatus(emp.id, emp.status)}
                     className="text-xs bg-gray-100 border hover:bg-gray-200 px-3 py-1.5 rounded font-medium transition"
                   >
                     Toggle Status
