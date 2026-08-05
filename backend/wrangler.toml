@@ -1,19 +1,32 @@
-name = "jef-erp-backend"
-main = "src/worker.ts"
-compatibility_date = "2024-09-23"
+# =============================================================================
+# JIMS ERP — Cloudflare Worker (Backend API)
+# Secrets are stored via: wrangler secret put SECRET_NAME
+# DO NOT put DATABASE_URL, JWT_SECRET or REFRESH_TOKEN_SECRET here.
+# =============================================================================
+
+name            = "jef-erp-backend"
+main            = "src/worker.ts"
+compatibility_date  = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
-placement = { mode = "smart" }
+placement       = { mode = "smart" }
 
 [observability]
 enabled = true
 
-# These are non-secret environment variables.
-# Secrets (DATABASE_URL, JWT_SECRET) are set via: wrangler secret put SECRET_NAME
-[vars]
-ENVIRONMENT = "production"
-JWT_EXPIRES_IN = "1d"
-# Set this to your Cloudflare Pages URL after deployment
-CORS_ORIGIN = "https://jefinvestment.pages.dev"
-
 [build]
 command = "npx prisma generate"
+
+# ── Non-secret environment variables ─────────────────────────────────────────
+# Secrets (DATABASE_URL, JWT_SECRET, REFRESH_TOKEN_SECRET) are set via:
+#   wrangler secret put DATABASE_URL
+#   wrangler secret put JWT_SECRET
+#   wrangler secret put REFRESH_TOKEN_SECRET
+[vars]
+ENVIRONMENT   = "production"
+JWT_EXPIRES_IN = "1d"
+CORS_ORIGIN   = "https://jefinvestment.pages.dev"
+
+# ── Production routes (uncomment when custom domain is configured) ────────────
+# [[routes]]
+# pattern = "api.jefinvestment.com/*"
+# zone_name = "jefinvestment.com"

@@ -1,10 +1,39 @@
+# ── Node / package managers ───────────────────────────────────────────────────
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
 dist/
 build/
+.output/
+
+# ── Environment / secrets — NEVER COMMIT THESE ───────────────────────────────
 .env
 .env.local
-.DS_Store
-*.log
-coverage/
+.env.development
+.env.production
+.env.staging
+.dev.vars
+# .env.example is safe to commit — it contains no real secrets
+
+# ── Wrangler local state ──────────────────────────────────────────────────────
 .wrangler/
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── Test / coverage ───────────────────────────────────────────────────────────
+coverage/
+
+# ── Prisma ───────────────────────────────────────────────────────────────────
+# Do NOT ignore prisma/schema.prisma — it is safe to commit
 .neon/

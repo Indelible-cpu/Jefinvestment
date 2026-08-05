@@ -11,6 +11,7 @@ import bcrypt from 'bcryptjs';
 export type Env = {
   DATABASE_URL: string;
   JWT_SECRET: string;
+  REFRESH_TOKEN_SECRET: string;
   JWT_EXPIRES_IN: string;
   CORS_ORIGIN: string;
   ENVIRONMENT: string;
@@ -67,7 +68,9 @@ async function requireAuth(c: any, next: any) {
   await next();
 }
 
-// ─── Health Check ──────────────────────────────────────────────────────────────
+// ─── Health Endpoints ──────────────────────────────────────────────────────────
+app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString(), environment: c.env.ENVIRONMENT || 'production' }));
+
 app.get('/api/v1/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/api/v1/health/db', async (c) => {
   let dbUrl = c.env.DATABASE_URL || '';
