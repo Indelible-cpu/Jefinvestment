@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { Lock, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -18,7 +18,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     const { login } = useAuthStore.getState();
-    const success = await login(username, password);
+    const success = await login(email, password);
     setLoading(false);
     if (success) {
       const role = useAuthStore.getState().user?.role;
@@ -35,7 +35,7 @@ export default function Login() {
         {/* Blue header */}
         <div className="bg-primary p-8 text-center">
           <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden border-2 border-white/40">
-            <img src="/icons/icon-192.png" alt="JIMS ERP" className="w-full h-full object-cover" />
+            <img src="/pwa-192x192.png" alt="JIMS ERP" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-white">JIMS ERP</h1>
           <p className="text-blue-200 mt-1 text-sm">One system. Total control.</p>
@@ -50,21 +50,21 @@ export default function Login() {
           )}
 
           <form onSubmit={handleLogin} className="space-y-5">
-            {/* Username */}
+            {/* Email */}
             <div className="relative">
               <User className="absolute left-3 top-3.5 text-gray-400" size={18} />
               <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 pt-5 pb-2 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition peer"
                 placeholder=" "
                 required
-                autoComplete="username"
+                autoComplete="email"
               />
-              <label htmlFor="username" className="absolute left-10 top-3.5 text-gray-400 text-xs font-medium transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-primary pointer-events-none">
-                Username or email
+              <label htmlFor="email" className="absolute left-10 top-3.5 text-gray-400 text-xs font-medium transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-primary pointer-events-none">
+                Email address
               </label>
             </div>
 

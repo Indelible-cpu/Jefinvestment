@@ -23,7 +23,7 @@ interface AuthState {
   users: UserAccount[];
   isLoading: boolean;
   // Actions
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
@@ -42,10 +42,10 @@ export const useAuthStore = create<AuthState>()(
       users: [],
       isLoading: false,
 
-      login: async (username, password) => {
+      login: async (email, password) => {
         set({ isLoading: true });
         try {
-          const res: any = await api.post('/api/v1/auth/login', { username, password });
+          const res: any = await api.post('/api/v1/auth/login', { username: email, password });
           const { token, user } = res.data;
           set({
             token,
