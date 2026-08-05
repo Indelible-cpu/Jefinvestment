@@ -21,10 +21,7 @@ interface ExpenseState {
 export const useExpenseStore = create<ExpenseState>()(
   persist(
     (set, get) => ({
-      expenses: [
-        { id: '1', date: new Date().toISOString().slice(0, 10), category: 'Transport', description: 'Delivery to client', loggedBy: 'Admin', amount: 3000 },
-        { id: '2', date: new Date().toISOString().slice(0, 10), category: 'Store Supplies', description: 'Cleaning supplies', loggedBy: 'Admin', amount: 2500 },
-      ],
+      expenses: [],
       addExpense: (expense) => set((state) => ({
         expenses: [
           { ...expense, id: Date.now().toString(), date: new Date().toISOString().slice(0, 10) },
@@ -197,10 +194,7 @@ interface CreditState {
 export const useCreditStore = create<CreditState>()(
   persist(
     (set, get) => ({
-      credits: [
-        { id: '1', invoiceNumber: 'INV-882190', customerName: 'Blessings Musopole', customerPhone: '+265 999 555 444', totalAmount: 850000, paidAmount: 300000, dueDate: '2026-08-15', date: new Date().toISOString().slice(0,10), status: 'PENDING' },
-        { id: '2', invoiceNumber: 'INV-773102', customerName: 'Yamikani Phiri', customerPhone: '+265 888 111 222', totalAmount: 45000, paidAmount: 0, dueDate: '2026-08-01', date: new Date().toISOString().slice(0,10), status: 'OVERDUE' },
-      ],
+      credits: [],
       addCredit: (credit) => set((state) => ({
         credits: [
           {

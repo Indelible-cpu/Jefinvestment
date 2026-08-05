@@ -1,7 +1,6 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, Users, AlertTriangle, Printer, Wrench, Search, Download, Grip } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSaleStore } from '../store/dataStore';
-import { useCreditStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
@@ -23,7 +22,6 @@ export default function Dashboard() {
   const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const { getTodayTotal, sales } = useSaleStore();
-  const { getTotalOutstanding } = useCreditStore();
   const { products } = useProductStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -33,7 +31,6 @@ export default function Dashboard() {
   const firstName = user?.name?.split(' ')[0] || 'there';
 
   const todayTotal = getTodayTotal();
-  const outstandingCredit = getTotalOutstanding();
   const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -56,9 +53,7 @@ export default function Dashboard() {
 
   const stats = [
     { label: "Today's Sales", value: `MWK ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports' },
-    { label: 'Outstanding Credit', value: `MWK ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits' },
     { label: 'Low Stock Items', value: `${lowStockCount} items`, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', link: '/inventory' },
-    { label: 'Active Employees', value: '4 staff', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees' }, // Still mocked as no employee store exists yet
   ];
 
   const recentSales = sales.slice(0, 5);
@@ -92,11 +87,7 @@ export default function Dashboard() {
           <div className="font-bold text-lg leading-tight">{lowStockCount}</div>
           <div className="text-[10px] text-gray-500 text-center leading-tight">Low Stock<br/>Items</div>
         </div>
-        <div className="flex flex-col items-center flex-1">
-          <div className="bg-blue-50 text-blue-500 p-2 rounded-lg mb-1"><Users size={18} /></div>
-          <div className="font-bold text-lg leading-tight">4</div>
-          <div className="text-[10px] text-gray-500 text-center leading-tight">Active<br/>Staff</div>
-        </div>
+
         <div className="flex flex-col items-center flex-1">
           <div className="bg-green-50 text-green-500 p-2 rounded-lg mb-1"><Printer size={18} /></div>
           <div className="font-bold text-lg leading-tight">

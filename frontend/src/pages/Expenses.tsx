@@ -2,14 +2,7 @@ import { useState } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Expense {
-  id: string;
-  date: string;
-  category: string;
-  description: string;
-  loggedBy: string;
-  amount: number;
-}
+import { useExpenseStore } from '../store/dataStore';
 
 const EXPENSE_CATEGORIES = [
   'Store Supplies', 'Transport', 'Electricity', 'Printing', 'Maintenance',
@@ -18,15 +11,10 @@ const EXPENSE_CATEGORIES = [
 
 const today = new Date().toISOString().slice(0, 10);
 
-const mockExpenses: Expense[] = [
-  { id: '1', date: today, category: 'Transport', description: 'Delivery to client', loggedBy: 'Admin', amount: 3000 },
-  { id: '2', date: today, category: 'Store Supplies', description: 'Bought cleaning supplies', loggedBy: 'Admin', amount: 2500 },
-];
-
 const emptyForm = { category: 'Store Supplies', description: '', amount: 0, loggedBy: 'Cashier' };
 
 export default function Expenses() {
-  const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
+  const { expenses, addExpense, deleteExpense } = useExpenseStore();
   const [dateFilter, setDateFilter] = useState(today);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -39,10 +27,7 @@ export default function Expenses() {
     setError('');
     if (!form.description.trim()) { setError('Description is required.'); return; }
     if (form.amount <= 0) { setError('Amount must be greater than zero.'); return; }
-    setExpenses(prev => [
-      { ...form, id: Date.now().toString(), date: today },
-      ...prev
-    ]);
+    addExpense({ ...form, loggedBy: 'Admin' });
     setForm(emptyForm);
     setShowModal(false);
   };
@@ -52,7 +37,7 @@ export default function Expenses() {
       action: {
         label: 'Remove',
         onClick: () => {
-          setExpenses(prev => prev.filter(e => e.id !== id));
+          deleteExpense(id);
           toast.success('Expense removed');
         }
       },

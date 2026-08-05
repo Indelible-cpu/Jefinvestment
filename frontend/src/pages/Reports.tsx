@@ -190,10 +190,6 @@ export default function Reports() {
           <h2 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><DollarSign size={20} /> Cash Reconciliation</h2>
           <div className="space-y-2">
             <div className="flex justify-between py-2 border-b">
-              <span className="text-gray-600">Opening Float</span>
-              <span className="font-semibold">MWK 10,000</span>
-            </div>
-            <div className="flex justify-between py-2 border-b">
               <span className="text-gray-600">+ Cash Sales</span>
               <span className="font-semibold text-green-600">+ MWK {data.cashSales.toLocaleString()}</span>
             </div>
@@ -203,7 +199,7 @@ export default function Reports() {
             </div>
             <div className="flex justify-between py-3 bg-blue-50 rounded-lg px-3 mt-3">
               <span className="font-bold text-gray-800">Expected in Drawer</span>
-              <span className="font-extrabold text-blue-700 text-lg">MWK {(data.netCash + 10000).toLocaleString()}</span>
+              <span className="font-extrabold text-blue-700 text-lg">MWK {data.netCash.toLocaleString()}</span>
             </div>
           </div>
         </div>

@@ -334,7 +334,7 @@ export default function Settings() {
             <div className="p-6">
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
                 <p className="text-sm text-blue-800 font-medium">
-                  Because this system operates entirely locally for maximum privacy and speed, <strong>it is your responsibility to download backups regularly</strong>. If you clear your browser data or switch devices without a backup, your data will be lost.
+                  This system automatically syncs with the secure cloud for maximum reliability, while keeping offline copies for blazing fast performance. However, downloading manual backups is still highly recommended for your own business records.
                 </p>
               </div>
 

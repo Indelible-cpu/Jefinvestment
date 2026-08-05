@@ -181,7 +181,7 @@ export default function Layout() {
           <Link to="/settings" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-800 text-blue-100 transition font-medium mb-4">
             <SettingsIcon size={20} /> <span>Settings</span>
           </Link>
-          <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg mb-8 md:mb-0">
+          <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg mb-2">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="hidden md:flex w-8 h-8 bg-white rounded-full items-center justify-center text-[#004bb4] overflow-hidden shadow-sm shrink-0">
                 {user?.profilePic ? (
@@ -198,6 +198,9 @@ export default function Layout() {
             <button onClick={logout} className="text-blue-300 hover:text-white p-2 hover:bg-red-500/20 rounded transition" title="Sign Out">
               <LogOut size={18} />
             </button>
+          </div>
+          <div className="text-[9px] text-center text-blue-400 opacity-60 font-medium tracking-wide uppercase pb-4 md:pb-0 mt-2">
+            JIMS ERP. Powered by Indelible Technologies
           </div>
         </div>
       </aside>
