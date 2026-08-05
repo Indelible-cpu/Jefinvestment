@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
+import { useSyncQueueStore } from '../store/syncQueueStore';
 
 export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
   const { companyName, companyLogo, loadSettings } = useSettingsStore();
   const { products, loadProducts } = useProductStore();
-  const { syncPendingSales, sales, loadSales } = useSaleStore();
+  const { sales, loadSales } = useSaleStore();
   const { credits, loadCredits } = useCreditStore();
   const { loadExpenses } = useExpenseStore();
   const { loadEmployees } = useEmployeeStore();
+  const { queue, isSyncing, syncAll } = useSyncQueueStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
@@ -31,25 +33,32 @@ export default function Layout() {
     loadCredits();
     loadEmployees();
     loadProfile();
-    syncPendingSales();
+    syncAll();
 
     // Auto-refresh ALL data every 30 seconds so every device stays in sync
     const interval = setInterval(() => {
+      syncAll();
       loadSales();
       loadProducts();
       loadExpenses();
       loadCredits();
       loadEmployees();
-      syncPendingSales();
     }, 30000);
 
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const handleOnline = () => {
+      syncAll();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
   const overdueCreditCount = credits?.filter(c => c.status === 'OVERDUE').length || 0;
-  const pendingSyncCount = sales?.filter(s => s.syncStatus === 'pending').length || 0;
-  const notificationCount = lowStockCount + overdueCreditCount + pendingSyncCount;
+  const notificationCount = lowStockCount + overdueCreditCount;
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -100,7 +109,22 @@ export default function Layout() {
             <p className="text-sm text-blue-100 mt-0.5">{greeting}, {user?.name?.split(' ')[0] || 'Jef'} 👋</p>
           </div>
         </div>
-        <div className="flex items-center gap-4 mt-1">
+        <div className="flex items-center gap-4">
+           {/* Sync Status Badge */}
+           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-black/20 rounded-full text-sm font-medium backdrop-blur-sm">
+             {queue.length > 0 ? (
+               <>
+                 {isSyncing ? <CloudUpload size={16} className="animate-pulse text-yellow-300" /> : <CloudOff size={16} className="text-red-300" />}
+                 <span className="text-yellow-100">{queue.length} Pending</span>
+               </>
+             ) : (
+               <>
+                 <Cloud size={16} className="text-green-300" />
+                 <span className="text-green-50">Online</span>
+               </>
+             )}
+           </div>
+
            <div className="relative">
              <button onClick={() => setShowNotifications(!showNotifications)} className="relative cursor-pointer p-1">
                <Bell size={24} />

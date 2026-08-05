@@ -197,16 +197,32 @@ app.get('/api/v1/inventory', requireAuth, async (c) => {
 app.post('/api/v1/inventory', requireAuth, async (c) => {
   const body = await c.req.json();
   const prisma = getPrisma(c.env);
+  const user = c.get('user') as any;
   try {
-    const { name, categoryId, sku, barcode, description, unit, costPrice, sellingPrice, reorderLevel, isService, initialStock, branchId } = body;
+    let { name, categoryId, sku, barcode, description, unit, costPrice, sellingPrice, reorderLevel, isService, initialStock } = body;
+    const branchId = user.branchId;
+
+    // Ensure category exists
+    if (!categoryId || categoryId === 'general') {
+      let cat = await prisma.productCategory.findFirst({ where: { name: 'General' } });
+      if (!cat) {
+        cat = await prisma.productCategory.create({ data: { name: 'General' } });
+      }
+      categoryId = cat.id;
+    }
+
     const product = await prisma.product.create({
       data: { name, categoryId, sku, barcode, description, unit, costPrice, sellingPrice, reorderLevel, isService },
     });
+
     // Set initial stock for the branch
     if (branchId && !isService && initialStock > 0) {
       await prisma.productBranch.create({ data: { productId: product.id, branchId, quantity: initialStock } });
     }
     return c.json({ status: 'success', data: product }, 201);
+  } catch (err: any) {
+    console.error('Inventory Create Error:', err.message);
+    return c.json({ status: 'error', message: err.message }, 500);
   } finally {
     await prisma.$disconnect();
   }
@@ -322,53 +338,90 @@ app.post('/api/v1/sales', requireAuth, async (c) => {
   const body = await c.req.json();
   const prisma = getPrisma(c.env);
   try {
-    const { invoiceNumber, customerName, customerPhone, subtotal, discount, taxAmount, taxName, taxType, total, items, paymentMethod, amountPaid, isCredit, dueDate, syncId } = body;
+    const { clientTxId, customerName, customerPhone, subtotal, discount, total, items, paymentMethod, amountPaid, isCredit, dueDate } = body;
 
     const branchId = user.branchId;
     if (!branchId) return c.json({ status: 'error', message: 'User must be assigned to a branch' }, 400);
 
-    const sale = await prisma.sale.create({
-      data: {
-        invoiceNumber,
-        branchId,
-        userId: user.id,
-        customerName,
-        customerPhone,
-        subtotal,
-        discount: discount || 0,
-        total,
-        status: isCredit ? 'CREDIT' : 'COMPLETED',
-        isCredit: !!isCredit,
-        creditAmount: isCredit ? total : 0,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        syncId,
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discount: item.discount || 0,
-            subtotal: item.quantity * item.unitPrice - (item.discount || 0),
-          })),
-        },
-        payments: {
-          create: [{ method: paymentMethod, amount: amountPaid || total }],
-        },
-      },
-      include: { items: true, payments: true },
-    });
-
-    // Decrement stock for physical products
-    for (const item of items) {
-      if (!item.isService && item.productId) {
-        const pb = await prisma.productBranch.findUnique({ where: { productId_branchId: { productId: item.productId, branchId } } });
-        if (pb) {
-          await prisma.productBranch.update({ where: { id: pb.id }, data: { quantity: Math.max(0, pb.quantity - item.quantity) } });
-        }
-      }
+    if (clientTxId) {
+      const existingSale = await prisma.sale.findUnique({ where: { clientTxId }, include: { items: true, payments: true } });
+      if (existingSale) return c.json({ status: 'success', data: existingSale }, 200);
     }
 
+    const sale = await prisma.$transaction(async (tx) => {
+      // Generate invoice number securely on server
+      const count = await tx.sale.count();
+      const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(5, '0')}`;
+
+      const newSale = await tx.sale.create({
+        data: {
+          invoiceNumber,
+          branchId,
+          userId: user.id,
+          customerName,
+          customerPhone,
+          subtotal,
+          discount: discount || 0,
+          total,
+          status: isCredit ? 'CREDIT' : 'COMPLETED',
+          isCredit: !!isCredit,
+          creditAmount: isCredit ? total : 0,
+          dueDate: dueDate ? new Date(dueDate) : null,
+          clientTxId,
+          items: {
+            create: items.map((item: any) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount || 0,
+              subtotal: item.quantity * item.unitPrice - (item.discount || 0),
+            })),
+          },
+          payments: {
+            create: [{ method: paymentMethod, amount: amountPaid || total }],
+          },
+        },
+        include: { items: true, payments: true },
+      });
+
+      // Decrement stock inside the same transaction
+      for (const item of items) {
+        if (!item.isService && item.productId) {
+          const pb = await tx.productBranch.findUnique({ where: { productId_branchId: { productId: item.productId, branchId } } });
+          if (pb) {
+            await tx.productBranch.update({ where: { id: pb.id }, data: { quantity: Math.max(0, pb.quantity - item.quantity) } });
+            
+            await tx.inventoryTransaction.create({
+              data: {
+                productId: item.productId,
+                branchId,
+                userId: user.id,
+                type: 'SALE',
+                quantity: item.quantity,
+                reference: newSale.invoiceNumber,
+              }
+            });
+          }
+        }
+      }
+
+      if (clientTxId) {
+         await tx.syncAuditLog.create({
+           data: { clientTxId, action: 'CREATE_SALE', status: 'SUCCESS' }
+         });
+      }
+
+      return newSale;
+    });
+
     return c.json({ status: 'success', data: sale }, 201);
+  } catch (error: any) {
+    if (body.clientTxId) {
+      await prisma.syncAuditLog.create({
+        data: { clientTxId: body.clientTxId, action: 'CREATE_SALE', status: 'FAILED', error: error.message }
+      }).catch(() => {});
+    }
+    return c.json({ status: 'error', message: error.message }, 500);
   } finally {
     await prisma.$disconnect();
   }

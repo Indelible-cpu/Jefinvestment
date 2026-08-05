@@ -177,30 +177,49 @@ const playSound = (type: 'success' | 'error') => {
         invoiceNumber,
       });
 
-      // Decrement stock for physical products
-      cart.items.forEach(item => {
-        if (!item.isService) {
-          decrementStock(item.id, item.quantity);
-        }
-      });
+    setTimeout(async () => {
+      try {
+        await addSale({
+          invoiceNumber,
+          cashier: useAuthStore.getState().user?.name || 'Staff',
+          items: cart.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, productId: i.id })),
+          subtotal,
+          discount,
+          taxAmount,
+          taxName,
+          taxType,
+          total: finalTotal,
+          paymentMethod,
+          amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
+          customerName: customerName || undefined,
+          customerPhone: customerPhone || undefined,
+          customerId: customerId || undefined,
+          dueDate: paymentMethod === 'CREDIT' ? dueDate : undefined,
+          isCredit: paymentMethod === 'CREDIT',
+        });
+        
+        // Decrement stock for physical products locally as well for immediate UI response
+        cart.items.forEach(item => {
+          if (!item.isService) {
+            decrementStock(item.id, item.quantity);
+          }
+        });
 
-      // Record the sale in global store
-      addSale({
-        invoiceNumber,
-        cashier: useAuthStore.getState().user?.name || 'Staff',
-        items: cart.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice })),
-        subtotal,
-        discount,
-        taxAmount,
-        taxName,
-        taxType,
-        total: finalTotal,
-        paymentMethod,
-        amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
-        customerName: customerName || undefined,
-        customerPhone: customerPhone || undefined,
-        customerId: customerId || undefined,
-      });
+        toast.success('Sale completed successfully');
+      } catch (err: any) {
+        if (err.message === 'OFFLINE_QUEUED') {
+          // Decrement stock for physical products locally as well for immediate UI response
+          cart.items.forEach(item => {
+            if (!item.isService) {
+              decrementStock(item.id, item.quantity);
+            }
+          });
+          toast.warning('Offline', { description: 'Sale queued and will sync when online' });
+        } else {
+          toast.error('Sale failed', { description: err.message || 'Unknown error' });
+          return;
+        }
+      }
 
       cart.clearCart();
       setCustomerName('');

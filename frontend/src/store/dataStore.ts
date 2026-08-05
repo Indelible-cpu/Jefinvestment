@@ -148,48 +148,32 @@ export const useSaleStore = create<SaleState>()(
       }
     },
     addSale: async (sale) => {
-      const now = new Date();
-      const localId = `local-${Date.now()}`;
-      const newSale: SaleRecord = {
-        ...sale,
-        id: localId,
-        date: now.toISOString().slice(0, 10),
-        time: now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-        status: 'completed',
-        syncStatus: 'pending',
-      };
-
-      // Add optimistically
-      set((state) => ({ sales: [newSale, ...state.sales] }));
+      const clientTxId = crypto.randomUUID(); // Requires window.crypto
 
       try {
-        const res: any = await api.post('/api/v1/sales', { ...sale, syncId: localId });
-        const serverId = res.data?.id || localId;
-        // Replace local with server record
-        set((state) => ({
-          sales: state.sales.map(s => s.id === localId
-            ? { ...s, id: serverId, syncStatus: 'synced' }
-            : s)
-        }));
-      } catch (err) {
+        const res: any = await api.post('/api/v1/sales', { ...sale, clientTxId });
+        // The server was successful. We refresh the sales list immediately.
+        get().loadSales();
+      } catch (err: any) {
         console.error('Failed to sync sale to server', err);
-        // Keep as pending — will retry on next syncPendingSales
+        // Queue the transaction offline
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: '/api/v1/sales',
+          method: 'POST',
+          body: { ...sale, clientTxId },
+        });
+        
+        // Let the UI know it was queued instead of failing completely
+        throw new Error('OFFLINE_QUEUED'); 
       }
     },
     syncPendingSales: async () => {
-      const pending = get().sales.filter(s => s.syncStatus === 'pending');
-      if (pending.length === 0) return;
-      for (const sale of pending) {
-        try {
-          const res: any = await api.post('/api/v1/sales', { ...sale, syncId: sale.id });
-          const serverId = res.data?.id || sale.id;
-          set((state) => ({
-            sales: state.sales.map(s => s.id === sale.id ? { ...s, id: serverId, syncStatus: 'synced' } : s)
-          }));
-        } catch (err) {
-          console.error('Failed to sync pending sale', sale.id, err);
-        }
-      }
+      // Logic moved to syncQueueStore.ts, but we keep the stub if components still call it
+      const { useSyncQueueStore } = await import('./syncQueueStore');
+      await useSyncQueueStore.getState().syncAll();
+      get().loadSales();
     },
     updateSaleStatus: (id, status) => set((state) => ({
       sales: state.sales.map(s => s.id === id ? { ...s, status } : s)

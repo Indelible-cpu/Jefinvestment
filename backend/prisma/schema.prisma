@@ -119,9 +119,10 @@ model InventoryTransaction {
   type      String // "IN", "OUT", "ADJUSTMENT", "TRANSFER"
   quantity  Int
   reference String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  notes      String?
+  clientTxId String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Sale {
@@ -141,7 +142,7 @@ model Sale {
   creditAmount  Decimal         @default(0.0)
   creditPaid    Decimal         @default(0.0)
   dueDate       DateTime?
-  syncId        String?         @unique
+  clientTxId    String?         @unique
   items         SaleItem[]
   payments      Payment[]
   creditHistory CreditPayment[]
@@ -178,8 +179,9 @@ model CreditPayment {
   amount    Decimal
   method    String // "CASH", "BANK_TRANSFER", "OTHER"
   reference String?
-  notes     String?
-  createdAt DateTime @default(now())
+  notes      String?
+  clientTxId String?  @unique
+  createdAt  DateTime @default(now())
 }
 
 model ExpenseCategory {
@@ -200,7 +202,7 @@ model Expense {
   branch      Branch          @relation(fields: [branchId], references: [id])
   status      String          @default("PENDING")
   receiptUrl  String?
-  syncId      String?         @unique
+  clientTxId  String?         @unique
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -222,7 +224,7 @@ model ServiceTransaction {
   operatorId  String
   operator    User            @relation(fields: [operatorId], references: [id])
   notes       String?
-  syncId      String?         @unique
+  clientTxId  String?         @unique
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -302,4 +304,13 @@ model Settings {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model SyncAuditLog {
+  id         String   @id @default(uuid())
+  clientTxId String
+  action     String
+  status     String
+  error      String?
+  createdAt  DateTime @default(now())
 }
