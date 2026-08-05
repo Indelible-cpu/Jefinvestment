@@ -238,6 +238,46 @@ app.delete('/api/v1/inventory/:id', requireAuth, async (c) => {
   }
 });
 
+// Stock adjustment endpoint — called when sales are made or stock is manually updated
+app.put('/api/v1/inventory/:id/stock', requireAuth, async (c) => {
+  const { id } = c.req.param();
+  const { adjustment, reason } = await c.req.json();
+  const prisma = getPrisma(c.env);
+  const user = c.get('user') as any;
+  try {
+    // Update ProductBranch stock for the user's branch
+    const branchId = user.branchId;
+    if (!branchId) return c.json({ status: 'error', message: 'User must be assigned to a branch' }, 400);
+
+    const pb = await prisma.productBranch.findFirst({ where: { productId: id, branchId } });
+    if (pb) {
+      const newQty = Math.max(0, pb.quantity + adjustment);
+      await prisma.productBranch.update({
+        where: { id: pb.id },
+        data: { quantity: newQty },
+      });
+    } else if (adjustment > 0) {
+      await prisma.productBranch.create({ data: { productId: id, branchId, quantity: adjustment } });
+    }
+
+    // Log inventory transaction
+    await prisma.inventoryTransaction.create({
+      data: {
+        productId: id,
+        branchId,
+        userId: user.id,
+        type: adjustment < 0 ? 'SALE' : 'ADJUSTMENT',
+        quantity: Math.abs(adjustment),
+        note: reason || 'Stock adjustment',
+      },
+    }).catch(() => {}); // Non-critical
+
+    return c.json({ status: 'success', message: 'Stock updated' });
+  } finally {
+    await prisma.$disconnect();
+  }
+});
+
 // Product Categories
 app.get('/api/v1/inventory/categories', requireAuth, async (c) => {
   const prisma = getPrisma(c.env);

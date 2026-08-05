@@ -27,54 +27,45 @@ interface ProductState {
   decrementStock: (id: string, qty: number) => void;
 }
 
-const DEFAULT_PRODUCTS: Product[] = [
-  { id: '1', name: 'Samsung Galaxy S23', sku: 'PH-S23', category: 'Smartphones', costPrice: 700000, sellingPrice: 850000, stock: 5, reorderLevel: 2, isService: false, unit: 'pcs' },
-  { id: '2', name: 'iPhone 14 Case', sku: 'ACC-IP14C', category: 'Accessories', costPrice: 3500, sellingPrice: 5000, stock: 30, reorderLevel: 10, isService: false, unit: 'pcs' },
-  { id: '3', name: 'Exercise Book 2 Quire', sku: 'ST-EB2', category: 'Stationery', costPrice: 900, sellingPrice: 1500, stock: 200, reorderLevel: 50, isService: false, unit: 'pcs' },
-  { id: '4', name: 'A4 Paper Ream', sku: 'ST-A4R', category: 'Stationery', costPrice: 6000, sellingPrice: 8500, stock: 25, reorderLevel: 10, isService: false, unit: 'ream' },
-  { id: '5', name: 'Photocopy (B&W)', sku: 'SV-CPY', category: 'Services', costPrice: 0, sellingPrice: 100, stock: 0, reorderLevel: 0, isService: true, unit: 'pcs' },
-  { id: '6', name: 'Phone Software Install', sku: 'SV-SW', category: 'Services', costPrice: 0, sellingPrice: 5000, stock: 0, reorderLevel: 0, isService: true, unit: 'pcs' },
-  { id: '7', name: 'Charging Cable USB-C', sku: 'ACC-UC', category: 'Accessories', costPrice: 1500, sellingPrice: 3000, stock: 3, reorderLevel: 5, isService: false, unit: 'pcs' },
-];
-
 export const useProductStore = create<ProductState>()(
-  persist(
-    (set) => ({
-      products: DEFAULT_PRODUCTS,
-      isLoading: false,
+  (set, get) => ({
+    products: [],
+    isLoading: false,
 
-      loadProducts: async () => {
-        set({ isLoading: true });
-        try {
-          const res: any = await api.get('/api/v1/inventory');
-          if (res.data && Array.isArray(res.data)) {
-            const mapped = res.data.map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              sku: p.sku,
-              category: p.category?.name || 'General',
-              costPrice: Number(p.costPrice) || 0,
-              sellingPrice: Number(p.sellingPrice) || 0,
-              stock: p.branches?.[0]?.quantity ?? 0,
-              reorderLevel: p.reorderLevel || 0,
-              isService: !!p.isService,
-              unit: p.unit || 'pcs',
-            }));
-            set({ products: mapped, isLoading: false });
-          } else {
-            set({ isLoading: false });
-          }
-        } catch (err) {
-          console.warn('Failed to load products from API', err);
+    loadProducts: async () => {
+      set({ isLoading: true });
+      try {
+        const res: any = await api.get('/api/v1/inventory');
+        if (res.data && Array.isArray(res.data)) {
+          const mapped = res.data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            category: p.category?.name || 'General',
+            costPrice: Number(p.costPrice) || 0,
+            sellingPrice: Number(p.sellingPrice) || 0,
+            stock: p.branches?.[0]?.quantity ?? 0,
+            reorderLevel: p.reorderLevel || 0,
+            isService: !!p.isService,
+            unit: p.unit || 'pcs',
+          }));
+          set({ products: mapped, isLoading: false });
+        } else {
           set({ isLoading: false });
         }
-      },
+      } catch (err) {
+        console.warn('Failed to load products from API', err);
+        set({ isLoading: false });
+      }
+    },
 
-      setProducts: (products) => set({ products }),
+    setProducts: (products) => set({ products }),
 
-      addProduct: (product) => {
-        set((state) => ({ products: [...state.products, product] }));
-        api.post('/api/v1/inventory', {
+    addProduct: async (product) => {
+      // Optimistic add
+      set((state) => ({ products: [...state.products, product] }));
+      try {
+        const res: any = await api.post('/api/v1/inventory', {
           name: product.name,
           sku: product.sku,
           categoryId: 'general',
@@ -84,12 +75,22 @@ export const useProductStore = create<ProductState>()(
           isService: product.isService,
           unit: product.unit,
           initialStock: product.stock,
-        }).catch(err => console.error('Failed to sync new product to server', err));
-      },
+        });
+        // Replace local ID with server ID
+        if (res.data?.id) {
+          set((state) => ({
+            products: state.products.map(p => p.id === product.id ? { ...p, id: res.data.id } : p)
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to sync new product to server', err);
+      }
+    },
 
-      updateProduct: (product) => {
-        set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
-        api.put(`/api/v1/inventory/${product.id}`, {
+    updateProduct: async (product) => {
+      set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
+      try {
+        await api.put(`/api/v1/inventory/${product.id}`, {
           name: product.name,
           sku: product.sku,
           costPrice: product.costPrice,
@@ -97,23 +98,38 @@ export const useProductStore = create<ProductState>()(
           reorderLevel: product.reorderLevel,
           isService: product.isService,
           unit: product.unit,
-        }).catch(err => console.error('Failed to sync updated product to server', err));
-      },
+        });
+      } catch (err) {
+        console.error('Failed to sync updated product to server', err);
+      }
+    },
 
-      deleteProduct: (id) => {
-        set((state) => ({ products: state.products.filter(p => p.id !== id) }));
-        api.delete(`/api/v1/inventory/${id}`).catch(err => console.error('Failed to delete product from server', err));
-      },
+    deleteProduct: async (id) => {
+      set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+      try {
+        await api.delete(`/api/v1/inventory/${id}`);
+      } catch (err) {
+        console.error('Failed to delete product from server', err);
+      }
+    },
 
-      decrementStock: (id, qty) => set((state) => ({
+    decrementStock: async (id, qty) => {
+      // Optimistically update local state
+      set((state) => ({
         products: state.products.map(p => p.id === id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)
-      })),
-    }),
-    { name: 'jef-product-storage' }
-  )
+      }));
+      // Persist to backend
+      try {
+        await api.put(`/api/v1/inventory/${id}/stock`, { adjustment: -qty, reason: 'SALE' });
+      } catch (err) {
+        console.error('Failed to sync stock decrement to server', err);
+      }
+    },
+  })
 );
 
 // ─── Cart Store ───────────────────────────────────────────────────────────────
+// Cart keeps persist because we want the cart to survive page refreshes on the same device
 export interface CartItem {
   id: string; // product id
   name: string;

@@ -23,20 +23,26 @@ export default function Layout() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   useEffect(() => {
-    // Initial data load on login/mount — always online-first
+    // Initial data load on mount — always fetched fresh from the server
     loadSettings();
     loadSales();
     loadProducts();
     loadExpenses();
     loadCredits();
     loadEmployees();
-    loadProfile(); // Fetch latest profile (name, pic) from server
-    
-    // Background auto-sync
+    loadProfile();
     syncPendingSales();
+
+    // Auto-refresh ALL data every 30 seconds so every device stays in sync
     const interval = setInterval(() => {
+      loadSales();
+      loadProducts();
+      loadExpenses();
+      loadCredits();
+      loadEmployees();
       syncPendingSales();
     }, 30000);
+
     return () => clearInterval(interval);
   }, []);
 
