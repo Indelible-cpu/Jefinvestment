@@ -11,12 +11,16 @@ import Login from './pages/Login'
 import Settings from './pages/Settings'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import TermsOfService from './pages/TermsOfService'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         
         <Route path="/" element={<ProtectedRoute />}>
           <Route element={<Layout />}>
