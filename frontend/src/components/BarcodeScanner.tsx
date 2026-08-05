@@ -16,7 +16,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
 
     html5QrCode.start(
       { facingMode: "environment" },
-      { fps: 15, qrbox: { width: 300, height: 200 } },
+      { fps: 15, qrbox: { width: 500, height: 400 } },
       (decodedText) => {
         // Success callback
         html5QrCode.stop().then(() => {
@@ -39,17 +39,17 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center p-4 border-b">
           <h2 className="font-bold text-lg">Scan Barcode / QR Code</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full transition text-gray-500">
-            <X size={20} />
+            <X size={24} />
           </button>
         </div>
-        <div className="bg-black flex-1 flex flex-col justify-center" style={{ minHeight: '320px' }}>
-          <div id="reader" className="w-full overflow-hidden"></div>
+        <div className="bg-black flex-1 flex flex-col justify-center" style={{ minHeight: '600px' }}>
+          <div id="reader" className="w-full h-full flex items-center justify-center overflow-hidden"></div>
         </div>
-        <p className="text-center text-sm text-gray-500 py-3 bg-gray-50">
+        <p className="text-center text-sm text-gray-500 py-4 bg-gray-50 text-lg">
           Point your camera at a barcode to scan automatically.
         </p>
       </div>

@@ -34,8 +34,8 @@ export default function Login() {
 
         {/* Blue header */}
         <div className="bg-primary p-8 text-center">
-          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden border-2 border-white/40">
-            <img src="/pwa-192x192.png" alt="JIMS ERP" className="w-full h-full object-cover" />
+          <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+            <img src="/pwa-192x192.png" alt="JIMS ERP" className="w-full h-full object-contain drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-bold text-white">JIMS ERP</h1>
           <p className="text-blue-200 mt-1 text-sm">One system. Total control.</p>
@@ -64,7 +64,7 @@ export default function Login() {
                 autoComplete="email"
               />
               <label htmlFor="email" className="absolute left-10 top-3.5 text-gray-400 text-xs font-medium transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-primary pointer-events-none">
-                Email address
+                Username or email
               </label>
             </div>
 
