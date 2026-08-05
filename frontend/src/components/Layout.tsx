@@ -172,7 +172,7 @@ export default function Layout() {
             )}
           </div>
           {companyLogo ? (
-            <img src={companyLogo} alt={companyName} className="h-16 w-16 object-cover bg-white rounded-full p-1 mb-3 shadow-md" />
+            <img src={companyLogo} alt={companyName} className="h-16 w-16 object-cover rounded-full overflow-hidden mb-3 shadow-md" />
           ) : (
             <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-3 shadow-md">
               <span className="text-2xl font-bold">{companyName.charAt(0)}</span>
