@@ -158,7 +158,7 @@ const playSound = (type: 'success' | 'error') => {
     playSound('success');
     setTxStatus({ type: 'success', message: 'Transaction completed successfully!' });
 
-    setTimeout(() => {
+    setTimeout(async () => {
       setTxStatus(null);
       // Save receipt data and show preview modal (no auto-print)
       setReceiptData({
@@ -177,7 +177,6 @@ const playSound = (type: 'success' | 'error') => {
         invoiceNumber,
       });
 
-    setTimeout(async () => {
       try {
         await addSale({
           invoiceNumber,
