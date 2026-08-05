@@ -13,12 +13,16 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
       manifest: {
-        name: 'Jef Investment ERP',
-        short_name: 'Jef ERP',
-        description: 'Jef Investment Custom ERP System',
+        name: 'JIMS ERP',
+        short_name: 'JIMS ERP',
+        description: 'JIMS ERP Custom ERP System',
         theme_color: '#0056b3',
         background_color: '#f4f6f9',
-        display: 'standalone'
+        display: 'standalone',
+        icons: [
+          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' }
+        ]
       }
     })
   ],

@@ -184,6 +184,10 @@ export default function ReceiptPreviewModal({
                 <div>Thank you for your business!</div>
                 <div>Goods once sold are not returnable.</div>
                 {settings.email && <div style={{ marginTop: '4px' }}>{settings.email}</div>}
+                <div style={{ marginTop: '12px', fontSize: '9px', fontWeight: 'bold', color: '#999' }}>
+                  JIMS ERP. One System. Total Control.<br />
+                  Powered by Indelible Technologies
+                </div>
               </div>
             </div>
           ) : (
@@ -258,7 +262,12 @@ export default function ReceiptPreviewModal({
                 </div>
               )}
 
-              {settings.taxNumber && <div style={{ marginTop: '24px', borderTop: '1px solid #e5e7eb', paddingTop: '12px', fontSize: '11px', color: '#9ca3af' }}>TPIN: {settings.taxNumber} · {settings.companyName}</div>}
+              <div style={{ marginTop: '24px', borderTop: '1px solid #e5e7eb', paddingTop: '12px', fontSize: '11px', color: '#9ca3af', textAlign: 'center' }}>
+                {settings.taxNumber && <div>TPIN: {settings.taxNumber} · {settings.companyName}</div>}
+                <div style={{ marginTop: '8px', fontWeight: 'bold', color: '#6b7280' }}>
+                  JIMS ERP. One System. Total Control. | Powered by Indelible Technologies
+                </div>
+              </div>
             </div>
           )}
         </div>

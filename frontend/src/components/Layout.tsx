@@ -117,7 +117,7 @@ export default function Layout() {
       }`}>
         {/* Branding Area */}
         <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5 relative">
-          <Link to="/inventory" className="absolute top-4 right-4 text-blue-200 hover:text-white transition">
+          <Link to="/inventory" className="hidden md:block absolute top-4 right-4 text-blue-200 hover:text-white transition">
             <Bell size={20} />
             {notificationCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[16px] h-[16px] rounded-full flex items-center justify-center border border-primary">{notificationCount}</span>
@@ -183,7 +183,7 @@ export default function Layout() {
           </Link>
           <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg mb-8 md:mb-0">
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm shrink-0">
+              <div className="hidden md:flex w-8 h-8 bg-white rounded-full items-center justify-center text-[#004bb4] overflow-hidden shadow-sm shrink-0">
                 {user?.profilePic ? (
                   <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
