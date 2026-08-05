@@ -1,6 +1,6 @@
 import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useSaleStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const { getTodayTotal, sales } = useSaleStore();
+  const { getTotalOutstanding } = useCreditStore();
   const { products } = useProductStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const firstName = user?.name?.split(' ')[0] || 'there';
 
   const todayTotal = getTodayTotal();
+  const outstandingCredit = getTotalOutstanding();
   const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -53,6 +55,7 @@ export default function Dashboard() {
 
   const stats = [
     { label: "Today's Sales", value: `MWK ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports' },
+    { label: 'Outstanding Credit', value: `MWK ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits' },
     { label: 'Low Stock Items', value: `${lowStockCount} items`, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', link: '/inventory' },
   ];
 
