@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Lock, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
-// Inline SVG icons for Google, Microsoft, Fingerprint
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
@@ -28,15 +27,15 @@ function MicrosoftIcon() {
 
 function FingerprintIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" stroke="#6366f1"/>
-      <path d="M14 13.12c0 2.38 0 6.38-1 8.88" stroke="#6366f1"/>
-      <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" stroke="#6366f1"/>
-      <path d="M2 12a10 10 0 0 1 18-6" stroke="#6366f1"/>
-      <path d="M2 17.5a14.5 14.5 0 0 0 4.24 5.5" stroke="#6366f1"/>
-      <path d="M12 2a10 10 0 0 1 8 4" stroke="#6366f1"/>
-      <path d="M6 10a6 6 0 0 1 12 0c0 1.25-.16 2.61-.42 3.94" stroke="#6366f1"/>
-      <path d="M6 16a14 14 0 0 0 2.49 5.38" stroke="#6366f1"/>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#6366f1" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+      <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+      <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+      <path d="M2 12a10 10 0 0 1 18-6"/>
+      <path d="M2 17.5a14.5 14.5 0 0 0 4.24 5.5"/>
+      <path d="M12 2a10 10 0 0 1 8 4"/>
+      <path d="M6 10a6 6 0 0 1 12 0c0 1.25-.16 2.61-.42 3.94"/>
+      <path d="M6 16a14 14 0 0 0 2.49 5.38"/>
     </svg>
   );
 }
@@ -67,46 +66,36 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#001f5b] via-[#003591] to-[#0057d8] flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-white/[0.02] blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
 
-      {/* Card */}
-      <div className="relative w-full max-w-md">
-
-        {/* Header / Brand */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20">
+        {/* Blue header */}
+        <div className="bg-primary p-8 text-center">
+          <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden border-2 border-white/40">
             <img src="/icons/icon-192.png" alt="JIMS ERP" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">JIMS ERP</h1>
-          <p className="text-blue-200 mt-1 text-sm font-medium tracking-wider uppercase">One System. Total Control.</p>
+          <h1 className="text-2xl font-bold text-white">JIMS ERP</h1>
+          <p className="text-blue-200 mt-1 text-sm">One system. Total control.</p>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-8">
-
+        {/* Form body */}
+        <div className="p-8">
           {error && (
-            <div className="bg-red-500/20 text-red-200 border border-red-400/30 p-3 rounded-xl text-sm mb-5 text-center font-medium">
+            <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm mb-6 font-medium text-center border border-red-200">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            {/* Username */}
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-blue-100 mb-1.5">Username</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Username</label>
               <div className="relative">
-                <User className="absolute left-3 top-3 text-blue-300" size={18} />
+                <User className="absolute left-3 top-3 text-gray-400" size={18} />
                 <input
                   type="text"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-300/60 focus:ring-2 focus:ring-white/40 focus:border-white/40 outline-none transition text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition"
                   placeholder="Enter your username"
                   required
                   autoComplete="username"
@@ -114,16 +103,15 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-sm font-semibold text-blue-100 mb-1.5">Password</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 text-blue-300" size={18} />
+                <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-300/60 focus:ring-2 focus:ring-white/40 focus:border-white/40 outline-none transition text-sm"
+                  className="w-full pl-10 pr-12 py-2.5 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition"
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
@@ -131,7 +119,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-blue-300 hover:text-white transition"
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -139,29 +127,28 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center gap-2 pt-1">
+            {/* Remember me */}
+            <div className="flex items-center gap-2">
               <input
                 id="rememberMe"
                 type="checkbox"
                 checked={rememberMe}
                 onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-white/30 bg-white/10 accent-white cursor-pointer"
+                className="w-4 h-4 rounded border-gray-300 accent-primary cursor-pointer"
               />
-              <label htmlFor="rememberMe" className="text-sm text-blue-200 cursor-pointer select-none">
+              <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer select-none">
                 Remember me
               </label>
             </div>
 
-            {/* Sign In Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-white text-[#004bb4] font-bold py-3 rounded-xl hover:bg-blue-50 active:scale-[0.98] transition-all shadow-xl mt-2 disabled:opacity-70 flex items-center justify-center gap-2 text-sm"
+              className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-md mt-2 disabled:opacity-70 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin h-5 w-5 text-[#004bb4]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
@@ -173,56 +160,41 @@ export default function Login() {
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-white/20" />
-            <span className="text-blue-300 text-xs font-medium">or continue with</span>
-            <div className="flex-1 h-px bg-white/20" />
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-gray-400 text-xs font-medium">or continue with</span>
+            <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          {/* Social / Auth icons */}
-          <div className="flex items-center justify-center gap-4">
-            <button
-              type="button"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-xs font-medium transition active:scale-95 group"
-              title="Continue with Google"
-            >
-              <GoogleIcon />
-              <span className="hidden sm:inline">Google</span>
+          {/* Social icons */}
+          <div className="flex items-center justify-center gap-3">
+            <button type="button" title="Google" className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-xs font-medium text-gray-600 active:scale-95">
+              <GoogleIcon /> <span>Google</span>
             </button>
-            <button
-              type="button"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-xs font-medium transition active:scale-95"
-              title="Continue with Microsoft"
-            >
-              <MicrosoftIcon />
-              <span className="hidden sm:inline">Microsoft</span>
+            <button type="button" title="Microsoft" className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-xs font-medium text-gray-600 active:scale-95">
+              <MicrosoftIcon /> <span>Microsoft</span>
             </button>
-            <button
-              type="button"
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-white text-xs font-medium transition active:scale-95"
-              title="Fingerprint / Biometric"
-            >
-              <FingerprintIcon />
-              <span className="hidden sm:inline">Biometric</span>
+            <button type="button" title="Biometric" className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-xs font-medium text-gray-600 active:scale-95">
+              <FingerprintIcon /> <span>Biometric</span>
             </button>
           </div>
 
           {/* Terms & Privacy */}
-          <p className="text-center text-xs text-blue-300/80 mt-5 leading-relaxed">
+          <p className="text-center text-xs text-gray-400 mt-5 leading-relaxed">
             By signing in, you agree to our{' '}
-            <Link to="/terms" className="text-white underline underline-offset-2 hover:text-blue-200 transition font-semibold">
+            <Link to="/terms" className="text-primary underline underline-offset-2 hover:text-blue-700 transition font-semibold">
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link to="/privacy" className="text-white underline underline-offset-2 hover:text-blue-200 transition font-semibold">
+            <Link to="/privacy" className="text-primary underline underline-offset-2 hover:text-blue-700 transition font-semibold">
               Privacy Policy
             </Link>
           </p>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-center gap-2 mt-8 text-blue-300/60 text-xs font-medium">
-          <ShieldCheck size={14} className="text-green-400" />
-          <span>Powered by <span className="text-white/70 font-semibold">Indelible Technologies</span></span>
+        {/* Bottom footer */}
+        <div className="flex items-center justify-center gap-1.5 pb-5 text-gray-400 text-[11px] font-medium">
+          <ShieldCheck size={13} className="text-green-500" />
+          <span>Powered by <span className="text-gray-500 font-semibold">Indelible Technologies</span></span>
         </div>
       </div>
     </div>
