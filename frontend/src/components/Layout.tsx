@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
+import { useCreditStore } from '../store/dataStore';
 
 export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
@@ -14,8 +15,10 @@ export default function Layout() {
   const { credits, loadCredits } = useCreditStore();
   const { loadExpenses } = useExpenseStore();
   const { loadEmployees } = useEmployeeStore();
-  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const now = new Date();
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
@@ -93,12 +96,32 @@ export default function Layout() {
           </div>
         </div>
         <div className="flex items-center gap-4 mt-1">
-           <Link to="/inventory" className="relative cursor-pointer">
-             <Bell size={24} />
-             {notificationCount > 0 && (
-               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#004bb4]">{notificationCount}</span>
+           <div className="relative">
+             <button onClick={() => setShowNotifications(!showNotifications)} className="relative cursor-pointer p-1">
+               <Bell size={24} />
+               {notificationCount > 0 && (
+                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#004bb4]">{notificationCount}</span>
+               )}
+             </button>
+             {showNotifications && (
+               <div className="absolute top-10 right-0 w-64 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm">
+                 <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
+                 {lowStockCount > 0 && (
+                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-red-600" onClick={() => { navigate('/inventory'); setShowNotifications(false); }}>
+                     {lowStockCount} items low on stock
+                   </div>
+                 )}
+                 {overdueCreditCount > 0 && (
+                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-amber-600" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
+                     {overdueCreditCount} overdue credits
+                   </div>
+                 )}
+                 {notificationCount === 0 && (
+                   <div className="p-2 text-gray-400 text-center">No new notifications</div>
+                 )}
+               </div>
              )}
-           </Link>
+           </div>
            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm">
              {user?.profilePic ? (
                <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
@@ -123,12 +146,32 @@ export default function Layout() {
       }`}>
         {/* Branding Area */}
         <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5 relative">
-          <Link to="/inventory" className="hidden md:block absolute top-4 right-4 text-blue-200 hover:text-white transition">
-            <Bell size={20} />
-            {notificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[16px] h-[16px] rounded-full flex items-center justify-center border border-primary">{notificationCount}</span>
+          <div className="hidden md:block absolute top-4 right-4">
+            <button onClick={() => setShowNotifications(!showNotifications)} className="text-blue-200 hover:text-white transition relative">
+              <Bell size={20} />
+              {notificationCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-[16px] h-[16px] rounded-full flex items-center justify-center border border-primary">{notificationCount}</span>
+              )}
+            </button>
+            {showNotifications && (
+               <div className="absolute top-8 right-0 w-64 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left">
+                 <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
+                 {lowStockCount > 0 && (
+                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-red-600" onClick={() => { navigate('/inventory'); setShowNotifications(false); }}>
+                     {lowStockCount} items low on stock
+                   </div>
+                 )}
+                 {overdueCreditCount > 0 && (
+                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-amber-600" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
+                     {overdueCreditCount} overdue credits
+                   </div>
+                 )}
+                 {notificationCount === 0 && (
+                   <div className="p-2 text-gray-400 text-center">No new notifications</div>
+                 )}
+               </div>
             )}
-          </Link>
+          </div>
           {companyLogo ? (
             <img src={companyLogo} alt={companyName} className="h-16 w-16 object-cover bg-white rounded-full p-1 mb-3 shadow-md" />
           ) : (
