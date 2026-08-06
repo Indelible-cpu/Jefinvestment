@@ -8,13 +8,13 @@ import {
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDQx0Jq6BglTBel-IqXAA_lo8BWNMA3IjQ',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'jefinvestment-e1fc1.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'jefinvestment-e1fc1',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'jefinvestment-e1fc1.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1088168942774',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1088168942774:web:dc5461bed599c344f3da17',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-9J35QQ7V6C'
 };
 
 const app = initializeApp(firebaseConfig);
