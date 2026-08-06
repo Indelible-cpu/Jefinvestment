@@ -28,7 +28,7 @@ interface ProductState {
 }
 
 export const useProductStore = create<ProductState>()(
-  (set, get) => ({
+  (set) => ({
     products: [],
     isLoading: false,
 
