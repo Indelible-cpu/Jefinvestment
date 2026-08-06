@@ -10,7 +10,7 @@ export default function Reports() {
   const [reportDate, setReportDate] = useState(today);
   const { sales } = useSaleStore();
   const { expenses } = useExpenseStore();
-  const { settings } = useSettingsStore();
+  const settings = useSettingsStore();
 
   const trendData = useMemo(() => {
     const data = [];
