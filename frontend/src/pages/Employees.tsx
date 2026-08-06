@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Users, UserPlus, CheckCircle, Clock } from 'lucide-react';
 import { useEmployeeStore } from '../store/dataStore';
+import { useSettingsStore } from '../store/settingsStore';
 
 export default function Employees() {
   const { employees, addEmployee, updateStatus } = useEmployeeStore();
+  const settings = useSettingsStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
@@ -77,14 +79,14 @@ export default function Employees() {
       </div>
 
       {/* Employee Table */}
-      <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-600 text-sm font-semibold">
               <th className="p-4">Name</th>
               <th className="p-4">Phone</th>
               <th className="p-4">Role</th>
-              <th className="p-4">Monthly Salary (MWK)</th>
+              <th className="p-4">Monthly Salary ({settings.currency})</th>
               <th className="p-4">Today's Attendance</th>
               <th className="p-4 text-right">Action</th>
             </tr>
@@ -99,7 +101,7 @@ export default function Employees() {
                     {emp.role}
                   </span>
                 </td>
-                <td className="p-4 font-mono font-medium">MWK {emp.salary.toLocaleString()}</td>
+                <td className="p-4 font-mono font-medium">{settings.currency} {emp.salary.toLocaleString()}</td>
                 <td className="p-4">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                     emp.status === 'PRESENT' ? 'bg-green-100 text-green-800' :
@@ -176,7 +178,7 @@ export default function Employees() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold mb-1">Salary (MWK)</label>
+                <label className="block text-xs font-semibold mb-1">Salary ({settings.currency})</label>
                 <input 
                   type="number" 
                   className="w-full p-2 border rounded"

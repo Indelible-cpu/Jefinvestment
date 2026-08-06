@@ -148,7 +148,7 @@ const playSound = (type: 'success' | 'error') => {
       const paid = Number(amountPaid);
       if (paid < finalTotal) {
         playSound('error');
-        setTxStatus({ type: 'error', message: `Amount paid (MWK ${paid.toLocaleString()}) cannot be less than the total (MWK ${finalTotal.toLocaleString()}).` });
+        setTxStatus({ type: 'error', message: `Amount paid (${settings.currency} ${paid.toLocaleString()}) cannot be less than the total (${settings.currency} ${finalTotal.toLocaleString()}).` });
         return;
       }
     }
@@ -387,7 +387,7 @@ const playSound = (type: 'success' | 'error') => {
                     <span className="text-xs text-gray-500">{product.sku}</span>
                   </div>
                   <div className="flex justify-between items-end">
-                    <div className="font-bold text-primary text-sm">MWK {product.sellingPrice.toLocaleString()}</div>
+                    <div className="font-bold text-primary text-sm">{settings.currency} {product.sellingPrice.toLocaleString()}</div>
                     {!product.isService && (
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
                         product.stock <= product.reorderLevel ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
@@ -429,7 +429,7 @@ const playSound = (type: 'success' | 'error') => {
                 <div key={item.id} className="flex justify-between items-start border-b pb-4">
                   <div className="flex-1">
                     <h4 className="font-medium">{item.name}</h4>
-                    <div className="text-sm text-gray-500">MWK {item.unitPrice.toLocaleString()}</div>
+                    <div className="text-sm text-gray-500">{settings.currency} {item.unitPrice.toLocaleString()}</div>
                     <div className="flex items-center gap-2 mt-2">
                       <button onClick={() => cart.updateQuantity(item.id, item.quantity - 1)} className="p-1 bg-gray-100 rounded hover:bg-gray-200">
                         <Minus size={16} />
@@ -451,7 +451,7 @@ const playSound = (type: 'success' | 'error') => {
                       <Trash2 size={18} />
                     </button>
                     <div className="font-bold mt-4 text-right">
-                      MWK {((item.unitPrice * item.quantity) - item.discount).toLocaleString()}
+                      {settings.currency} {((item.unitPrice * item.quantity) - item.discount).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -464,11 +464,11 @@ const playSound = (type: 'success' | 'error') => {
               <div className="space-y-2">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>MWK {cart.getSubtotal().toLocaleString()}</span>
+                  <span>{settings.currency} {cart.getSubtotal().toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Discount</span>
-                  <span>MWK {cart.globalDiscount.toLocaleString()}</span>
+                  <span>{settings.currency} {cart.globalDiscount.toLocaleString()}</span>
                 </div>
                 
                 {(() => {
@@ -484,11 +484,11 @@ const playSound = (type: 'success' | 'error') => {
                         <>
                           <div className="flex justify-between text-gray-600">
                             <span>{taxName} ({taxRate}%)</span>
-                            <span>MWK {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                            <span>{settings.currency} {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex justify-between font-bold text-2xl text-primary pt-2 border-t mt-2">
                             <span>Total</span>
-                            <span>MWK {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                            <span>{settings.currency} {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                           </div>
                         </>
                       );
@@ -498,11 +498,11 @@ const playSound = (type: 'success' | 'error') => {
                         <>
                           <div className="flex justify-between text-gray-500 text-sm">
                             <span>Includes {taxName} ({taxRate}%)</span>
-                            <span>MWK {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                            <span>{settings.currency} {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex justify-between font-bold text-2xl text-primary pt-2 border-t mt-2">
                             <span>Total</span>
-                            <span>MWK {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                            <span>{settings.currency} {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                           </div>
                         </>
                       );
@@ -512,7 +512,7 @@ const playSound = (type: 'success' | 'error') => {
                   return (
                     <div className="flex justify-between font-bold text-2xl text-primary pt-2 border-t mt-2">
                       <span>Total</span>
-                      <span>MWK {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      <span>{settings.currency} {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                     </div>
                   );
                 })()}
@@ -641,7 +641,7 @@ const playSound = (type: 'success' | 'error') => {
                 {paymentMethod === 'CASH' && (
                   <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
                     <div>
-                      <label className="block text-xs font-bold text-green-800 mb-1">Amount Paid (MWK)</label>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Amount Paid ({settings.currency})</label>
                       <input 
                         type="number" 
                         placeholder="e.g. 10000" 
@@ -655,7 +655,7 @@ const playSound = (type: 'success' | 'error') => {
                     {amountPaid !== '' && Number(amountPaid) >= (taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal()) && (
                       <div className="flex justify-between items-center text-sm font-bold text-green-700 bg-green-100 p-2 rounded">
                         <span>Change Due:</span>
-                        <span className="text-lg">MWK {(Number(amountPaid) - (taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal())).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        <span className="text-lg">{settings.currency} {(Number(amountPaid) - (taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal())).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                       </div>
                     )}
                   </div>
@@ -722,7 +722,7 @@ const playSound = (type: 'success' | 'error') => {
                         <div className="font-bold">{hc.name}</div>
                         <div className="text-xs text-gray-500">{new Date(hc.timestamp).toLocaleTimeString()} - {hc.items.length} items</div>
                       </div>
-                      <div className="font-bold text-primary">MWK {(hc.items.reduce((s, i) => s + (i.unitPrice * i.quantity) - i.discount, 0) - hc.globalDiscount).toLocaleString()}</div>
+                      <div className="font-bold text-primary">{settings.currency} {(hc.items.reduce((s, i) => s + (i.unitPrice * i.quantity) - i.discount, 0) - hc.globalDiscount).toLocaleString()}</div>
                     </div>
                     
                     <div className="flex gap-2 mt-3">

@@ -19,26 +19,51 @@ service cloud.firestore {
       return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MANAGER';
     }
 
-    // By default, allow read/write if authenticated. 
-    // In a real app, restrict this more strictly to branch-level.
-    match /{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-    
-    // Strict rules for settings
+    // Settings
     match /settings/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
 
-    // Strict rules for users
+    // Users
     match /users/{userId} {
-      // Users can read and update their own profile
       allow read: if isAuthenticated();
       allow update: if request.auth.uid == userId || isAdmin();
-      // Only admins can create/delete other users
       allow create, delete: if isAdmin();
+    }
+
+    // Products (Inventory)
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      // Only admins/managers should typically manage inventory, but if cashiers need to add items, change this.
+      allow write: if isAdmin() || isManager();
+    }
+
+    // Sales and Credits
+    match /sales/{saleId} {
+      allow read: if isAuthenticated();
+      // Anyone can create a sale
+      allow create: if isAuthenticated();
+      // Only admins can update or delete sales (e.g. processing returns)
+      allow update, delete: if isAdmin();
+    }
+
+    // Expenses
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Employees
+    match /employees/{employeeId} {
+      allow read: if isAdmin() || isManager();
+      allow write: if isAdmin();
+    }
+    
+    // Fallback: Deny everything else
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

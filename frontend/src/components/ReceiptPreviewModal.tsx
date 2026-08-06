@@ -81,7 +81,7 @@ export default function ReceiptPreviewModal({
           a.download = `${docNumber}.png`;
           a.click();
           URL.revokeObjectURL(url);
-          const msg = encodeURIComponent(`${settings.companyName}\n${view === 'receipt' ? 'Receipt' : 'Invoice'}: ${docNumber}\nTotal: MWK ${total.toLocaleString()}\nDate: ${date}`);
+          const msg = encodeURIComponent(`${settings.companyName}\n${view === 'receipt' ? 'Receipt' : 'Invoice'}: ${docNumber}\nTotal: ${settings.currency} ${total.toLocaleString()}\nDate: ${date}`);
           window.open(`https://wa.me/?text=${msg}`, '_blank');
         }
         setSharing(false);
@@ -146,10 +146,10 @@ export default function ReceiptPreviewModal({
                     <tr key={item.id}>
                       <td style={{ padding: '3px 0', verticalAlign: 'top' }}>
                         <div>{item.name}</div>
-                        <div style={{ color: '#777', fontSize: '11px' }}>{item.quantity} × MWK {item.unitPrice.toLocaleString()}</div>
+                        <div style={{ color: '#777', fontSize: '11px' }}>{item.quantity} × {settings.currency} {item.unitPrice.toLocaleString()}</div>
                       </td>
                       <td style={{ padding: '3px 0', textAlign: 'right', fontWeight: 'bold', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                        MWK {((item.quantity * item.unitPrice) - item.discount).toLocaleString()}
+                        {settings.currency} {((item.quantity * item.unitPrice) - item.discount).toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -157,21 +157,21 @@ export default function ReceiptPreviewModal({
               </table>
 
               <div style={{ borderTop: '1px dashed #000', paddingTop: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal</span><span>MWK {subtotal.toLocaleString()}</span></div>
-                {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Discount</span><span>- MWK {discount.toLocaleString()}</span></div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal</span><span>{settings.currency} {subtotal.toLocaleString()}</span></div>
+                {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Discount</span><span>- {settings.currency} {discount.toLocaleString()}</span></div>}
                 {taxAmount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#555' }}>
                     <span>{taxType === 'INCLUSIVE' ? `Incl. ${taxName}` : taxName}</span>
-                    <span>MWK {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    <span>{settings.currency} {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '16px', borderTop: '1px dashed #000', marginTop: '6px', paddingTop: '6px' }}>
-                  <span>TOTAL</span><span>MWK {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  <span>TOTAL</span><span>{settings.currency} {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                 </div>
                 <div style={{ marginTop: '8px', fontSize: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Payment</span><span>{paymentMethod.replace('MOMO_', 'MoMo ').replace('BANK_', '').replace('_', ' ')}</span></div>
-                  {paymentMethod === 'CASH' && <><div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paid</span><span>MWK {amountPaid.toLocaleString()}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}><span>Change</span><span>MWK {change.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div></>}
+                  {paymentMethod === 'CASH' && <><div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paid</span><span>{settings.currency} {amountPaid.toLocaleString()}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}><span>Change</span><span>{settings.currency} {change.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div></>}
                   {paymentMethod === 'CREDIT' && <div style={{ color: '#b45309', fontWeight: 'bold', textAlign: 'center', marginTop: '4px' }}>⚠ CREDIT — BALANCE DUE</div>}
                   {paymentMethod === 'BANK_NBS' && settings.nbsDetails && <div style={{ marginTop: '4px', textAlign: 'center', fontSize: '11px', padding: '4px', border: '1px dashed #ccc' }}>NBS Bank: {settings.nbsDetails}</div>}
                   {paymentMethod === 'BANK_NBM' && settings.nbmDetails && <div style={{ marginTop: '4px', textAlign: 'center', fontSize: '11px', padding: '4px', border: '1px dashed #ccc' }}>National Bank: {settings.nbmDetails}</div>}
@@ -230,8 +230,8 @@ export default function ReceiptPreviewModal({
                     <tr key={item.id} style={{ background: i % 2 === 0 ? '#f8fafc' : '#fff' }}>
                       <td style={{ padding: '8px 12px', fontSize: '12px' }}>{item.name}</td>
                       <td style={{ padding: '8px 12px', textAlign: 'center', fontSize: '12px' }}>{item.quantity}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '12px' }}>MWK {item.unitPrice.toLocaleString()}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>MWK {((item.quantity * item.unitPrice) - item.discount).toLocaleString()}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '12px' }}>{settings.currency} {item.unitPrice.toLocaleString()}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>{settings.currency} {((item.quantity * item.unitPrice) - item.discount).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -239,11 +239,11 @@ export default function ReceiptPreviewModal({
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <div style={{ minWidth: '220px', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span style={{ color: '#666' }}>Subtotal</span><span>MWK {subtotal.toLocaleString()}</span></div>
-                  {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span style={{ color: '#666' }}>Discount</span><span>- MWK {discount.toLocaleString()}</span></div>}
-                  {taxAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span style={{ color: '#666' }}>{taxType === 'INCLUSIVE' ? `Includes ${taxName}` : taxName}</span><span>MWK {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span style={{ color: '#666' }}>Subtotal</span><span>{settings.currency} {subtotal.toLocaleString()}</span></div>
+                  {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span style={{ color: '#666' }}>Discount</span><span>- {settings.currency} {discount.toLocaleString()}</span></div>}
+                  {taxAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span style={{ color: '#666' }}>{taxType === 'INCLUSIVE' ? `Includes ${taxName}` : taxName}</span><span>{settings.currency} {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>}
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#1d4ed8', color: '#fff', borderRadius: '6px', marginTop: '6px', fontWeight: 'bold', fontSize: '14px' }}>
-                    <span>TOTAL DUE</span><span>MWK {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    <span>TOTAL DUE</span><span>{settings.currency} {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </div>
                   <div style={{ marginTop: '6px', padding: '5px 12px', background: '#fef9c3', borderRadius: '6px', fontSize: '11px', color: '#92400e', textAlign: 'center', fontWeight: '600' }}>
                     Payment Due Upon Receipt

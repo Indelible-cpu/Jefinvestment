@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-
+import { useSettingsStore } from '../store/settingsStore';
 import { useExpenseStore } from '../store/dataStore';
 
 const EXPENSE_CATEGORIES = [
@@ -15,6 +15,7 @@ const emptyForm = { category: 'Store Supplies', description: '', amount: 0, logg
 
 export default function Expenses() {
   const { expenses, addExpense, deleteExpense, loadExpenses } = useExpenseStore();
+  const settings = useSettingsStore();
 
   useEffect(() => {
     loadExpenses();
@@ -88,7 +89,7 @@ export default function Expenses() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-5 rounded-lg border shadow-sm">
           <div className="text-sm text-gray-500 mb-1">Today's Total Expenses</div>
-          <div className="text-3xl font-bold text-red-600">MWK {totalToday.toLocaleString()}</div>
+          <div className="text-3xl font-bold text-red-600">{settings.currency} {totalToday.toLocaleString()}</div>
         </div>
         <div className="bg-white p-5 rounded-lg border shadow-sm">
           <div className="text-sm text-gray-500 mb-1">Number of Entries (Today)</div>
@@ -97,7 +98,7 @@ export default function Expenses() {
         <div className="bg-white p-5 rounded-lg border shadow-sm">
           <div className="text-sm text-gray-500 mb-1">Largest Single Expense</div>
           <div className="text-3xl font-bold">
-            MWK {filtered.length > 0 ? Math.max(...filtered.map(e => e.amount)).toLocaleString() : '0'}
+            {settings.currency} {filtered.length > 0 ? Math.max(...filtered.map(e => e.amount)).toLocaleString() : '0'}
           </div>
         </div>
       </div>
@@ -111,14 +112,14 @@ export default function Expenses() {
 
       {/* Table - wrapped for horizontal scroll on mobile */}
       <div className="bg-white rounded-lg border shadow overflow-hidden flex-1 overflow-x-auto">
-        <table className="w-full text-left">
+        <table className="w-full text-left min-w-[700px]">
           <thead>
             <tr className="bg-gray-50 border-b">
               <th className="p-4 font-semibold text-gray-600">Date</th>
               <th className="p-4 font-semibold text-gray-600">Category</th>
               <th className="p-4 font-semibold text-gray-600">Description</th>
               <th className="p-4 font-semibold text-gray-600">Logged By</th>
-              <th className="p-4 font-semibold text-gray-600 text-right">Amount (MWK)</th>
+              <th className="p-4 font-semibold text-gray-600 text-right">Amount ({settings.currency})</th>
               <th className="p-4 text-right"></th>
             </tr>
           </thead>
@@ -142,7 +143,7 @@ export default function Expenses() {
             {filtered.length > 0 && (
               <tr className="bg-gray-50 font-bold border-t-2">
                 <td colSpan={4} className="p-4 text-right text-gray-700">Total</td>
-                <td className="p-4 text-right text-red-700 text-lg">MWK {totalToday.toLocaleString()}</td>
+                <td className="p-4 text-right text-red-700 text-lg">{settings.currency} {totalToday.toLocaleString()}</td>
                 <td></td>
               </tr>
             )}
@@ -182,7 +183,7 @@ export default function Expenses() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Amount (MWK) *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Amount ({settings.currency}) *</label>
                 <input
                   type="number"
                   value={form.amount || ''}

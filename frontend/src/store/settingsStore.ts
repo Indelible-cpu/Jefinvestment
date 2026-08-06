@@ -6,6 +6,7 @@ import { db } from '../lib/firebase';
 interface SettingsState {
   companyName: string;
   companyLogo: string;
+  currency: string;
   address: string;
   phone: string;
   email: string;
@@ -27,6 +28,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       companyName: 'Jef Investment',
       companyLogo: '',
+      currency: 'MWK',
       address: 'Main Street, Branch 1',
       phone: '+265 999 000 000',
       email: 'info@jefinvestment.com',

@@ -60,27 +60,27 @@ export const printReceipt = (
         
         <div class="border-bottom">
           <table style="font-weight: bold;">
-            <tr><td>Subtotal</td><td class="text-right">MWK ${subtotal.toLocaleString()}</td></tr>
-            <tr><td>Discount</td><td class="text-right">MWK ${discount.toLocaleString()}</td></tr>
+            <tr><td>Subtotal</td><td class="text-right">${settings.currency} ${subtotal.toLocaleString()}</td></tr>
+            <tr><td>Discount</td><td class="text-right">${settings.currency} ${discount.toLocaleString()}</td></tr>
             ${taxAmount > 0 ? `
               <tr>
                 <td style="font-weight: ${taxType === 'INCLUSIVE' ? 'normal' : 'bold'}; ${taxType === 'INCLUSIVE' ? 'font-size: 12px; color: #555;' : ''}">
                   ${taxType === 'INCLUSIVE' ? 'Includes ' : ''}${taxName}
                 </td>
                 <td class="text-right" style="font-weight: ${taxType === 'INCLUSIVE' ? 'normal' : 'bold'}; ${taxType === 'INCLUSIVE' ? 'font-size: 12px; color: #555;' : ''}">
-                  MWK ${taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  ${settings.currency} ${taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                 </td>
               </tr>
             ` : ''}
-            <tr><td style="padding-top: 8px;">Total</td><td class="text-right" style="padding-top: 8px;">MWK ${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
+            <tr><td style="padding-top: 8px;">Total</td><td class="text-right" style="padding-top: 8px;">${settings.currency} ${total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
           </table>
         </div>
         
         <div class="border-bottom">
           <table>
             <tr><td>Payment Method</td><td class="text-right">${paymentMethod}</td></tr>
-            <tr><td>Amount Paid</td><td class="text-right">MWK ${amountPaid.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
-            <tr><td>Change</td><td class="text-right">MWK ${(amountPaid - total).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
+            <tr><td>Amount Paid</td><td class="text-right">${settings.currency} ${amountPaid.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
+            <tr><td>Change</td><td class="text-right">${settings.currency} ${(amountPaid - total).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
           </table>
         </div>
         

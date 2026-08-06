@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { CreditCard, DollarSign, Calendar, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreditStore } from '../store/dataStore';
+import { useSettingsStore } from '../store/settingsStore';
 
 export default function CreditManagement() {
   const { credits, loadCredits, recordRepayment } = useCreditStore();
+  const settings = useSettingsStore();
   const [selectedRecord, setSelectedRecord] = useState<string | null>(null);
   const [repayAmount, setRepayAmount] = useState('');
   const [repayMethod, setRepayMethod] = useState('CASH');
@@ -29,7 +31,7 @@ export default function CreditManagement() {
       await recordRepayment(selectedRecord, amountNum);
       setSelectedRecord(null);
       setRepayAmount('');
-      toast.success('Repayment of MWK ' + amountNum.toLocaleString() + ' recorded.');
+      toast.success(`Repayment of ${settings.currency} ${amountNum.toLocaleString()} recorded.`);
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
         toast.warning('Offline', { description: 'Repayment saved locally and will sync when online.' });
@@ -58,7 +60,7 @@ export default function CreditManagement() {
           </div>
           <div>
             <span className="text-gray-500 text-sm">Total Outstanding Debt</span>
-            <h3 className="text-2xl font-bold text-amber-700 font-mono">MWK {totalOutstanding.toLocaleString()}</h3>
+            <h3 className="text-2xl font-bold text-amber-700 font-mono">{settings.currency} {totalOutstanding.toLocaleString()}</h3>
           </div>
         </div>
 
@@ -68,7 +70,7 @@ export default function CreditManagement() {
           </div>
           <div>
             <span className="text-gray-500 text-sm">Overdue Debt</span>
-            <h3 className="text-2xl font-bold text-red-700 font-mono">MWK {totalOverdue.toLocaleString()}</h3>
+            <h3 className="text-2xl font-bold text-red-700 font-mono">{settings.currency} {totalOverdue.toLocaleString()}</h3>
           </div>
         </div>
 
@@ -85,15 +87,15 @@ export default function CreditManagement() {
 
       {/* Credit Table */}
       <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-600 text-sm font-semibold">
               <th className="p-4">Invoice #</th>
               <th className="p-4">Customer Name</th>
               <th className="p-4">Phone Number</th>
               <th className="p-4">Due Date</th>
-              <th className="p-4">Total (MWK)</th>
-              <th className="p-4">Balance Due (MWK)</th>
+              <th className="p-4">Total ({settings.currency})</th>
+              <th className="p-4">Balance Due ({settings.currency})</th>
               <th className="p-4">Status</th>
               <th className="p-4 text-right">Action</th>
             </tr>
@@ -110,8 +112,8 @@ export default function CreditManagement() {
                     <Calendar size={15} />
                     {c.dueDate}
                   </td>
-                  <td className="p-4 font-mono">MWK {c.totalAmount.toLocaleString()}</td>
-                  <td className="p-4 font-mono font-bold text-red-600">MWK {balance.toLocaleString()}</td>
+                  <td className="p-4 font-mono">{settings.currency} {c.totalAmount.toLocaleString()}</td>
+                  <td className="p-4 font-mono font-bold text-red-600">{settings.currency} {balance.toLocaleString()}</td>
                   <td className="p-4">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                       c.status === 'FULLY_PAID' ? 'bg-green-100 text-green-800' :
@@ -148,21 +150,21 @@ export default function CreditManagement() {
             <div className="p-3 bg-gray-50 border rounded mb-4 text-sm space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-500">Total Credit:</span>
-                <span className="font-mono">MWK {selectedCreditRecord?.totalAmount.toLocaleString()}</span>
+                <span className="font-mono">{settings.currency} {selectedCreditRecord?.totalAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Already Paid:</span>
-                <span className="font-mono">MWK {selectedCreditRecord?.paidAmount.toLocaleString()}</span>
+                <span className="font-mono">{settings.currency} {selectedCreditRecord?.paidAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between font-bold text-red-600 pt-1 border-t">
                 <span>Remaining Balance:</span>
-                <span className="font-mono">MWK {((selectedCreditRecord?.totalAmount || 0) - (selectedCreditRecord?.paidAmount || 0)).toLocaleString()}</span>
+                <span className="font-mono">{settings.currency} {((selectedCreditRecord?.totalAmount || 0) - (selectedCreditRecord?.paidAmount || 0)).toLocaleString()}</span>
               </div>
             </div>
 
             <form onSubmit={handleRepay} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold mb-1">Payment Amount (MWK) *</label>
+                <label className="block text-xs font-semibold mb-1">Payment Amount ({settings.currency}) *</label>
                 <input 
                   type="number" 
                   required 

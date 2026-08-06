@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Package, AlertTriangle, ScanLine, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSettingsStore } from '../store/settingsStore';
 import { useProductStore, type Product } from '../store/cartStore';
 import BarcodeScanner from '../components/BarcodeScanner';
 
@@ -13,6 +14,7 @@ const emptyForm: Omit<Product, 'id'> = {
 
 export default function Inventory() {
   const { products, isLoading: productsLoading, addProduct, updateProduct, deleteProduct, loadProducts } = useProductStore();
+  const settings = useSettingsStore();
 
   useEffect(() => {
     loadProducts();
@@ -134,14 +136,14 @@ export default function Inventory() {
       {/* Table */}
       <div className="bg-white rounded-lg shadow border overflow-hidden flex-1 flex flex-col">
         <div className="overflow-x-auto flex-1">
-          <table className="w-full text-left">
+          <table className="w-full text-left min-w-[1000px]">
             <thead>
               <tr className="bg-gray-50 border-b">
                 <th className="p-4 font-semibold text-gray-600">Product</th>
                 <th className="p-4 font-semibold text-gray-600">SKU</th>
                 <th className="p-4 font-semibold text-gray-600">Category</th>
-                <th className="p-4 font-semibold text-gray-600 text-right">Cost (MWK)</th>
-                <th className="p-4 font-semibold text-gray-600 text-right">Price (MWK)</th>
+                <th className="p-4 font-semibold text-gray-600 text-right">Cost ({settings.currency})</th>
+                <th className="p-4 font-semibold text-gray-600 text-right">Price ({settings.currency})</th>
                 <th className="p-4 font-semibold text-gray-600 text-center">Stock</th>
                 <th className="p-4 font-semibold text-gray-600 text-center">Type</th>
                 <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
@@ -272,11 +274,11 @@ export default function Inventory() {
               {/* Prices */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Cost Price (MWK)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Cost Price ({settings.currency})</label>
                   <input name="costPrice" type="number" value={form.costPrice} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Selling Price (MWK) *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Selling Price ({settings.currency}) *</label>
                   <input name="sellingPrice" type="number" value={form.sellingPrice} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
                 </div>
               </div>

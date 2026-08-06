@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBag, AlertCircle, Printer, Calendar } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useSaleStore, useExpenseStore } from '../store/dataStore';
+import { useSettingsStore } from '../store/settingsStore';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -9,6 +10,7 @@ export default function Reports() {
   const [reportDate, setReportDate] = useState(today);
   const { sales } = useSaleStore();
   const { expenses } = useExpenseStore();
+  const { settings } = useSettingsStore();
 
   const trendData = useMemo(() => {
     const data = [];
@@ -81,8 +83,8 @@ export default function Reports() {
         <div className="text-blue-200 font-medium mb-2 flex items-center gap-2">
           <DollarSign size={18} /> Expected Cash in Drawer
         </div>
-        <div className="text-5xl font-extrabold mb-1">MWK {data.netCash.toLocaleString()}</div>
-        <div className="text-blue-200 text-sm mt-2">Cash Sales (MWK {data.cashSales.toLocaleString()}) – Expenses (MWK {data.totalExpenses.toLocaleString()})</div>
+        <div className="text-5xl font-extrabold mb-1">{settings.currency} {data.netCash.toLocaleString()}</div>
+        <div className="text-blue-200 text-sm mt-2">Cash Sales ({settings.currency} {data.cashSales.toLocaleString()}) – Expenses ({settings.currency} {data.totalExpenses.toLocaleString()})</div>
         {data.netCash < 0 && (
           <div className="mt-3 flex items-center gap-2 bg-red-400/30 px-3 py-2 rounded-lg text-sm font-semibold">
             <AlertCircle size={16} /> Warning: Expenses exceed cash sales today!
@@ -110,9 +112,9 @@ export default function Reports() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} tickFormatter={(val) => `MWK ${(val/1000)}k`} dx={-10} />
+              <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} tickFormatter={(val) => `${settings.currency} ${(val/1000)}k`} dx={-10} />
               <Tooltip 
-                formatter={(value: number) => [`MWK ${value.toLocaleString()}`]}
+                formatter={(value: number) => [`${settings.currency} ${value.toLocaleString()}`]}
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               />
               <Legend verticalAlign="top" height={36} iconType="circle" />
@@ -130,7 +132,7 @@ export default function Reports() {
             <div className="text-sm text-gray-500 font-medium">Total Sales</div>
             <TrendingUp size={20} className="text-green-500" />
           </div>
-          <div className="text-2xl font-bold text-green-600">MWK {data.totalSales.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-green-600">{settings.currency} {data.totalSales.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">{data.txCount} transactions</div>
         </div>
 
@@ -139,7 +141,7 @@ export default function Reports() {
             <div className="text-sm text-gray-500 font-medium">Cash Sales</div>
             <DollarSign size={20} className="text-blue-500" />
           </div>
-          <div className="text-2xl font-bold text-blue-600">MWK {data.cashSales.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-blue-600">{settings.currency} {data.cashSales.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">{data.totalSales > 0 ? Math.round(data.cashSales / data.totalSales * 100) : 0}% of total</div>
         </div>
 
@@ -148,7 +150,7 @@ export default function Reports() {
             <div className="text-sm text-gray-500 font-medium">Credit Sales</div>
             <CreditCard size={20} className="text-amber-500" />
           </div>
-          <div className="text-2xl font-bold text-amber-600">MWK {data.creditSales.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-amber-600">{settings.currency} {data.creditSales.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">Not received in cash</div>
         </div>
 
@@ -157,7 +159,7 @@ export default function Reports() {
             <div className="text-sm text-gray-500 font-medium">Total Expenses</div>
             <TrendingDown size={20} className="text-red-500" />
           </div>
-          <div className="text-2xl font-bold text-red-600">MWK {data.totalExpenses.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-red-600">{settings.currency} {data.totalExpenses.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">Deducted from cash</div>
         </div>
       </div>
@@ -175,7 +177,7 @@ export default function Reports() {
               <div key={item.label}>
                 <div className="flex justify-between text-sm mb-1">
                   <span className="text-gray-600 font-medium">{item.label}</span>
-                  <span className="font-bold">MWK {item.value.toLocaleString()}</span>
+                  <span className="font-bold">{settings.currency} {item.value.toLocaleString()}</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div className={`h-full ${item.color} rounded-full`} style={{ width: `${data.totalSales > 0 ? Math.round(item.value / data.totalSales * 100) : 0}%` }} />
@@ -191,34 +193,34 @@ export default function Reports() {
           <div className="space-y-2">
             <div className="flex justify-between py-2 border-b">
               <span className="text-gray-600">+ Cash Sales</span>
-              <span className="font-semibold text-green-600">+ MWK {data.cashSales.toLocaleString()}</span>
+              <span className="font-semibold text-green-600">+ {settings.currency} {data.cashSales.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-2 border-b">
               <span className="text-gray-600">– Expenses Paid</span>
-              <span className="font-semibold text-red-600">– MWK {data.totalExpenses.toLocaleString()}</span>
+              <span className="font-semibold text-red-600">– {settings.currency} {data.totalExpenses.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-3 bg-blue-50 rounded-lg px-3 mt-3">
               <span className="font-bold text-gray-800">Expected in Drawer</span>
-              <span className="font-extrabold text-blue-700 text-lg">MWK {data.netCash.toLocaleString()}</span>
+              <span className="font-extrabold text-blue-700 text-lg">{settings.currency} {data.netCash.toLocaleString()}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Sales log table */}
-      <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border shadow-sm overflow-x-auto">
         <div className="p-4 border-b bg-gray-50 font-bold text-gray-700 flex justify-between items-center">
           <span>Transactions for {reportDate}</span>
           <span className="text-sm font-normal text-gray-500">{data.txCount} total</span>
         </div>
-        <table className="w-full text-left">
+        <table className="w-full text-left min-w-[700px]">
           <thead>
             <tr className="border-b">
               <th className="p-4 text-sm font-semibold text-gray-600">Invoice #</th>
               <th className="p-4 text-sm font-semibold text-gray-600">Time</th>
               <th className="p-4 text-sm font-semibold text-gray-600">Cashier</th>
               <th className="p-4 text-sm font-semibold text-gray-600">Method</th>
-              <th className="p-4 text-sm font-semibold text-gray-600 text-right">Amount (MWK)</th>
+              <th className="p-4 text-sm font-semibold text-gray-600 text-right">Amount ({settings.currency})</th>
             </tr>
           </thead>
           <tbody>

@@ -13,7 +13,8 @@ export default function Settings() {
   
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
-    companyName: settings.companyName, 
+    companyName: settings.companyName,
+    currency: settings.currency || 'MWK',
     address: settings.address, 
     phone: settings.phone, 
     email: settings.email, 
@@ -263,7 +264,10 @@ export default function Settings() {
                   </div>
                 </div>
                 <form onSubmit={handleBrandSave} className="space-y-3">
-                  <div><label className="block text-sm font-semibold text-gray-700 mb-1">Company Name</label><input type="text" value={brandForm.companyName} onChange={e => setBrandForm(f => ({ ...f, companyName: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" required /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><label className="block text-sm font-semibold text-gray-700 mb-1">Company Name</label><input type="text" value={brandForm.companyName} onChange={e => setBrandForm(f => ({ ...f, companyName: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" required /></div>
+                    <div><label className="block text-sm font-semibold text-gray-700 mb-1">Currency (e.g. MWK, USD)</label><input type="text" value={brandForm.currency} onChange={e => setBrandForm(f => ({ ...f, currency: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" required /></div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className="block text-sm font-semibold text-gray-700 mb-1">Phone</label><input type="text" value={brandForm.phone} onChange={e => setBrandForm(f => ({ ...f, phone: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
                     <div><label className="block text-sm font-semibold text-gray-700 mb-1">TPIN</label><input type="text" value={brandForm.taxNumber} onChange={e => setBrandForm(f => ({ ...f, taxNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>

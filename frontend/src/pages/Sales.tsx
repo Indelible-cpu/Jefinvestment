@@ -8,6 +8,7 @@ import { useSaleStore, type SaleRecord } from '../store/dataStore';
 import { useAuthStore } from '../store/authStore';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import { toast } from 'sonner';
+import { useSettingsStore } from '../store/settingsStore';
 
 const PAGE_SIZE = 15;
 
@@ -40,6 +41,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
   isAdmin: boolean;
   onUpdateStatus: (id: string, status: 'refunded' | 'voided') => void;
 }) {
+  const settings = useSettingsStore();
   const [confirmAction, setConfirmAction] = useState<'refunded' | 'voided' | null>(null);
 
   const profit = sale.items.reduce((sum, item) => {
@@ -98,8 +100,8 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
                     <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="p-3 font-medium">{item.name}</td>
                       <td className="p-3 text-center">{item.quantity}</td>
-                      <td className="p-3 text-right">MWK {item.unitPrice.toLocaleString()}</td>
-                      <td className="p-3 text-right font-semibold">MWK {(item.quantity * item.unitPrice).toLocaleString()}</td>
+                      <td className="p-3 text-right">{settings.currency} {item.unitPrice.toLocaleString()}</td>
+                      <td className="p-3 text-right font-semibold">{settings.currency} {(item.quantity * item.unitPrice).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -111,20 +113,20 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
               <h3 className="font-bold text-gray-700 mb-3">Payment Breakdown</h3>
-              <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>MWK {sale.subtotal.toLocaleString()}</span></div>
-              {sale.discount > 0 && <div className="flex justify-between text-red-500"><span>Discount</span><span>-MWK {sale.discount.toLocaleString()}</span></div>}
-              {sale.taxAmount > 0 && <div className="flex justify-between text-gray-600"><span>{sale.taxName || 'Tax'} ({sale.taxType === 'INCLUSIVE' ? 'incl.' : 'excl.'})</span><span>MWK {sale.taxAmount.toFixed(2)}</span></div>}
-              <div className="flex justify-between font-bold text-gray-900 pt-2 border-t text-base"><span>Total</span><span>MWK {sale.total.toLocaleString()}</span></div>
-              <div className="flex justify-between text-green-700 pt-1"><span>Amount Paid</span><span>MWK {sale.amountPaid.toLocaleString()}</span></div>
+              <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>{settings.currency} {sale.subtotal.toLocaleString()}</span></div>
+              {sale.discount > 0 && <div className="flex justify-between text-red-500"><span>Discount</span><span>-{settings.currency} {sale.discount.toLocaleString()}</span></div>}
+              {sale.taxAmount > 0 && <div className="flex justify-between text-gray-600"><span>{sale.taxName || 'Tax'} ({sale.taxType === 'INCLUSIVE' ? 'incl.' : 'excl.'})</span><span>{settings.currency} {sale.taxAmount.toFixed(2)}</span></div>}
+              <div className="flex justify-between font-bold text-gray-900 pt-2 border-t text-base"><span>Total</span><span>{settings.currency} {sale.total.toLocaleString()}</span></div>
+              <div className="flex justify-between text-green-700 pt-1"><span>Amount Paid</span><span>{settings.currency} {sale.amountPaid.toLocaleString()}</span></div>
               {sale.paymentMethod === 'CASH' && sale.amountPaid > sale.total && (
-                <div className="flex justify-between text-blue-600"><span>Change</span><span>MWK {(sale.amountPaid - sale.total).toLocaleString()}</span></div>
+                <div className="flex justify-between text-blue-600"><span>Change</span><span>{settings.currency} {(sale.amountPaid - sale.total).toLocaleString()}</span></div>
               )}
             </div>
             {isAdmin && (
               <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-4 flex flex-col justify-center">
                 <div className="text-xs text-emerald-600 font-semibold uppercase tracking-wider mb-1">Estimated Profit</div>
                 <div className={`text-3xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-red-500'}`}>
-                  MWK {profit.toLocaleString()}
+                  {settings.currency} {profit.toLocaleString()}
                 </div>
                 {profit <= 0 && <div className="text-xs text-red-500 mt-1">Cost prices not set — profit may be inaccurate.</div>}
               </div>
@@ -176,6 +178,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
 // ─── Main Sales Page ───────────────────────────────────────────────────────────
 export default function Sales() {
   const { sales, updateSaleStatus } = useSaleStore();
+  const settings = useSettingsStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
 
@@ -278,7 +281,7 @@ export default function Sales() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Transactions', value: filtered.length.toLocaleString(), icon: ShoppingBag, color: 'bg-blue-500' },
-          { label: 'Revenue (Completed)', value: `MWK ${totalRevenue.toLocaleString()}`, icon: Banknote, color: 'bg-emerald-500' },
+          { label: 'Revenue (Completed)', value: `${settings.currency} ${totalRevenue.toLocaleString()}`, icon: Banknote, color: 'bg-emerald-500' },
           { label: 'Voided', value: totalVoided.toString(), icon: Ban, color: 'bg-red-500' },
           { label: 'Refunded', value: totalRefunded.toString(), icon: RefreshCcw, color: 'bg-amber-500' },
         ].map(({ label, value, icon: Icon, color }) => (
@@ -383,7 +386,7 @@ export default function Sales() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="bg-gray-50 border-b">
                   <th className="text-left p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Invoice No.</th>
@@ -432,9 +435,9 @@ export default function Sales() {
                         <span className="text-gray-400 text-xs ml-1">item{sale.items.length !== 1 ? 's' : ''}</span>
                       </td>
                       <td className="p-4 text-right">
-                        <span className="font-bold text-gray-900">MWK {sale.total.toLocaleString()}</span>
+                        <span className="font-bold text-gray-900">{settings.currency} {sale.total.toLocaleString()}</span>
                         {isAdmin && sale.discount > 0 && (
-                          <div className="text-xs text-red-400">-MWK {sale.discount.toLocaleString()} disc.</div>
+                          <div className="text-xs text-red-400">-{settings.currency} {sale.discount.toLocaleString()} disc.</div>
                         )}
                       </td>
                       <td className="p-4 text-center">

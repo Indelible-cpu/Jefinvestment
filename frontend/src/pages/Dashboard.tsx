@@ -56,8 +56,8 @@ export default function Dashboard() {
   });
 
   const stats = [
-    { label: "Today's Sales", value: `MWK ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports' },
-    { label: 'Outstanding Credit', value: `MWK ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits' },
+    { label: "Today's Sales", value: `${settings.currency} ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports' },
+    { label: 'Outstanding Credit', value: `${settings.currency} ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits' },
     { label: 'Low Stock Items', value: `${lowStockCount} items`, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', link: '/inventory' },
     { label: 'Active Employees', value: `${activeStaff} staff`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees' },
   ];
@@ -155,7 +155,7 @@ export default function Dashboard() {
                     tx.paymentMethod === 'CREDIT' ? 'bg-amber-100 text-amber-700' :
                     'bg-purple-100 text-purple-700'
                   }`}>{tx.paymentMethod.replace('_', ' ')}</span>
-                  <span className="font-bold text-gray-800">MWK {tx.total.toLocaleString()}</span>
+                  <span className="font-bold text-gray-800">{settings.currency} {tx.total.toLocaleString()}</span>
                 </div>
               </div>
             ))}
