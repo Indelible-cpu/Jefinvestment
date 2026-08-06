@@ -21,14 +21,14 @@ interface ProductState {
   isLoading: boolean;
   loadProducts: () => Promise<void>;
   setProducts: (products: Product[]) => void;
-  addProduct: (product: Product) => void;
-  updateProduct: (product: Product) => void;
-  deleteProduct: (id: string) => void;
-  decrementStock: (id: string, qty: number) => void;
+  addProduct: (product: Product) => Promise<void>;
+  updateProduct: (product: Product) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  decrementStock: (id: string, qty: number) => Promise<void>;
 }
 
 export const useProductStore = create<ProductState>()(
-  (set) => ({
+  (set, get) => ({
     products: [],
     isLoading: false,
 
@@ -62,67 +62,108 @@ export const useProductStore = create<ProductState>()(
     setProducts: (products) => set({ products }),
 
     addProduct: async (product) => {
-      // Optimistic add
-      set((state) => ({ products: [...state.products, product] }));
+      const clientTxId = crypto.randomUUID();
+      const payload = {
+        name: product.name,
+        sku: product.sku,
+        categoryId: 'general',
+        costPrice: product.costPrice,
+        sellingPrice: product.sellingPrice,
+        reorderLevel: product.reorderLevel,
+        isService: product.isService,
+        unit: product.unit,
+        initialStock: product.stock,
+        clientTxId,
+      };
+
       try {
-        const res: any = await api.post('/api/v1/inventory', {
-          name: product.name,
-          sku: product.sku,
-          categoryId: 'general',
-          costPrice: product.costPrice,
-          sellingPrice: product.sellingPrice,
-          reorderLevel: product.reorderLevel,
-          isService: product.isService,
-          unit: product.unit,
-          initialStock: product.stock,
-        });
-        // Replace local ID with server ID
+        const res: any = await api.post('/api/v1/inventory', payload);
         if (res.data?.id) {
-          set((state) => ({
-            products: state.products.map(p => p.id === product.id ? { ...p, id: res.data.id } : p)
-          }));
+          set((state) => ({ products: [...state.products, { ...product, id: res.data.id }] }));
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to sync new product to server', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: '/api/v1/inventory',
+          method: 'POST',
+          body: payload
+        });
+        set((state) => ({ products: [...state.products, { ...product, id: clientTxId }] }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
 
     updateProduct: async (product) => {
-      set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
+      const clientTxId = crypto.randomUUID();
+      const payload = {
+        name: product.name,
+        sku: product.sku,
+        costPrice: product.costPrice,
+        sellingPrice: product.sellingPrice,
+        reorderLevel: product.reorderLevel,
+        isService: product.isService,
+        unit: product.unit,
+        clientTxId,
+      };
+
       try {
-        await api.put(`/api/v1/inventory/${product.id}`, {
-          name: product.name,
-          sku: product.sku,
-          costPrice: product.costPrice,
-          sellingPrice: product.sellingPrice,
-          reorderLevel: product.reorderLevel,
-          isService: product.isService,
-          unit: product.unit,
-        });
-      } catch (err) {
+        await api.put(`/api/v1/inventory/${product.id}`, payload);
+        set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
+      } catch (err: any) {
         console.error('Failed to sync updated product to server', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: `/api/v1/inventory/${product.id}`,
+          method: 'PUT',
+          body: payload
+        });
+        set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
 
     deleteProduct: async (id) => {
-      set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+      const clientTxId = crypto.randomUUID();
       try {
         await api.delete(`/api/v1/inventory/${id}`);
-      } catch (err) {
+        set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+      } catch (err: any) {
         console.error('Failed to delete product from server', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: `/api/v1/inventory/${id}`,
+          method: 'DELETE',
+        });
+        set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
 
     decrementStock: async (id, qty) => {
-      // Optimistically update local state
-      set((state) => ({
-        products: state.products.map(p => p.id === id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)
-      }));
-      // Persist to backend
+      const clientTxId = crypto.randomUUID();
+      const payload = { adjustment: -qty, reason: 'SALE', clientTxId };
       try {
-        await api.put(`/api/v1/inventory/${id}/stock`, { adjustment: -qty, reason: 'SALE' });
-      } catch (err) {
+        await api.put(`/api/v1/inventory/${id}/stock`, payload);
+        set((state) => ({
+          products: state.products.map(p => p.id === id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)
+        }));
+      } catch (err: any) {
         console.error('Failed to sync stock decrement to server', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: `/api/v1/inventory/${id}/stock`,
+          method: 'PUT',
+          body: payload
+        });
+        set((state) => ({
+          products: state.products.map(p => p.id === id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)
+        }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
   })

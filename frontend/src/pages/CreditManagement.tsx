@@ -18,17 +18,27 @@ export default function CreditManagement() {
 
   const selectedCreditRecord = credits.find(c => c.id === selectedRecord) || null;
 
-  const handleRepay = (e: React.FormEvent) => {
+  const handleRepay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedRecord || !repayAmount) return;
 
     const amountNum = parseFloat(repayAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
-    recordRepayment(selectedRecord, amountNum);
-    setSelectedRecord(null);
-    setRepayAmount('');
-    toast.success('Repayment of MWK ' + amountNum.toLocaleString() + ' recorded.');
+    try {
+      await recordRepayment(selectedRecord, amountNum);
+      setSelectedRecord(null);
+      setRepayAmount('');
+      toast.success('Repayment of MWK ' + amountNum.toLocaleString() + ' recorded.');
+    } catch (err: any) {
+      if (err.message === 'OFFLINE_QUEUED') {
+        toast.warning('Offline', { description: 'Repayment saved locally and will sync when online.' });
+        setSelectedRecord(null);
+        setRepayAmount('');
+      } else {
+        toast.error('Failed to record repayment', { description: err.message });
+      }
+    }
   };
 
   return (

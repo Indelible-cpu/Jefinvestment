@@ -16,7 +16,7 @@ interface SettingsState {
   nbsDetails: string;
   nbmDetails: string;
   quickActions: string[];
-  updateSettings: (settings: Partial<Omit<SettingsState, 'updateSettings' | 'loadSettings'>>) => void;
+  updateSettings: (settings: Partial<Omit<SettingsState, 'updateSettings' | 'loadSettings'>>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
 
@@ -39,12 +39,22 @@ export const useSettingsStore = create<SettingsState>()(
       nbsDetails: '',
       nbmDetails: '',
       quickActions: ['new-sale', 'add-item', 'print-service', 'tech-service'],
-      updateSettings: (newSettings) => {
+      updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
-        // Sync to backend asynchronously
-        api.post('/api/v1/settings', newSettings).catch(err => {
+        const clientTxId = crypto.randomUUID();
+        try {
+          await api.post('/api/v1/settings', { ...newSettings, clientTxId });
+        } catch (err: any) {
           console.error('Failed to sync settings to server', err);
-        });
+          const { useSyncQueueStore } = await import('./syncQueueStore');
+          useSyncQueueStore.getState().enqueue({
+            id: clientTxId,
+            url: '/api/v1/settings',
+            method: 'POST',
+            body: { ...newSettings, clientTxId },
+          });
+          throw new Error('OFFLINE_QUEUED');
+        }
       },
       loadSettings: async () => {
         try {

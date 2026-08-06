@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Package, AlertTriangle, ScanLine, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { useProductStore, type Product } from '../store/cartStore';
 import BarcodeScanner from '../components/BarcodeScanner';
 
@@ -41,18 +42,38 @@ export default function Inventory() {
   const openAdd = () => { setForm(emptyForm); setEditId(null); setShowModal(true); };
   const openEdit = (p: Product) => { const { id, ...rest } = p; setForm(rest); setEditId(id); setShowModal(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.sku.trim()) return;
-    if (editId) {
-      updateProduct({ ...form, id: editId });
-    } else {
-      addProduct({ ...form, id: Date.now().toString() });
+    try {
+      if (editId) {
+        await updateProduct({ ...form, id: editId });
+        toast.success('Product updated successfully');
+      } else {
+        await addProduct({ ...form, id: Date.now().toString() });
+        toast.success('Product added successfully');
+      }
+      setShowModal(false);
+    } catch (err: any) {
+      if (err.message === 'OFFLINE_QUEUED') {
+        toast.warning('Offline', { description: 'Product saved locally and will sync when online.' });
+        setShowModal(false);
+      } else {
+        toast.error('Failed to save product', { description: err.message });
+      }
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      toast.success('Product deleted');
+    } catch (err: any) {
+      if (err.message === 'OFFLINE_QUEUED') {
+        toast.warning('Offline', { description: 'Delete queued and will sync when online.' });
+      } else {
+        toast.error('Failed to delete product', { description: err.message });
+      }
+    }
     setConfirmDelete(null);
   };
 

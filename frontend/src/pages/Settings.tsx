@@ -48,19 +48,33 @@ export default function Settings() {
     }
   };
 
-  const handleBrandSave = (e: React.FormEvent) => {
+  const handleBrandSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings(brandForm);
-    showSuccess('Company settings saved!');
+    try {
+      await updateSettings(brandForm);
+      showSuccess('Company settings saved!');
+    } catch (err: any) {
+      if (err.message === 'OFFLINE_QUEUED') {
+        toast.warning('Offline', { description: 'Settings saved locally and will sync when online.' });
+      } else {
+        toast.error('Failed to save settings', { description: err.message });
+      }
+    }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        updateSettings({ companyLogo: reader.result as string });
-        showSuccess('Company logo updated!');
+      reader.onloadend = async () => {
+        try {
+          await updateSettings({ companyLogo: reader.result as string });
+          showSuccess('Company logo updated!');
+        } catch (err: any) {
+          if (err.message === 'OFFLINE_QUEUED') {
+            toast.warning('Offline', { description: 'Logo saved locally and will sync when online.' });
+          }
+        }
       };
       reader.readAsDataURL(file);
     }

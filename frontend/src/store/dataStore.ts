@@ -41,11 +41,12 @@ export const useExpenseStore = create<ExpenseState>()(
       }
     },
     addExpense: async (expense) => {
+      const clientTxId = crypto.randomUUID();
       try {
-        const res: any = await api.post('/api/v1/expenses', expense);
+        const res: any = await api.post('/api/v1/expenses', { ...expense, clientTxId });
         const e = res.data;
         const newExpense: Expense = {
-          id: e?.id || Date.now().toString(),
+          id: e?.id || clientTxId,
           date: new Date().toISOString().slice(0, 10),
           category: expense.category,
           description: expense.description,
@@ -53,23 +54,39 @@ export const useExpenseStore = create<ExpenseState>()(
           amount: expense.amount,
         };
         set((state) => ({ expenses: [newExpense, ...state.expenses] }));
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to add expense', err);
-        // Optimistic fallback
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: '/api/v1/expenses',
+          method: 'POST',
+          body: { ...expense, clientTxId },
+        });
         const newExpense: Expense = {
           ...expense,
-          id: Date.now().toString(),
+          id: clientTxId,
           date: new Date().toISOString().slice(0, 10),
         };
         set((state) => ({ expenses: [newExpense, ...state.expenses] }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
     deleteExpense: async (id) => {
-      set((state) => ({ expenses: state.expenses.filter(e => e.id !== id) }));
+      const clientTxId = crypto.randomUUID();
       try {
         await api.delete(`/api/v1/expenses/${id}`);
-      } catch (err) {
+        set((state) => ({ expenses: state.expenses.filter(e => e.id !== id) }));
+      } catch (err: any) {
         console.error('Failed to delete expense', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: `/api/v1/expenses/${id}`,
+          method: 'DELETE',
+        });
+        set((state) => ({ expenses: state.expenses.filter(e => e.id !== id) }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
     getTodayTotal: () => {
@@ -246,36 +263,75 @@ export const useCreditStore = create<CreditState>()(
       }
     },
     addCredit: async (credit) => {
-      const optimistic: CreditRecord = {
-        ...credit,
-        id: `local-${Date.now()}`,
-        paidAmount: 0,
-        status: 'PENDING',
-        date: new Date().toISOString().slice(0, 10),
-      };
-      set((state) => ({ credits: [optimistic, ...state.credits] }));
+      const clientTxId = crypto.randomUUID();
+      const payload = { ...credit, clientTxId };
       try {
-        await api.post('/api/v1/credits', credit);
-      } catch (err) {
+        const res: any = await api.post('/api/v1/credits', payload);
+        const optimistic: CreditRecord = {
+          ...credit,
+          id: res.data?.id || clientTxId,
+          paidAmount: 0,
+          status: 'PENDING',
+          date: new Date().toISOString().slice(0, 10),
+        };
+        set((state) => ({ credits: [optimistic, ...state.credits] }));
+      } catch (err: any) {
         console.error('Failed to save credit to server', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: '/api/v1/credits',
+          method: 'POST',
+          body: payload,
+        });
+        const optimistic: CreditRecord = {
+          ...credit,
+          id: clientTxId,
+          paidAmount: 0,
+          status: 'PENDING',
+          date: new Date().toISOString().slice(0, 10),
+        };
+        set((state) => ({ credits: [optimistic, ...state.credits] }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
     recordRepayment: async (id, amount) => {
-      set((state) => ({
-        credits: state.credits.map(c => {
-          if (c.id !== id) return c;
-          const newPaid = c.paidAmount + amount;
-          return {
-            ...c,
-            paidAmount: newPaid,
-            status: newPaid >= c.totalAmount ? 'FULLY_PAID' : c.status,
-          };
-        })
-      }));
+      const clientTxId = crypto.randomUUID();
+      const payload = { amount, method: 'CASH', clientTxId };
       try {
-        await api.put(`/api/v1/credits/${id}/repay`, { amount, method: 'CASH' });
-      } catch (err) {
+        await api.put(`/api/v1/credits/${id}/repay`, payload);
+        set((state) => ({
+          credits: state.credits.map(c => {
+            if (c.id !== id) return c;
+            const newPaid = c.paidAmount + amount;
+            return {
+              ...c,
+              paidAmount: newPaid,
+              status: newPaid >= c.totalAmount ? 'FULLY_PAID' : c.status,
+            };
+          })
+        }));
+      } catch (err: any) {
         console.error('Failed to sync credit repayment', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: `/api/v1/credits/${id}/repay`,
+          method: 'PUT',
+          body: payload,
+        });
+        set((state) => ({
+          credits: state.credits.map(c => {
+            if (c.id !== id) return c;
+            const newPaid = c.paidAmount + amount;
+            return {
+              ...c,
+              paidAmount: newPaid,
+              status: newPaid >= c.totalAmount ? 'FULLY_PAID' : c.status,
+            };
+          })
+        }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
     getTotalOutstanding: () =>
@@ -326,35 +382,68 @@ export const useEmployeeStore = create<EmployeeState>()(
       }
     },
     addEmployee: async (emp) => {
-      const localId = `local-${Date.now()}`;
-      set((state) => ({ employees: [...state.employees, { ...emp, id: localId }] }));
+      const clientTxId = crypto.randomUUID();
+      const payload = { ...emp, clientTxId };
       try {
-        const res: any = await api.post('/api/v1/employees', emp);
+        const res: any = await api.post('/api/v1/employees', payload);
         if (res.data?.id) {
           set((state) => ({
-            employees: state.employees.map(e => e.id === localId ? { ...e, id: res.data.id } : e)
+            employees: [...state.employees, { ...emp, id: res.data.id }]
           }));
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to sync employee to server', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: '/api/v1/employees',
+          method: 'POST',
+          body: payload,
+        });
+        set((state) => ({
+          employees: [...state.employees, { ...emp, id: clientTxId }]
+        }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
     updateStatus: async (id, status) => {
-      set((state) => ({
-        employees: state.employees.map(e => e.id === id ? { ...e, status } : e)
-      }));
+      const clientTxId = crypto.randomUUID();
+      const payload = { status, clientTxId };
       try {
-        await api.put(`/api/v1/employees/${id}/status`, { status });
-      } catch (err) {
+        await api.put(`/api/v1/employees/${id}/status`, payload);
+        set((state) => ({
+          employees: state.employees.map(e => e.id === id ? { ...e, status } : e)
+        }));
+      } catch (err: any) {
         console.error('Failed to sync employee status', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: `/api/v1/employees/${id}/status`,
+          method: 'PUT',
+          body: payload,
+        });
+        set((state) => ({
+          employees: state.employees.map(e => e.id === id ? { ...e, status } : e)
+        }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
     deleteEmployee: async (id) => {
-      set((state) => ({ employees: state.employees.filter(e => e.id !== id) }));
+      const clientTxId = crypto.randomUUID();
       try {
         await api.delete(`/api/v1/employees/${id}`);
-      } catch (err) {
+        set((state) => ({ employees: state.employees.filter(e => e.id !== id) }));
+      } catch (err: any) {
         console.error('Failed to delete employee from server', err);
+        const { useSyncQueueStore } = await import('./syncQueueStore');
+        useSyncQueueStore.getState().enqueue({
+          id: clientTxId,
+          url: `/api/v1/employees/${id}`,
+          method: 'DELETE',
+        });
+        set((state) => ({ employees: state.employees.filter(e => e.id !== id) }));
+        throw new Error('OFFLINE_QUEUED');
       }
     },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,

@@ -27,22 +27,42 @@ export default function Expenses() {
   const filtered = expenses.filter(e => !dateFilter || e.date === dateFilter);
   const totalToday = filtered.reduce((sum, e) => sum + e.amount, 0);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setError('');
     if (!form.description.trim()) { setError('Description is required.'); return; }
     if (form.amount <= 0) { setError('Amount must be greater than zero.'); return; }
-    addExpense({ ...form, loggedBy: 'Admin' });
-    setForm(emptyForm);
-    setShowModal(false);
+    
+    try {
+      await addExpense({ ...form, loggedBy: 'Admin' });
+      toast.success('Expense logged successfully');
+      setForm(emptyForm);
+      setShowModal(false);
+    } catch (err: any) {
+      if (err.message === 'OFFLINE_QUEUED') {
+        toast.warning('Offline', { description: 'Expense saved locally and will sync when online.' });
+        setForm(emptyForm);
+        setShowModal(false);
+      } else {
+        setError(err.message || 'Failed to save expense');
+      }
+    }
   };
 
   const handleDelete = (id: string) => {
     toast('Remove this expense entry?', {
       action: {
         label: 'Remove',
-        onClick: () => {
-          deleteExpense(id);
-          toast.success('Expense removed');
+        onClick: async () => {
+          try {
+            await deleteExpense(id);
+            toast.success('Expense removed');
+          } catch (err: any) {
+            if (err.message === 'OFFLINE_QUEUED') {
+              toast.warning('Offline', { description: 'Delete queued and will sync when online.' });
+            } else {
+              toast.error('Failed to delete expense', { description: err.message });
+            }
+          }
         }
       },
       cancel: { label: 'Cancel', onClick: () => {} }
