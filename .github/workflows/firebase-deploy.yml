@@ -9,11 +9,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Use Node v20 for the build
+      # Use Node v22 for the build
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           
       # Install dependencies and build the frontend
       - name: Install Dependencies & Build
