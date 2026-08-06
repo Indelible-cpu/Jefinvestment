@@ -40,7 +40,7 @@ export default function POS() {
   const prevCartLengthRef = useRef(0);
 
   const cart = useCartStore();
-  const { products, decrementStock } = useProductStore();
+  const { products, isLoading: productsLoading, decrementStock } = useProductStore();
   const { addSale } = useSaleStore();
   const { taxRate, taxName, taxType } = useSettingsStore();
 
@@ -356,7 +356,15 @@ const playSound = (type: 'success' | 'error') => {
           </div>
           
           <div className="flex-1 overflow-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
-            {filteredProducts.length === 0 ? (
+            {productsLoading ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="border p-3 rounded-lg h-32 bg-gray-100 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+                  <div className="h-5 bg-gray-200 rounded w-1/3 mt-auto"></div>
+                </div>
+              ))
+            ) : filteredProducts.length === 0 ? (
               <div className="col-span-4 text-center py-12 text-gray-400">No products found.</div>
             ) : filteredProducts.map(product => {
               const outOfStock = !product.isService && product.stock === 0;

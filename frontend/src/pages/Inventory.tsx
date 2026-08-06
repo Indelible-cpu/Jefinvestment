@@ -12,7 +12,7 @@ const emptyForm: Omit<Product, 'id'> = {
 };
 
 export default function Inventory() {
-  const { products, addProduct, updateProduct, deleteProduct, loadProducts } = useProductStore();
+  const { products, isLoading: productsLoading, addProduct, updateProduct, deleteProduct, loadProducts } = useProductStore();
 
   useEffect(() => {
     loadProducts();
@@ -148,7 +148,17 @@ export default function Inventory() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {productsLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: 8 }).map((_, j) => (
+                      <td key={j} className="p-4">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-full"></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
                 <tr><td colSpan={8} className="p-12 text-center text-gray-400">No products found.</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="border-b hover:bg-gray-50 transition">
