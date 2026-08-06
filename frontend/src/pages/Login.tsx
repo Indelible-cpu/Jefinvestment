@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Lock, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,6 +19,13 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    try {
+      // Set Firebase persistence based on Remember Me checkbox
+      // LOCAL = survives browser restarts; SESSION = cleared when browser closes
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+    } catch {
+      // Non-critical, continue anyway
+    }
     const { login } = useAuthStore.getState();
     const success = await login(email, password);
     setLoading(false);
