@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "jefinvestment-e1fc1"
+  },
+  "targets": {
+    "jefinvestment-e1fc1": {
+      "hosting": {
+        "jefinvestment": ["jefinvestment-e1fc1"]
+      }
+    }
+  }
+}

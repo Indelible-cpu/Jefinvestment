@@ -1,6 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api from '../utils/api';
+import { 
+  signInWithEmailAndPassword, 
+  signOut, 
+  createUserWithEmailAndPassword,
+  updatePassword
+} from 'firebase/auth';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc,
+  collection,
+  getDocs,
+  deleteDoc
+} from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 export interface User {
   id: string;
@@ -45,24 +60,38 @@ export const useAuthStore = create<AuthState>()(
       login: async (email, password) => {
         set({ isLoading: true });
         try {
-          const res: any = await api.post('/api/v1/auth/login', { username: email, password });
-          const { token, user } = res.data;
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const firebaseUser = userCredential.user;
+          const token = await firebaseUser.getIdToken();
+
+          // Fetch user profile from Firestore
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          let userData: any = { role: 'CASHIER', name: email.split('@')[0], username: email };
+          
+          if (userDoc.exists()) {
+            userData = userDoc.data();
+          } else {
+            // Default setup for newly created users that might not have a profile doc yet
+            await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+          }
+
           set({
             token,
             user: {
-              id: user.id,
-              name: user.name || user.username,
-              username: user.username,
-              role: user.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
-              branchId: user.branchId,
-              branchName: user.branchName,
-              profilePic: user.profilePic || '',
+              id: firebaseUser.uid,
+              name: userData.name || userData.username,
+              username: userData.username,
+              role: userData.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
+              branchId: userData.branchId,
+              branchName: userData.branchName,
+              profilePic: userData.profilePic || '',
             },
             isAuthenticated: true,
             isLoading: false,
           });
           return true;
         } catch (err) {
+          console.error("Firebase Auth Login Error:", err);
           // Local / Offline fallback authentication if backend API is unreachable or fails
           const cleanEmail = email.trim().toLowerCase();
           if (
@@ -112,58 +141,113 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => set({ user: null, token: null, isAuthenticated: false, users: [] }),
+      logout: async () => {
+        try {
+          await signOut(auth);
+        } catch(e) {
+          console.warn("Sign out failed", e);
+        }
+        set({ user: null, token: null, isAuthenticated: false, users: [] });
+      },
 
       updateProfile: async (name, username, profilePic) => {
-        // Save to server first (online-first)
+        const state = get();
+        if (!state.user) return;
+        
         try {
-          await api.put('/api/v1/profile', { name, ...(profilePic !== undefined && { profilePic }) });
+          await updateDoc(doc(db, 'users', state.user.id), { 
+            name, 
+            username,
+            ...(profilePic !== undefined && { profilePic }) 
+          });
         } catch (err) {
-          console.warn('Failed to sync profile to server, saving locally only', err);
+          console.warn('Failed to sync profile to Firestore, saving locally only', err);
         }
-        // Always update local state
+        
         set((state) => ({
           user: state.user ? { ...state.user, name, username, ...(profilePic !== undefined && { profilePic }) } : null,
         }));
       },
 
       loadProfile: async () => {
+        const state = get();
+        if (!state.user || state.user.id.startsWith('local-')) return;
+
         try {
-          const res: any = await api.get('/api/v1/profile');
-          if (res.data) {
+          const userDoc = await getDoc(doc(db, 'users', state.user.id));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
             set((state) => ({
               user: state.user ? {
                 ...state.user,
-                ...(res.data.name && { name: res.data.name }),
-                ...(res.data.profilePic && { profilePic: res.data.profilePic }),
+                ...(data.name && { name: data.name }),
+                ...(data.profilePic && { profilePic: data.profilePic }),
               } : null,
             }));
           }
         } catch (err) {
-          console.warn('Failed to load profile from server', err);
+          console.warn('Failed to load profile from Firestore', err);
         }
       },
 
       resetPassword: async (userId, newPassword) => {
-        await api.put(`/api/v1/users/${userId}/password`, { password: newPassword });
+        // This is tricky because Firebase client SDK only allows updating the CURRENT user's password.
+        if (get().user?.id === userId && auth.currentUser) {
+          await updatePassword(auth.currentUser, newPassword);
+        } else {
+          console.error("Cannot reset another user's password from client SDK without Cloud Functions.");
+          throw new Error("Cannot reset another user's password from client.");
+        }
       },
 
       addUser: async (userData) => {
-        await api.post('/api/v1/users', userData);
-        await get().loadUsers();
+        try {
+          const res = await createUserWithEmailAndPassword(auth, userData.username, userData.password);
+          
+          await setDoc(doc(db, 'users', res.user.uid), {
+            username: userData.username,
+            name: userData.username.split('@')[0],
+            role: userData.role,
+            branchId: userData.branchId || null,
+            isActive: true,
+          });
+
+          await get().loadUsers();
+        } catch (error) {
+          console.error("Failed to add user:", error);
+          throw error;
+        }
       },
 
       deleteUser: async (userId) => {
-        await api.delete(`/api/v1/users/${userId}`);
-        set((state) => ({ users: state.users.filter((u) => u.id !== userId) }));
+        try {
+          await deleteDoc(doc(db, 'users', userId));
+          set((state) => ({ users: state.users.filter((u) => u.id !== userId) }));
+        } catch(e) {
+          console.error("Failed to delete user", e);
+        }
       },
 
       loadUsers: async () => {
         try {
-          const res: any = await api.get('/api/v1/users');
-          set({ users: res.data });
-        } catch {
-          // silently fail — user list is non-critical
+          const snapshot = await getDocs(collection(db, 'users'));
+          const loadedUsers: UserAccount[] = [];
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            loadedUsers.push({
+              id: doc.id,
+              username: data.username || '',
+              name: data.name || '',
+              role: data.role || 'CASHIER',
+              branchId: data.branchId,
+              branchName: data.branchName,
+              profilePic: data.profilePic,
+              isActive: data.isActive !== false,
+            });
+          });
+          set({ users: loadedUsers });
+        } catch (e) {
+          console.warn("Failed to load users", e);
         }
       },
     }),

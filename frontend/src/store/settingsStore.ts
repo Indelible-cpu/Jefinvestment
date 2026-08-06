@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface SettingsState {
   companyName: string;
@@ -20,8 +22,6 @@ interface SettingsState {
   loadSettings: () => Promise<void>;
 }
 
-import api from '../utils/api';
-
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
@@ -41,30 +41,21 @@ export const useSettingsStore = create<SettingsState>()(
       quickActions: ['new-sale', 'add-item', 'print-service', 'tech-service'],
       updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
-        const clientTxId = crypto.randomUUID();
         try {
-          await api.post('/api/v1/settings', { ...newSettings, clientTxId });
+          await setDoc(doc(db, 'settings', 'global'), newSettings, { merge: true });
         } catch (err: any) {
-          console.error('Failed to sync settings to server', err);
-          const { useSyncQueueStore } = await import('./syncQueueStore');
-          useSyncQueueStore.getState().enqueue({
-            id: clientTxId,
-            url: '/api/v1/settings',
-            method: 'POST',
-            body: { ...newSettings, clientTxId },
-          });
+          console.error('Failed to sync settings to Firestore', err);
           throw new Error('OFFLINE_QUEUED');
         }
       },
       loadSettings: async () => {
-        try {
-          const res: any = await api.get('/api/v1/settings');
-          if (res.data) {
-            set((state) => ({ ...state, ...res.data }));
+        onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
+          if (docSnap.exists()) {
+            set((state) => ({ ...state, ...docSnap.data() }));
           }
-        } catch (error) {
-          console.error('Failed to load settings from server', error);
-        }
+        }, (error) => {
+          console.error('Failed to load settings from Firestore', error);
+        });
       }
     }),
     {

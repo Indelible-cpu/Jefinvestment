@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+        || request.auth.token.email == 'admin@jefinvestment.com'
+        || request.auth.token.email == 'jefinvestmentmw@gmail.com'
+      );
+    }
+    
+    function isManager() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MANAGER';
+    }
+
+    // By default, allow read/write if authenticated. 
+    // In a real app, restrict this more strictly to branch-level.
+    match /{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // Strict rules for settings
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Strict rules for users
+    match /users/{userId} {
+      // Users can read and update their own profile
+      allow read: if isAuthenticated();
+      allow update: if request.auth.uid == userId || isAdmin();
+      // Only admins can create/delete other users
+      allow create, delete: if isAdmin();
+    }
+  }
+}

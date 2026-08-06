@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api from '../utils/api';
+
+// ─── Firebase Migration Notice ───────────────────────────────────────────────
+// This file is now a stub because Firestore handles offline queueing natively 
+// via persistentLocalCache. The API and structure are preserved so that 
+// UI components using it don't break.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface QueuedRequest {
   id: string;
@@ -21,51 +26,21 @@ interface SyncQueueState {
 
 export const useSyncQueueStore = create<SyncQueueState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       queue: [],
       isSyncing: false,
 
-      enqueue: (req) => {
-        set((state) => ({
-          queue: [...state.queue, { ...req, timestamp: Date.now() }],
-        }));
+      enqueue: (_req) => {
+        // No-op for Firestore
+        // console.log('Mock enqueue, Firestore handles this natively');
       },
 
-      dequeue: (id) => {
-        set((state) => ({
-          queue: state.queue.filter((q) => q.id !== id),
-        }));
+      dequeue: (_id) => {
+        // No-op
       },
 
       syncAll: async () => {
-        const state = get();
-        if (state.isSyncing || state.queue.length === 0) return;
-
-        set({ isSyncing: true });
-
-        // Sort by timestamp to preserve order
-        const queueToProcess = [...state.queue].sort((a, b) => a.timestamp - b.timestamp);
-
-        for (const req of queueToProcess) {
-          try {
-            if (req.method === 'POST') {
-              await api.post(req.url, req.body);
-            } else if (req.method === 'PUT') {
-              await api.put(req.url, req.body);
-            } else if (req.method === 'DELETE') {
-              await api.delete(req.url);
-            }
-            // If successful, remove from queue
-            get().dequeue(req.id);
-          } catch (error: any) {
-            console.error(`Sync failed for ${req.id}:`, error);
-            // We break out of the loop if a request fails, so we don't process later requests
-            // out of order.
-            break;
-          }
-        }
-
-        set({ isSyncing: false });
+        // No-op
       },
 
       clearQueue: () => {

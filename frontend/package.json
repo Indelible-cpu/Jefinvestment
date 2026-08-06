@@ -12,6 +12,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.67.2",
     "clsx": "^2.1.1",
+    "firebase": "^12.17.1",
     "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "idb": "^8.0.3",

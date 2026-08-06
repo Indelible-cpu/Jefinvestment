@@ -1,71 +1,34 @@
 import { useEffect, useState } from 'react';
-import { getPendingSyncs, initDB } from '../lib/db';
+
+// ─── Firebase Migration Notice ───────────────────────────────────────────────
+// This file is now a stub because Firestore handles offline queueing natively.
+// We just report network status to the UI.
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const useSyncEngine = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SYNCING' | 'ERROR'>('IDLE');
-  const [pendingCount, setPendingCount] = useState(0);
-
-  const checkPendingCount = async () => {
-    const pending = await getPendingSyncs();
-    setPendingCount(pending.length);
-  };
+  
+  // We can't directly read the Firestore pending write count easily without 
+  // experimental APIs, so we just set these to idle/0 for the UI.
+  const syncStatus = 'IDLE' as 'IDLE' | 'SYNCING' | 'ERROR';
+  const pendingCount = 0; 
 
   const processQueue = async () => {
-    if (!navigator.onLine || syncStatus === 'SYNCING') return;
-    
-    const pending = await getPendingSyncs();
-    if (pending.length === 0) return;
-
-    setSyncStatus('SYNCING');
-    const db = await initDB();
-
-    for (const item of pending) {
-      try {
-        // Here we would dispatch the item.payload to the correct API endpoint
-        // based on item.operation.
-        // Mock API call for now:
-        // await api.post('/sync', { operation: item.operation, payload: item.payload })
-        
-        // On success:
-        item.status = 'SYNCING';
-        await db.put('sync_queue', item); // In a real app we'd delete or mark completed
-        
-        await db.delete('sync_queue', item.id);
-      } catch (error) {
-        console.error('Failed to sync item', item.id, error);
-        item.status = 'FAILED';
-        item.error = (error as Error).message;
-        await db.put('sync_queue', item);
-      }
-    }
-    
-    setSyncStatus('IDLE');
-    checkPendingCount();
+    // No-op, Firestore does this natively.
   };
 
   useEffect(() => {
-    checkPendingCount();
-    
-    const handleOnline = () => {
-      setIsOnline(true);
-      processQueue();
-    };
+    const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initial check
-    if (isOnline) {
-      processQueue();
-    }
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [isOnline]);
+  }, []);
 
   return { isOnline, syncStatus, pendingCount, processQueue };
 };

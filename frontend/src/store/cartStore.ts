@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api from '../utils/api';
+import { 
+  collection, 
+  doc, 
+  onSnapshot, 
+  addDoc, 
+  deleteDoc, 
+  updateDoc, 
+  increment
+} from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 // ─── Shared Product Store ─────────────────────────────────────────────────────
 export interface Product {
@@ -34,35 +43,32 @@ export const useProductStore = create<ProductState>()(
 
     loadProducts: async () => {
       set({ isLoading: true });
-      try {
-        const res: any = await api.get('/api/v1/inventory');
-        if (res.data && Array.isArray(res.data)) {
-          const mapped = res.data.map((p: any) => ({
-            id: p.id,
+      onSnapshot(collection(db, 'products'), (snapshot) => {
+        const mapped = snapshot.docs.map(doc => {
+          const p = doc.data();
+          return {
+            id: doc.id,
             name: p.name,
             sku: p.sku,
-            category: p.category?.name || 'General',
+            category: p.categoryId || 'General', // or fetch category doc if relation exists
             costPrice: Number(p.costPrice) || 0,
             sellingPrice: Number(p.sellingPrice) || 0,
-            stock: p.branches?.[0]?.quantity ?? 0,
+            stock: p.stock ?? 0,
             reorderLevel: p.reorderLevel || 0,
             isService: !!p.isService,
             unit: p.unit || 'pcs',
-          }));
-          set({ products: mapped, isLoading: false });
-        } else {
-          set({ isLoading: false });
-        }
-      } catch (err) {
-        console.warn('Failed to load products from API', err);
+          };
+        });
+        set({ products: mapped, isLoading: false });
+      }, (err) => {
+        console.warn('Failed to load products from Firestore', err);
         set({ isLoading: false });
-      }
+      });
     },
 
     setProducts: (products) => set({ products }),
 
     addProduct: async (product) => {
-      const clientTxId = crypto.randomUUID();
       const payload = {
         name: product.name,
         sku: product.sku,
@@ -72,31 +78,19 @@ export const useProductStore = create<ProductState>()(
         reorderLevel: product.reorderLevel,
         isService: product.isService,
         unit: product.unit,
-        initialStock: product.stock,
-        clientTxId,
+        stock: product.stock,
+        createdAt: Date.now(),
       };
 
       try {
-        const res: any = await api.post('/api/v1/inventory', payload);
-        if (res.data?.id) {
-          set((state) => ({ products: [...state.products, { ...product, id: res.data.id }] }));
-        }
+        await addDoc(collection(db, 'products'), payload);
       } catch (err: any) {
-        console.error('Failed to sync new product to server', err);
-        const { useSyncQueueStore } = await import('./syncQueueStore');
-        useSyncQueueStore.getState().enqueue({
-          id: clientTxId,
-          url: '/api/v1/inventory',
-          method: 'POST',
-          body: payload
-        });
-        set((state) => ({ products: [...state.products, { ...product, id: clientTxId }] }));
+        console.error('Failed to sync new product to Firestore', err);
         throw new Error('OFFLINE_QUEUED');
       }
     },
 
     updateProduct: async (product) => {
-      const clientTxId = crypto.randomUUID();
       const payload = {
         name: product.name,
         sku: product.sku,
@@ -105,64 +99,32 @@ export const useProductStore = create<ProductState>()(
         reorderLevel: product.reorderLevel,
         isService: product.isService,
         unit: product.unit,
-        clientTxId,
       };
 
       try {
-        await api.put(`/api/v1/inventory/${product.id}`, payload);
-        set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
+        await updateDoc(doc(db, 'products', product.id), payload);
       } catch (err: any) {
-        console.error('Failed to sync updated product to server', err);
-        const { useSyncQueueStore } = await import('./syncQueueStore');
-        useSyncQueueStore.getState().enqueue({
-          id: clientTxId,
-          url: `/api/v1/inventory/${product.id}`,
-          method: 'PUT',
-          body: payload
-        });
-        set((state) => ({ products: state.products.map(p => p.id === product.id ? product : p) }));
+        console.error('Failed to update product in Firestore', err);
         throw new Error('OFFLINE_QUEUED');
       }
     },
 
     deleteProduct: async (id) => {
-      const clientTxId = crypto.randomUUID();
       try {
-        await api.delete(`/api/v1/inventory/${id}`);
-        set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+        await deleteDoc(doc(db, 'products', id));
       } catch (err: any) {
-        console.error('Failed to delete product from server', err);
-        const { useSyncQueueStore } = await import('./syncQueueStore');
-        useSyncQueueStore.getState().enqueue({
-          id: clientTxId,
-          url: `/api/v1/inventory/${id}`,
-          method: 'DELETE',
-        });
-        set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+        console.error('Failed to delete product from Firestore', err);
         throw new Error('OFFLINE_QUEUED');
       }
     },
 
     decrementStock: async (id, qty) => {
-      const clientTxId = crypto.randomUUID();
-      const payload = { adjustment: -qty, reason: 'SALE', clientTxId };
       try {
-        await api.put(`/api/v1/inventory/${id}/stock`, payload);
-        set((state) => ({
-          products: state.products.map(p => p.id === id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)
-        }));
-      } catch (err: any) {
-        console.error('Failed to sync stock decrement to server', err);
-        const { useSyncQueueStore } = await import('./syncQueueStore');
-        useSyncQueueStore.getState().enqueue({
-          id: clientTxId,
-          url: `/api/v1/inventory/${id}/stock`,
-          method: 'PUT',
-          body: payload
+        await updateDoc(doc(db, 'products', id), {
+          stock: increment(-qty)
         });
-        set((state) => ({
-          products: state.products.map(p => p.id === id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)
-        }));
+      } catch (err: any) {
+        console.error('Failed to decrement stock in Firestore', err);
         throw new Error('OFFLINE_QUEUED');
       }
     },
