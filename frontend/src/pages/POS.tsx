@@ -42,7 +42,8 @@ export default function POS() {
   const cart = useCartStore();
   const { products, isLoading: productsLoading, decrementStock } = useProductStore();
   const { addSale } = useSaleStore();
-  const { taxRate, taxName, taxType } = useSettingsStore();
+  const settings = useSettingsStore();
+  const { taxRate, taxName, taxType } = settings;
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
   const filteredProducts = products.filter(p => {
