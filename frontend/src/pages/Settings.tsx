@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { storage } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function Settings() {
   const { user, updateProfile, users, resetPassword, addUser, deleteUser } = useAuthStore();
@@ -30,6 +32,7 @@ export default function Settings() {
   const [newUserForm, setNewUserForm] = useState({ name: '', username: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' });
   const [showAddPw, setShowAddPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPic, setUploadingPic] = useState(false);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,14 +40,31 @@ export default function Settings() {
     showSuccess('Profile updated and synced to all devices!');
   };
 
-  const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileForm(f => ({ ...f, profilePic: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image too large', { description: 'Please choose an image under 5MB.' });
+      return;
+    }
+    setUploadingPic(true);
+    try {
+      const userId = useAuthStore.getState().user?.id;
+      const storageRef = ref(storage, `profile-pictures/${userId}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      // Save URL to Firestore immediately so it syncs across devices
+      await useAuthStore.getState().updateProfile(
+        profileForm.name,
+        profileForm.username,
+        downloadURL
+      );
+      setProfileForm(f => ({ ...f, profilePic: downloadURL }));
+      toast.success('Profile picture updated!', { description: 'Synced to all your devices.' });
+    } catch (err: any) {
+      toast.error('Upload failed', { description: err.message });
+    } finally {
+      setUploadingPic(false);
     }
   };
 
@@ -196,9 +216,10 @@ export default function Settings() {
                 )}
                 <div>
                   <h3 className="text-sm font-bold text-gray-700 mb-1">Profile Picture</h3>
-                  <label className="text-sm bg-gray-100 border hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded flex items-center gap-1 transition cursor-pointer w-max">
-                    <Upload size={14} /> Upload New
-                    <input type="file" accept="image/*" className="hidden" onChange={handleProfilePicUpload} />
+                  <label className={`text-sm bg-gray-100 border hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded flex items-center gap-1 transition w-max ${uploadingPic ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    {uploadingPic ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    {uploadingPic ? 'Uploading...' : 'Upload New'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleProfilePicUpload} disabled={uploadingPic} />
                   </label>
                 </div>
               </div>
