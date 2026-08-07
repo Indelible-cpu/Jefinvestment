@@ -50,7 +50,7 @@ export const useProductStore = create<ProductState>()(
             id: doc.id,
             name: p.name,
             sku: p.sku,
-            category: p.categoryId || 'General', // or fetch category doc if relation exists
+            category: p.category || p.categoryId || 'General',
             costPrice: Number(p.costPrice) || 0,
             sellingPrice: Number(p.sellingPrice) || 0,
             stock: p.stock ?? 0,
@@ -72,7 +72,7 @@ export const useProductStore = create<ProductState>()(
       const payload = {
         name: product.name,
         sku: product.sku,
-        categoryId: 'general',
+        category: product.category,
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
         reorderLevel: product.reorderLevel,
@@ -94,11 +94,13 @@ export const useProductStore = create<ProductState>()(
       const payload = {
         name: product.name,
         sku: product.sku,
+        category: product.category,
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
         reorderLevel: product.reorderLevel,
         isService: product.isService,
         unit: product.unit,
+        stock: product.stock,
       };
 
       try {
