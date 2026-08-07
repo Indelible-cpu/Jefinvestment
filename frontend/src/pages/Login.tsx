@@ -74,8 +74,8 @@ export default function Login() {
                 required
                 autoComplete="email"
               />
-              <label htmlFor="email" className="absolute left-10 top-3.5 text-gray-400 text-xs font-medium transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-primary pointer-events-none">
-                Username or email
+              <label htmlFor="email" className="absolute left-10 top-3.5 text-gray-400 text-sm font-medium transition-all peer-placeholder-shown:opacity-100 peer-not-placeholder-shown:opacity-0 peer-focus:opacity-0 pointer-events-none">
+                Email
               </label>
             </div>
 
@@ -92,7 +92,7 @@ export default function Login() {
                 required
                 autoComplete="current-password"
               />
-              <label htmlFor="password" className="absolute left-10 top-3.5 text-gray-400 text-xs font-medium transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1.5 peer-focus:text-xs peer-focus:text-primary pointer-events-none">
+              <label htmlFor="password" className="absolute left-10 top-3.5 text-gray-400 text-sm font-medium transition-all peer-placeholder-shown:opacity-100 peer-not-placeholder-shown:opacity-0 peer-focus:opacity-0 pointer-events-none">
                 Password
               </label>
               <button
