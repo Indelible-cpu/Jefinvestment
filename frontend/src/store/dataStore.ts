@@ -129,6 +129,7 @@ export const useSaleStore = create<SaleState>()(
         const mappedSales = snapshot.docs.map(doc => {
           const s = doc.data();
           const d = new Date(s.createdAt || Date.now());
+          const rawStatus = (s.status || 'completed').toLowerCase() as SaleRecord['status'];
           return {
             id: doc.id,
             invoiceNumber: s.invoiceNumber,
@@ -139,12 +140,17 @@ export const useSaleStore = create<SaleState>()(
             subtotal: Number(s.subtotal),
             discount: Number(s.discount),
             taxAmount: Number(s.taxAmount || 0),
+            taxName: s.taxName,
+            taxType: s.taxType,
             total: Number(s.total),
             paymentMethod: s.paymentMethod || 'CASH',
             amountPaid: Number(s.amountPaid) || Number(s.total),
             customerName: s.customerName,
             customerPhone: s.customerPhone,
-            status: (s.status || 'completed').toLowerCase(),
+            customerId: s.customerId,
+            isCredit: s.isCredit || false,
+            dueDate: s.dueDate,
+            status: rawStatus,
             syncStatus: 'synced' as const,
             branch: s.branch,
           };
@@ -172,7 +178,8 @@ export const useSaleStore = create<SaleState>()(
     },
     updateSaleStatus: async (id, status) => {
       try {
-        await updateDoc(doc(db, 'sales', id), { status: status.toUpperCase() });
+        // Store lowercase consistently so getTodaySales() filter always works
+        await updateDoc(doc(db, 'sales', id), { status: status.toLowerCase() });
       } catch (e) {
         console.error('Failed to update sale status', e);
       }

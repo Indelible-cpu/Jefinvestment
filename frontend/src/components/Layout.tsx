@@ -25,7 +25,9 @@ export default function Layout() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   useEffect(() => {
-    // Initial data load on mount — always fetched fresh from the server
+    // Set up real-time Firestore listeners once on mount.
+    // onSnapshot() keeps all data live across ALL devices automatically —
+    // no polling needed. Any change on desktop instantly appears on mobile.
     loadSettings();
     loadSales();
     loadProducts();
@@ -34,18 +36,6 @@ export default function Layout() {
     loadEmployees();
     loadProfile();
     syncAll();
-
-    // Auto-refresh ALL data every 30 seconds so every device stays in sync
-    const interval = setInterval(() => {
-      syncAll();
-      loadSales();
-      loadProducts();
-      loadExpenses();
-      loadCredits();
-      loadEmployees();
-    }, 30000);
-
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
