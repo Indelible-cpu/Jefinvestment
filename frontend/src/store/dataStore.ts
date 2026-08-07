@@ -265,6 +265,7 @@ export interface Employee {
   role: string;
   salary: number;
   status: 'PRESENT' | 'ABSENT' | 'LEAVE';
+  advancePay?: number;
 }
 
 interface EmployeeState {
@@ -273,7 +274,10 @@ interface EmployeeState {
   addEmployee: (emp: Omit<Employee, 'id'>) => void;
   updateStatus: (id: string, status: Employee['status']) => void;
   deleteEmployee: (id: string) => void;
+  recordAdvancePay: (id: string, amount: number, notes?: string) => Promise<void>;
+  clearAdvancePay: (id: string) => Promise<void>;
   getActiveCount: () => number;
+  getTotalAdvancePay: () => number;
 }
 
 export const useEmployeeStore = create<EmployeeState>()(
@@ -291,6 +295,7 @@ export const useEmployeeStore = create<EmployeeState>()(
             role: e.role,
             salary: Number(e.salary) || 0,
             status: e.status || 'PRESENT',
+            advancePay: Number(e.advancePay) || 0,
           };
         });
         set({ employees: mapped });
@@ -301,6 +306,7 @@ export const useEmployeeStore = create<EmployeeState>()(
     addEmployee: async (emp) => {
       await addDoc(collection(db, 'employees'), {
         ...emp,
+        advancePay: 0,
         createdAt: Date.now()
       });
     },
@@ -310,6 +316,32 @@ export const useEmployeeStore = create<EmployeeState>()(
     deleteEmployee: async (id) => {
       await deleteDoc(doc(db, 'employees', id));
     },
+    recordAdvancePay: async (id, amount, notes) => {
+      const emp = get().employees.find(e => e.id === id);
+      if (!emp) return;
+
+      // Update employee advance pay total
+      await updateDoc(doc(db, 'employees', id), {
+        advancePay: increment(amount)
+      });
+
+      // Automatically record as an expense for accounting
+      await addDoc(collection(db, 'expenses'), {
+        title: `Salary Advance: ${emp.firstName} ${emp.lastName}`,
+        amount: Number(amount),
+        category: 'Salary / Advance Pay',
+        description: notes ? `Notes: ${notes}` : `Advance payment to ${emp.firstName} ${emp.lastName}`,
+        paymentMethod: 'CASH',
+        date: new Date().toISOString().slice(0, 10),
+        createdAt: Date.now()
+      });
+    },
+    clearAdvancePay: async (id) => {
+      await updateDoc(doc(db, 'employees', id), {
+        advancePay: 0
+      });
+    },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
+    getTotalAdvancePay: () => get().employees.reduce((sum, e) => sum + (e.advancePay || 0), 0),
   })
 );
