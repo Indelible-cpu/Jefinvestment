@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle, Trash2 } from 'lucide-react';
-import { useEmployeeStore, Employee } from '../store/dataStore';
+import { useEmployeeStore, type Employee } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { toast } from 'sonner';
 
