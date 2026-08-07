@@ -6,6 +6,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore, useCartStore } from '../store/cartStore';
 import { useSyncQueueStore } from '../store/syncQueueStore';
+import { toast } from 'sonner';
 
 export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
@@ -21,6 +22,12 @@ export default function Layout() {
   const [showNotifications, setShowNotifications] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    const name = useAuthStore.getState().user?.name || 'User';
+    logout();
+    toast.success(`Goodbye, ${name}!`, { description: 'You have been signed out successfully.' });
+  };
 
   const now = new Date();
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
@@ -268,7 +275,7 @@ export default function Layout() {
                 <span className="text-xs text-blue-300 capitalize">{user?.role.toLowerCase()}</span>
               </div>
             </div>
-            <button onClick={logout} className="text-blue-300 hover:text-white p-2 hover:bg-red-500/20 rounded transition" title="Sign Out">
+            <button onClick={handleLogout} className="text-blue-300 hover:text-white p-2 hover:bg-red-500/20 rounded transition" title="Sign Out">
               <LogOut size={18} />
             </button>
           </div>

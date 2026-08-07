@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Lock, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
@@ -30,8 +31,9 @@ export default function Login() {
     const success = await login(email, password);
     setLoading(false);
     if (success) {
-      const role = useAuthStore.getState().user?.role;
-      navigate(role === 'CASHIER' ? '/pos' : '/');
+      const user = useAuthStore.getState().user;
+      toast.success(`Welcome back, ${user?.name || 'User'}!`, { description: `Signed in as ${user?.role?.toLowerCase()}` });
+      navigate(user?.role === 'CASHIER' ? '/pos' : '/');
     } else {
       setError('Invalid username or password. Please check your credentials.');
     }
