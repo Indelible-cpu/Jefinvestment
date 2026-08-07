@@ -23,10 +23,11 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const name = useAuthStore.getState().user?.name || 'User';
-    logout();
+    await logout();
     toast.success(`Goodbye, ${name}!`, { description: 'You have been signed out successfully.' });
+    navigate('/login', { replace: true });
   };
 
   const now = new Date();

@@ -4,7 +4,8 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   createUserWithEmailAndPassword,
-  updatePassword
+  updatePassword,
+  onAuthStateChanged
 } from 'firebase/auth';
 import { 
   doc, 
@@ -148,6 +149,13 @@ export const useAuthStore = create<AuthState>()(
           console.warn("Sign out failed", e);
         }
         set({ user: null, token: null, isAuthenticated: false, users: [] });
+        try {
+          localStorage.removeItem('jef-auth-storage');
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch (e) {
+          console.warn("Error clearing storage on logout", e);
+        }
       },
 
       updateProfile: async (name, username, profilePic) => {
@@ -260,3 +268,20 @@ export const useAuthStore = create<AuthState>()(
     { name: 'jef-auth-storage' }
   )
 );
+
+// Listen to Firebase Auth state changes: wipe storage completely when signed out
+onAuthStateChanged(auth, (firebaseUser) => {
+  if (!firebaseUser) {
+    const state = useAuthStore.getState();
+    if (state.user && !state.user.id.startsWith('local-')) {
+      useAuthStore.setState({ user: null, token: null, isAuthenticated: false, users: [] });
+      try {
+        localStorage.removeItem('jef-auth-storage');
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+});
