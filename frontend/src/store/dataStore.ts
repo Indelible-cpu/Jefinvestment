@@ -54,25 +54,15 @@ export const useExpenseStore = create<ExpenseState>()(
       });
     },
     addExpense: async (expense) => {
-      try {
-        const newExpense = {
-          ...expense,
-          date: new Date().toISOString().slice(0, 10),
-          createdAt: Date.now(),
-        };
-        await addDoc(collection(db, 'expenses'), newExpense);
-      } catch (err: any) {
-        console.error('Failed to add expense', err);
-        throw new Error('OFFLINE_QUEUED'); // UI expects this error string for offline indication
-      }
+      const newExpense = {
+        ...expense,
+        date: new Date().toISOString().slice(0, 10),
+        createdAt: Date.now(),
+      };
+      await addDoc(collection(db, 'expenses'), newExpense);
     },
     deleteExpense: async (id) => {
-      try {
-        await deleteDoc(doc(db, 'expenses', id));
-      } catch (err: any) {
-        console.error('Failed to delete expense', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await deleteDoc(doc(db, 'expenses', id));
     },
     getTodayTotal: () => {
       const today = new Date().toISOString().slice(0, 10);
@@ -161,17 +151,12 @@ export const useSaleStore = create<SaleState>()(
       });
     },
     addSale: async (sale) => {
-      try {
-        const newSale = {
-          ...sale,
-          createdAt: Date.now(),
-          status: 'completed'
-        };
-        await addDoc(collection(db, 'sales'), newSale);
-      } catch (err: any) {
-        console.error('Failed to sync sale to Firestore', err);
-        throw new Error('OFFLINE_QUEUED'); 
-      }
+      const newSale = {
+        ...sale,
+        createdAt: Date.now(),
+        status: 'completed'
+      };
+      await addDoc(collection(db, 'sales'), newSale);
     },
     syncPendingSales: async () => {
       // No-op. Firestore syncs automatically.
@@ -253,28 +238,18 @@ export const useCreditStore = create<CreditState>()(
       });
     },
     addCredit: async (credit) => {
-      try {
-        const newCredit = {
-          ...credit,
-          isCredit: true,
-          creditPaid: 0,
-          createdAt: Date.now(),
-        };
-        await addDoc(collection(db, 'sales'), newCredit);
-      } catch (err: any) {
-        console.error('Failed to save credit', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      const newCredit = {
+        ...credit,
+        isCredit: true,
+        creditPaid: 0,
+        createdAt: Date.now(),
+      };
+      await addDoc(collection(db, 'sales'), newCredit);
     },
     recordRepayment: async (id, amount) => {
-      try {
-        await updateDoc(doc(db, 'sales', id), {
-          creditPaid: increment(amount)
-        });
-      } catch (err: any) {
-        console.error('Failed to sync credit repayment', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await updateDoc(doc(db, 'sales', id), {
+        creditPaid: increment(amount)
+      });
     },
     getTotalOutstanding: () =>
       get().credits.filter(c => c.status !== 'FULLY_PAID').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0),
@@ -324,31 +299,16 @@ export const useEmployeeStore = create<EmployeeState>()(
       });
     },
     addEmployee: async (emp) => {
-      try {
-        await addDoc(collection(db, 'employees'), {
-          ...emp,
-          createdAt: Date.now()
-        });
-      } catch (err: any) {
-        console.error('Failed to save employee', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await addDoc(collection(db, 'employees'), {
+        ...emp,
+        createdAt: Date.now()
+      });
     },
     updateStatus: async (id, status) => {
-      try {
-        await updateDoc(doc(db, 'employees', id), { status });
-      } catch (err: any) {
-        console.error('Failed to sync employee status', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await updateDoc(doc(db, 'employees', id), { status });
     },
     deleteEmployee: async (id) => {
-      try {
-        await deleteDoc(doc(db, 'employees', id));
-      } catch (err: any) {
-        console.error('Failed to delete employee', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await deleteDoc(doc(db, 'employees', id));
     },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
   })

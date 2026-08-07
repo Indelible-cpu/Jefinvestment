@@ -35,8 +35,15 @@ service cloud.firestore {
     // Products (Inventory)
     match /products/{productId} {
       allow read: if isAuthenticated();
-      // Only admins/managers should typically manage inventory, but if cashiers need to add items, change this.
-      allow write: if isAdmin() || isManager();
+      // Admins and Managers can make full changes to product data
+      allow create, delete: if isAdmin() || isManager();
+      allow update: if isAdmin() || isManager() ||
+        // Cashiers can ONLY decrement the stock field during a sale
+        (
+          isAuthenticated() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
+          request.resource.data.stock < resource.data.stock
+        );
     }
 
     // Sales and Credits
@@ -59,6 +66,11 @@ service cloud.firestore {
     match /employees/{employeeId} {
       allow read: if isAdmin() || isManager();
       allow write: if isAdmin();
+    }
+    
+    // Held Carts (POS — per-user subcollection, cross-device sync)
+    match /users/{userId}/heldCarts/{cartId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Fallback: Deny everything else

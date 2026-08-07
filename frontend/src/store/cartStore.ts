@@ -83,12 +83,7 @@ export const useProductStore = create<ProductState>()(
         createdAt: Date.now(),
       };
 
-      try {
-        await addDoc(collection(db, 'products'), payload);
-      } catch (err: any) {
-        console.error('Failed to sync new product to Firestore', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await addDoc(collection(db, 'products'), payload);
     },
 
     updateProduct: async (product) => {
@@ -104,32 +99,17 @@ export const useProductStore = create<ProductState>()(
         stock: product.stock,
       };
 
-      try {
-        await updateDoc(doc(db, 'products', product.id), payload);
-      } catch (err: any) {
-        console.error('Failed to update product in Firestore', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await updateDoc(doc(db, 'products', product.id), payload);
     },
 
     deleteProduct: async (id) => {
-      try {
-        await deleteDoc(doc(db, 'products', id));
-      } catch (err: any) {
-        console.error('Failed to delete product from Firestore', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await deleteDoc(doc(db, 'products', id));
     },
 
     decrementStock: async (id, qty) => {
-      try {
-        await updateDoc(doc(db, 'products', id), {
-          stock: increment(-qty)
-        });
-      } catch (err: any) {
-        console.error('Failed to decrement stock in Firestore', err);
-        throw new Error('OFFLINE_QUEUED');
-      }
+      await updateDoc(doc(db, 'products', id), {
+        stock: increment(-qty)
+      });
     },
   })
 );
