@@ -173,9 +173,9 @@ const playSound = (type: 'success' | 'error') => {
         total: finalTotal,
         paymentMethod,
         amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
-        customerName: customerName || undefined,
-        customerPhone: customerPhone || undefined,
-        customerId: customerId || undefined,
+        customerName: customerName || '',
+        customerPhone: customerPhone || '',
+        customerId: customerId || '',
         invoiceNumber,
       });
 
@@ -192,10 +192,10 @@ const playSound = (type: 'success' | 'error') => {
           total: finalTotal,
           paymentMethod,
           amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
-          customerName: customerName || undefined,
-          customerPhone: customerPhone || undefined,
-          customerId: customerId || undefined,
-          dueDate: paymentMethod === 'CREDIT' ? dueDate : undefined,
+          customerName: customerName || '',
+          customerPhone: customerPhone || '',
+          customerId: customerId || '',
+          dueDate: paymentMethod === 'CREDIT' ? (dueDate || '') : '',
           isCredit: paymentMethod === 'CREDIT',
         });
         

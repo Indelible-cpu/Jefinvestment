@@ -151,8 +151,16 @@ export const useSaleStore = create<SaleState>()(
       });
     },
     addSale: async (sale) => {
+      // Clean any undefined values from payload (Firestore throws error on undefined fields)
+      const cleanedSale: Record<string, any> = {};
+      Object.entries(sale).forEach(([key, value]) => {
+        if (value !== undefined) {
+          cleanedSale[key] = value;
+        }
+      });
+
       const newSale = {
-        ...sale,
+        ...cleanedSale,
         createdAt: Date.now(),
         status: 'completed'
       };
