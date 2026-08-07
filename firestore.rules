@@ -9,14 +9,16 @@ service cloud.firestore {
     
     function isAdmin() {
       return isAuthenticated() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
-        || request.auth.token.email == 'admin@jefinvestment.com'
+        request.auth.token.email == 'admin@jefinvestment.com'
         || request.auth.token.email == 'jefinvestmentmw@gmail.com'
+        || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN')
       );
     }
     
     function isManager() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MANAGER';
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MANAGER';
     }
 
     // Settings
