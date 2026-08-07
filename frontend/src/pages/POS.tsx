@@ -592,52 +592,63 @@ const playSound = (type: 'success' | 'error') => {
 
                 {/* Conditional Credit Sale Inputs */}
                 {paymentMethod === 'CREDIT' && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-                    <div className="text-xs font-bold text-amber-800">Credit Customer Details</div>
-                    <input 
-                      type="text" 
-                      placeholder="Customer Full Name *" 
-                      className="w-full p-2 text-sm border rounded"
-                      value={customerName}
-                      onChange={e => setCustomerName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
-                    />
-                    <input 
-                      type="tel" 
-                      placeholder="Phone Number * (10 digits)" 
-                      className="w-full p-2 text-sm border rounded"
-                      value={customerPhone}
-                      onChange={e => {
-                        let val = e.target.value.replace(/\D/g, '');
-                        // Ensure starts with 0
-                        if (!val.startsWith('0')) val = '0' + val;
-                        // Max 10 digits
-                        if (val.length > 10) val = val.slice(0, 10);
-                        setCustomerPhone(val);
-                      }}
-                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="National ID (8 chars, optional)" 
-                      className="w-full p-2 text-sm border rounded uppercase tracking-widest"
-                      maxLength={8}
-                      value={customerId}
-                      onChange={e => {
-                        // Only allow letters and numbers, auto uppercase
-                        const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-                        setCustomerId(val);
-                      }}
-                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
-                    />
-                    <input 
-                      type="date" 
-                      placeholder="Payment Due Date" 
-                      className="w-full p-2 text-sm border rounded text-gray-600"
-                      value={dueDate}
-                      onChange={e => setDueDate(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handlePayNow()}
-                    />
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2.5">
+                    <div className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Credit Customer Details</div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Customer Full Name *</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. John Doe" 
+                        className="w-full p-2 text-sm border rounded bg-white"
+                        value={customerName}
+                        onChange={e => setCustomerName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handlePayNow()}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Phone Number * (10 digits)</label>
+                      <input 
+                        type="tel" 
+                        placeholder="e.g. 0991234567" 
+                        className="w-full p-2 text-sm border rounded bg-white"
+                        value={customerPhone}
+                        onChange={e => {
+                          let val = e.target.value.replace(/\D/g, '');
+                          // Ensure starts with 0
+                          if (!val.startsWith('0')) val = '0' + val;
+                          // Max 10 digits
+                          if (val.length > 10) val = val.slice(0, 10);
+                          setCustomerPhone(val);
+                        }}
+                        onKeyDown={e => e.key === 'Enter' && handlePayNow()}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">National ID <span className="font-normal text-gray-500">(8 chars, optional)</span></label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. A1B2C3D4" 
+                        className="w-full p-2 text-sm border rounded bg-white uppercase tracking-widest"
+                        maxLength={8}
+                        value={customerId}
+                        onChange={e => {
+                          // Only allow letters and numbers, auto uppercase
+                          const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                          setCustomerId(val);
+                        }}
+                        onKeyDown={e => e.key === 'Enter' && handlePayNow()}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Due Date</label>
+                      <input 
+                        type="date" 
+                        className="w-full p-2 text-sm border rounded text-gray-600 bg-white"
+                        value={dueDate}
+                        onChange={e => setDueDate(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handlePayNow()}
+                      />
+                    </div>
                   </div>
                 )}
 
