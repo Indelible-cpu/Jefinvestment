@@ -274,30 +274,30 @@ export default function ReceiptPreviewModal({
 
         {/* Action Buttons */}
         <div className="p-4 border-t bg-gray-50 rounded-b-2xl flex flex-col gap-2 shrink-0">
-          <div className="flex gap-3">
-            <button
-              onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white font-bold py-2.5 rounded-lg transition"
-            >
-              <Printer size={18} /> Print
-            </button>
-            <button
-              onClick={handleWhatsApp}
-              disabled={sharing}
-              className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 rounded-lg transition disabled:opacity-60"
-            >
-              <MessageCircle size={18} />
-              {sharing ? 'Capturing...' : 'Share via WhatsApp'}
-            </button>
-          </div>
           {onNewSale && (
             <button
               onClick={() => { onClose(); onNewSale(); }}
-              className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition"
+              className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 text-white font-bold py-3 text-sm rounded-xl transition shadow-sm"
             >
               <ShoppingCart size={18} /> New Sale
             </button>
           )}
+          <div className="flex gap-2.5">
+            <button
+              onClick={handlePrint}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-gray-700 hover:bg-gray-800 text-white font-medium py-1.5 px-3 text-xs rounded-lg transition"
+            >
+              <Printer size={14} /> Print Receipt
+            </button>
+            <button
+              onClick={handleWhatsApp}
+              disabled={sharing}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3 text-xs rounded-lg transition disabled:opacity-60"
+            >
+              <MessageCircle size={14} />
+              {sharing ? 'Capturing...' : 'Share WhatsApp'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
