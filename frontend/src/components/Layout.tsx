@@ -4,13 +4,14 @@ import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, Bar
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
-import { useProductStore } from '../store/cartStore';
+import { useProductStore, useCartStore } from '../store/cartStore';
 import { useSyncQueueStore } from '../store/syncQueueStore';
 
 export default function Layout() {
   const { user, logout, loadProfile } = useAuthStore();
   const { companyName, companyLogo, loadSettings } = useSettingsStore();
   const { products, loadProducts } = useProductStore();
+  const { loadHeldCarts } = useCartStore();
   const { loadSales } = useSaleStore();
   const { credits, loadCredits } = useCreditStore();
   const { loadExpenses } = useExpenseStore();
@@ -36,7 +37,11 @@ export default function Layout() {
     loadEmployees();
     loadProfile();
     syncAll();
-  }, []);
+    
+    if (user?.id) {
+      loadHeldCarts(user.id);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     const handleOnline = () => {

@@ -7,7 +7,8 @@ import {
   addDoc, 
   deleteDoc, 
   updateDoc, 
-  increment
+  increment,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -165,9 +166,10 @@ interface CartState {
   clearCart: () => void;
   getSubtotal: () => number;
   getTotal: () => number;
-  holdCart: (name: string) => void;
-  restoreCart: (id: string) => void;
-  removeHeldCart: (id: string) => void;
+  holdCart: (userId: string, name: string) => void;
+  restoreCart: (userId: string, id: string) => void;
+  removeHeldCart: (userId: string, id: string) => void;
+  loadHeldCarts: (userId: string) => void;
 }
 
 export const useCartStore = create<CartState>()(
@@ -214,39 +216,67 @@ export const useCartStore = create<CartState>()(
         return Math.max(0, subtotal - get().globalDiscount);
       },
 
-      holdCart: (name: string) => {
+      holdCart: async (userId: string, name: string) => {
         const { items, globalDiscount, clearCart } = get();
         if (items.length === 0) return;
-        set((state: CartState) => ({
-          heldCarts: [
-            ...state.heldCarts,
-            {
-              id: Date.now().toString(),
-              name: name || `Cart ${state.heldCarts.length + 1}`,
-              items: [...items],
-              globalDiscount,
-              timestamp: Date.now()
-            }
-          ]
-        }));
-        clearCart();
+        
+        const newHeldCart = {
+          id: Date.now().toString(),
+          name: name || `Cart ${get().heldCarts.length + 1}`,
+          items: [...items],
+          globalDiscount,
+          timestamp: Date.now()
+        };
+
+        try {
+          await setDoc(doc(db, 'users', userId, 'heldCarts', newHeldCart.id), newHeldCart);
+          clearCart();
+        } catch (error) {
+          console.error("Failed to hold cart in Firestore", error);
+        }
       },
 
-      restoreCart: (id: string) => {
+      restoreCart: async (userId: string, id: string) => {
         const { heldCarts } = get();
         const cartToRestore = heldCarts.find(c => c.id === id);
         if (!cartToRestore) return;
-        set((state: CartState) => ({
+        
+        set(() => ({
           items: cartToRestore.items,
-          globalDiscount: cartToRestore.globalDiscount,
-          heldCarts: state.heldCarts.filter(c => c.id !== id)
+          globalDiscount: cartToRestore.globalDiscount
         }));
+
+        try {
+          await deleteDoc(doc(db, 'users', userId, 'heldCarts', id));
+        } catch (error) {
+          console.error("Failed to remove restored cart from Firestore", error);
+        }
       },
 
-      removeHeldCart: (id: string) => set((state: CartState) => ({
-        heldCarts: state.heldCarts.filter(c => c.id !== id)
-      }))
+      removeHeldCart: async (userId: string, id: string) => {
+        try {
+          await deleteDoc(doc(db, 'users', userId, 'heldCarts', id));
+        } catch (error) {
+          console.error("Failed to remove held cart from Firestore", error);
+        }
+      },
+
+      loadHeldCarts: (userId: string) => {
+        try {
+          onSnapshot(collection(db, 'users', userId, 'heldCarts'), (snapshot) => {
+            const loadedCarts: HeldCart[] = [];
+            snapshot.forEach((document) => {
+              loadedCarts.push({ id: document.id, ...document.data() } as HeldCart);
+            });
+            set({ heldCarts: loadedCarts });
+          });
+        } catch (error) {
+          console.error("Failed to load held carts from Firestore", error);
+        }
+      }
     }),
-    { name: 'jef-cart-storage' }
+    { name: 'jef-cart-storage',
+      partialize: (state) => ({ items: state.items, globalDiscount: state.globalDiscount }),
+    }
   )
 );

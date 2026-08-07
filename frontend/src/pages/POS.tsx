@@ -43,6 +43,7 @@ export default function POS() {
   const { products, isLoading: productsLoading, decrementStock } = useProductStore();
   const { addSale } = useSaleStore();
   const settings = useSettingsStore();
+  const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
@@ -289,8 +290,10 @@ const playSound = (type: 'success' | 'error') => {
   };
 
   const handleHoldCart = () => {
-    const name = `Held Cart - ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-    cart.holdCart(name);
+    const name = prompt('Enter a name or table number for this order:');
+    if (!name) return;
+    cart.holdCart(user?.id || 'unknown', name);
+    setPaymentMethod('CASH');
     toast.success('Cart held successfully', { description: name });
   };
 
@@ -727,32 +730,36 @@ const playSound = (type: 'success' | 'error') => {
                     </div>
                     
                     <div className="flex gap-2 mt-3">
-                      <button 
-                        onClick={() => {
-                          if (cart.items.length > 0) {
-                            toast('Current cart is not empty', {
-                              description: 'Would you like to hold it first or discard it?',
-                              action: { 
-                                label: 'Hold First', 
-                                onClick: () => { handleHoldCart(); cart.restoreCart(hc.id); setShowHeldCarts(false); } 
-                              },
-                              cancel: { 
-                                label: 'Discard & Restore', 
-                                onClick: () => { cart.restoreCart(hc.id); setShowHeldCarts(false); } 
-                              }
-                            });
-                          } else {
-                            cart.restoreCart(hc.id);
+                      {cart.items.length > 0 ? (
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => { handleHoldCart(); cart.restoreCart(user?.id || 'unknown', hc.id); setShowHeldCarts(false); }} 
+                            className="px-3 py-1.5 text-sm border border-blue-200 text-blue-700 bg-blue-50 rounded font-medium hover:bg-blue-100 transition whitespace-nowrap"
+                          >
+                            Hold current & Restore
+                          </button>
+                          <button 
+                            onClick={() => { cart.restoreCart(user?.id || 'unknown', hc.id); setShowHeldCarts(false); }} 
+                            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded font-medium hover:bg-blue-700 transition whitespace-nowrap shadow-sm"
+                          >
+                            Restore Only
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => {
+                            cart.restoreCart(user?.id || 'unknown', hc.id);
                             setShowHeldCarts(false);
-                          }
-                        }}
-                        className="flex-1 bg-primary text-white py-1.5 rounded text-sm font-medium hover:bg-blue-700"
-                      >
-                        Restore
-                      </button>
+                          }}
+                          className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded font-medium hover:bg-blue-700 transition shadow-sm"
+                        >
+                          Restore Cart
+                        </button>
+                      )}
                       <button 
-                        onClick={() => cart.removeHeldCart(hc.id)}
-                        className="px-3 py-1.5 border border-red-200 text-red-600 rounded hover:bg-red-50"
+                        onClick={() => cart.removeHeldCart(user?.id || 'unknown', hc.id)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded transition"
+                        title="Discard held cart"
                       >
                         <Trash2 size={16} />
                       </button>

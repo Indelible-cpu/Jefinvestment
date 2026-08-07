@@ -10,10 +10,10 @@ import {
   doc, 
   getDoc, 
   setDoc, 
-  updateDoc,
   collection,
-  getDocs,
-  deleteDoc
+  deleteDoc,
+  updateDoc,
+  onSnapshot
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
@@ -174,19 +174,22 @@ export const useAuthStore = create<AuthState>()(
         if (!state.user || state.user.id.startsWith('local-')) return;
 
         try {
-          const userDoc = await getDoc(doc(db, 'users', state.user.id));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            set((state) => ({
-              user: state.user ? {
-                ...state.user,
-                ...(data.name && { name: data.name }),
-                ...(data.profilePic && { profilePic: data.profilePic }),
-              } : null,
-            }));
-          }
+          onSnapshot(doc(db, 'users', state.user.id), (userDoc) => {
+            if (userDoc.exists()) {
+              const data = userDoc.data();
+              set((state) => ({
+                user: state.user ? {
+                  ...state.user,
+                  ...(data.name && { name: data.name }),
+                  ...(data.profilePic && { profilePic: data.profilePic }),
+                } : null,
+              }));
+            }
+          }, (err) => {
+            console.warn('Failed to load profile from Firestore', err);
+          });
         } catch (err) {
-          console.warn('Failed to load profile from Firestore', err);
+          console.warn('Failed to set up profile listener', err);
         }
       },
 
@@ -230,24 +233,27 @@ export const useAuthStore = create<AuthState>()(
 
       loadUsers: async () => {
         try {
-          const snapshot = await getDocs(collection(db, 'users'));
-          const loadedUsers: UserAccount[] = [];
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            loadedUsers.push({
-              id: doc.id,
-              username: data.username || '',
-              name: data.name || '',
-              role: data.role || 'CASHIER',
-              branchId: data.branchId,
-              branchName: data.branchName,
-              profilePic: data.profilePic,
-              isActive: data.isActive !== false,
+          onSnapshot(collection(db, 'users'), (snapshot) => {
+            const loadedUsers: UserAccount[] = [];
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              loadedUsers.push({
+                id: doc.id,
+                username: data.username || '',
+                name: data.name || '',
+                role: data.role || 'CASHIER',
+                branchId: data.branchId,
+                branchName: data.branchName,
+                profilePic: data.profilePic,
+                isActive: data.isActive !== false,
+              });
             });
+            set({ users: loadedUsers });
+          }, (err) => {
+            console.warn("Failed to load users", err);
           });
-          set({ users: loadedUsers });
         } catch (e) {
-          console.warn("Failed to load users", e);
+          console.warn("Failed to set up users listener", e);
         }
       },
     }),

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -24,8 +24,7 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>()(
-  persist(
-    (set) => ({
+  (set) => ({
       companyName: 'Jef Investment',
       companyLogo: '',
       currency: 'MWK',
@@ -59,9 +58,5 @@ export const useSettingsStore = create<SettingsState>()(
           console.error('Failed to load settings from Firestore', error);
         });
       }
-    }),
-    {
-      name: 'jef-settings-storage',
-    }
-  )
+    })
 );
