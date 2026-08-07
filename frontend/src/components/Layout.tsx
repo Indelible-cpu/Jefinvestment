@@ -272,7 +272,7 @@ export default function Layout() {
               <LogOut size={18} />
             </button>
           </div>
-          <div className="text-[9px] text-center text-blue-400 opacity-60 font-medium tracking-wide pb-4 md:pb-0 mt-2">
+          <div className="text-[9px] text-center text-white font-medium tracking-wide pb-4 md:pb-0 mt-2">
             JIMS ERP. Powered By Indelible Technologies
           </div>
         </div>
