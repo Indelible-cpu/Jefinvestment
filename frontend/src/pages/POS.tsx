@@ -49,10 +49,10 @@ export default function POS() {
   const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).filter(c => c !== 'Stationery Service')];
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).filter(c => c && c !== 'Stationery Service' && c !== 'General')];
   // Stationery services shown separately, regular products exclude 'Stationery Service' category
   const filteredProducts = products.filter(p => {
-    if (p.category === 'Stationery Service') return false;
+    if (p.category === 'Stationery Service' || p.category === 'General') return false;
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCat = catFilter === 'All' || p.category === catFilter;
@@ -61,7 +61,7 @@ export default function POS() {
 
   // Stationery services filtered by search
   const filteredStationeryServices = stationeryServices.filter(s =>
-    catFilter === 'All' || catFilter === 'Stationery'
+    catFilter === 'All' || catFilter === 'Stationery' || catFilter === 'Stationery Services'
       ? s.serviceName.toLowerCase().includes(searchTerm.toLowerCase())
       : false
   );
@@ -431,12 +431,12 @@ const playSound = (type: 'success' | 'error') => {
             ))}
             {stationeryServices.length > 0 && (
               <button
-                onClick={() => setCatFilter('Stationery')}
+                onClick={() => setCatFilter('Stationery Services')}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition flex items-center gap-1 ${
-                  catFilter === 'Stationery' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                  catFilter === 'Stationery Services' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
                 }`}
               >
-                <Printer size={11} /> Stationery
+                <Printer size={11} /> Stationery Services
               </button>
             )}
           </div>
