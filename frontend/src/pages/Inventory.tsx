@@ -32,9 +32,9 @@ export default function Inventory() {
   const [reamQty, setReamQty] = useState('');
 
   const CATEGORIES = Array.from(new Set([
-    'Smartphones', 'Accessories', 'Stationery', 'Stationery Service', 'Services', 'Other',
-    ...products.map(p => p.category)
-  ])).filter(c => c !== 'General');
+    'Smartphones', 'Accessories', 'Stationery Items', 'Stationery Service', 'Services', 'Other',
+    ...products.map(p => p.category === 'Stationery' ? 'Stationery Items' : p.category)
+  ])).filter(c => c && c !== 'General');
 
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());

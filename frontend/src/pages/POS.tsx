@@ -49,19 +49,20 @@ export default function POS() {
   const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).filter(c => c && c !== 'Stationery Service' && c !== 'General')];
+  const categories = ['All', ...Array.from(new Set(products.map(p => (p.category === 'Stationery' ? 'Stationery Items' : p.category)))).filter(c => c && c !== 'Stationery Service' && c !== 'General')];
   // Stationery services shown separately, regular products exclude 'Stationery Service' category
   const filteredProducts = products.filter(p => {
     if (p.category === 'Stationery Service' || p.category === 'General') return false;
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = catFilter === 'All' || p.category === catFilter;
+    const pCat = p.category === 'Stationery' ? 'Stationery Items' : p.category;
+    const matchCat = catFilter === 'All' || pCat === catFilter;
     return matchSearch && matchCat;
   });
 
   // Stationery services filtered by search
   const filteredStationeryServices = stationeryServices.filter(s =>
-    catFilter === 'All' || catFilter === 'Stationery' || catFilter === 'Stationery Services'
+    catFilter === 'All' || catFilter === 'Stationery Services'
       ? s.serviceName.toLowerCase().includes(searchTerm.toLowerCase())
       : false
   );
