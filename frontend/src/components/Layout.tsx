@@ -10,7 +10,7 @@ import { useSyncQueueStore } from '../store/syncQueueStore';
 import { toast } from 'sonner';
 
 export default function Layout() {
-  const { user, logout, loadProfile, isTemporarilyUnlocked, unlockTemporarily, lockSystem, updateActivity } = useAuthStore();
+  const { user, logout, loadProfile, unlockTemporarily } = useAuthStore();
   const { companyName, companyLogo, loadSettings, autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes } = useSettingsStore();
   const { products, loadProducts } = useProductStore();
   const { loadHeldCarts } = useCartStore();
