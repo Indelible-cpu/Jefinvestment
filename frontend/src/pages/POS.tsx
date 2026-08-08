@@ -49,13 +49,21 @@ export default function POS() {
   const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => (p.category === 'Stationery' ? 'Stationery Items' : p.category)))).filter(c => c && c !== 'Stationery Service' && c !== 'General')];
-  // Stationery services shown separately, regular products exclude 'Stationery Service' category
+  const normalizeCategory = (cat: string) => {
+    if (!cat) return '';
+    const lower = cat.trim().toLowerCase();
+    if (lower === 'general' || lower === 'stationery service') return '';
+    if (lower === 'stationery' || lower === 'stationery items') return 'Stationery Items';
+    return cat.trim();
+  };
+
+  const categories = ['All', ...Array.from(new Set(products.map(p => normalizeCategory(p.category)).filter(Boolean)))];
+
   const filteredProducts = products.filter(p => {
-    if (p.category === 'Stationery Service' || p.category === 'General') return false;
+    const pCat = normalizeCategory(p.category);
+    if (!pCat) return false;
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const pCat = p.category === 'Stationery' ? 'Stationery Items' : p.category;
     const matchCat = catFilter === 'All' || pCat === catFilter;
     return matchSearch && matchCat;
   });
@@ -451,64 +459,68 @@ const playSound = (type: 'success' | 'error') => {
                   <div className="h-5 bg-gray-200 rounded w-1/3 mt-auto"></div>
                 </div>
               ))
-            ) : filteredProducts.length === 0 ? (
-              <div className="col-span-4 text-center py-12 text-gray-400">No products found.</div>
-            ) : filteredProducts.map(product => {
-              const outOfStock = !product.isService && product.stock === 0;
-              return (
-                <div
-                  key={product.id}
-                  onClick={() => {
-                    if (!outOfStock) {
-                      cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, costPrice: product.costPrice || 0, quantity: 1, discount: 0, isService: product.isService });
-                    }
-                  }}
-                  className={`border p-3 rounded-lg flex flex-col justify-between h-32 transition ${
-                    outOfStock
-                      ? 'opacity-50 cursor-not-allowed bg-gray-50'
-                      : 'cursor-pointer hover:border-primary hover:shadow-md bg-white'
-                  }`}
-                >
-                  <div>
-                    <h3 className="font-semibold text-sm line-clamp-2">{product.name}</h3>
-                    <span className="text-xs text-gray-500">{product.sku}</span>
-                  </div>
-                  <div className="flex justify-between items-end">
-                    <div className="font-bold text-primary text-sm">{settings.currency} {product.sellingPrice.toLocaleString()}</div>
-                    {!product.isService && (
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                        product.stock <= product.reorderLevel ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                      }`}>
-                        {product.stock} {product.unit}
-                      </span>
-                    )}
-                    {product.isService && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Service</span>}
-                  </div>
-                  {outOfStock && <div className="text-xs text-red-500 font-semibold text-center">Out of Stock</div>}
-                </div>
-              );
-            })}
+            ) : (filteredProducts.length === 0 && filteredStationeryServices.length === 0) ? (
+              <div className="col-span-4 text-center py-12 text-gray-400">No items found.</div>
+            ) : (
+              <>
+                {filteredProducts.map(product => {
+                  const outOfStock = !product.isService && product.stock === 0;
+                  return (
+                    <div
+                      key={product.id}
+                      onClick={() => {
+                        if (!outOfStock) {
+                          cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, costPrice: product.costPrice || 0, quantity: 1, discount: 0, isService: product.isService });
+                        }
+                      }}
+                      className={`border p-3 rounded-lg flex flex-col justify-between h-32 transition ${
+                        outOfStock
+                          ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                          : 'cursor-pointer hover:border-primary hover:shadow-md bg-white'
+                      }`}
+                    >
+                      <div>
+                        <h3 className="font-semibold text-sm line-clamp-2">{product.name}</h3>
+                        <span className="text-xs text-gray-500">{product.sku}</span>
+                      </div>
+                      <div className="flex justify-between items-end">
+                        <div className="font-bold text-primary text-sm">{settings.currency} {product.sellingPrice.toLocaleString()}</div>
+                        {!product.isService && (
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                            product.stock <= product.reorderLevel ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                          }`}>
+                            {product.stock} {product.unit}
+                          </span>
+                        )}
+                        {product.isService && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Service</span>}
+                      </div>
+                      {outOfStock && <div className="text-xs text-red-500 font-semibold text-center">Out of Stock</div>}
+                    </div>
+                  );
+                })}
 
-            {/* Stationery Service Cards */}
-            {filteredStationeryServices.map(svc => (
-              <div
-                key={svc.id}
-                onClick={() => handleAddStationeryToCart(svc)}
-                className="border-2 border-blue-200 p-3 rounded-lg flex flex-col justify-between h-32 cursor-pointer hover:border-blue-500 hover:shadow-md bg-blue-50 transition"
-              >
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <Printer size={12} className="text-blue-600" />
-                    <span className="text-[10px] font-semibold text-blue-600 uppercase">Stationery</span>
+                {/* Stationery Service Cards */}
+                {filteredStationeryServices.map(svc => (
+                  <div
+                    key={svc.id}
+                    onClick={() => handleAddStationeryToCart(svc)}
+                    className="border-2 border-blue-200 p-3 rounded-lg flex flex-col justify-between h-32 cursor-pointer hover:border-blue-500 hover:shadow-md bg-blue-50 transition"
+                  >
+                    <div>
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <Printer size={12} className="text-blue-600" />
+                        <span className="text-[10px] font-semibold text-blue-600 uppercase">Stationery</span>
+                      </div>
+                      <h3 className="font-semibold text-sm line-clamp-2">{svc.serviceName}</h3>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <div className="font-bold text-blue-700 text-sm">{settings.currency} {svc.sellingPrice.toLocaleString()}/unit</div>
+                      <Plus size={16} className="text-blue-500" />
+                    </div>
                   </div>
-                  <h3 className="font-semibold text-sm line-clamp-2">{svc.serviceName}</h3>
-                </div>
-                <div className="flex justify-between items-end">
-                  <div className="font-bold text-blue-700 text-sm">{settings.currency} {svc.sellingPrice.toLocaleString()}/unit</div>
-                  <Plus size={16} className="text-blue-500" />
-                </div>
-              </div>
-            ))}
+                ))}
+              </>
+            )}
           </div>
         </div>
         
