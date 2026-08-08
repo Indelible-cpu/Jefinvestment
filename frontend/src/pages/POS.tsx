@@ -5,7 +5,7 @@ import { useSaleStore } from '../store/dataStore';
 import { useStationeryStore, type StationeryService } from '../store/stationeryStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
-import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine, Printer, Zap, Users, Layers, ChevronRight, Package } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine, Printer } from 'lucide-react';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { generateInvoiceNumber } from '../utils/invoiceNumber';
@@ -43,15 +43,11 @@ export default function POS() {
 
   const cart = useCartStore();
   const { products, isLoading: productsLoading, decrementStock } = useProductStore();
-  const { addSale, addStationeryServiceSale } = useSaleStore();
+  const { addSale } = useSaleStore();
   const { services: stationeryServices } = useStationeryStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
-
-  // Stationery service panel state
-  const [selectedStationerySvc, setSelectedStationerySvc] = useState<StationeryService | null>(null);
-  const [stationeryQty, setStationeryQty] = useState(1);
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).filter(c => c !== 'Stationery Service')];
   // Stationery services shown separately, regular products exclude 'Stationery Service' category
@@ -70,29 +66,48 @@ export default function POS() {
       : false
   );
 
-  // Compute stationery service cost breakdown
-  const stationeryCost = useMemo(() => {
-    if (!selectedStationerySvc) return null;
-    const qty = stationeryQty || 1;
-    const matCost = selectedStationerySvc.materialsUsed.reduce((sum, m) => {
+  const handleAddStationeryToCart = (svc: StationeryService) => {
+    const matCost = svc.materialsUsed.reduce((sum, m) => {
       const product = products.find(p => p.id === m.inventoryItemId);
-      return sum + (product?.costPrice || 0) * m.quantityPerUnit * qty;
+      return sum + (product?.costPrice || 0) * m.quantityPerUnit;
     }, 0);
-    const labor = selectedStationerySvc.laborCost * qty;
-    const electricity = selectedStationerySvc.electricityCost * qty;
-    const overhead = selectedStationerySvc.otherOverheadCost * qty;
-    const totalCost = matCost + labor + electricity + overhead;
-    const revenue = selectedStationerySvc.sellingPrice * qty;
-    const profit = revenue - totalCost;
-    // Stock check
-    const stockIssues = selectedStationerySvc.materialsUsed.map(m => {
+    const unitCost = matCost + (svc.laborCost || 0) + (svc.electricityCost || 0) + (svc.otherOverheadCost || 0);
+
+    const stockIssues = svc.materialsUsed.map(m => {
       const product = products.find(p => p.id === m.inventoryItemId);
-      const needed = m.quantityPerUnit * qty;
+      const needed = m.quantityPerUnit;
       const available = product?.stock || 0;
       return { name: product?.name || m.inventoryItemId, needed, available, ok: available >= needed };
+    }).filter(x => !x.ok);
+
+    if (stockIssues.length > 0) {
+      playSound('error');
+      toast.error(`Cannot add "${svc.serviceName}": Insufficient material stock (${stockIssues[0].name})`);
+      return;
+    }
+
+    cart.addItem({
+      id: `stationery_${svc.id}`,
+      name: svc.serviceName,
+      sku: 'STAT-SVC',
+      unitPrice: svc.sellingPrice,
+      costPrice: unitCost,
+      quantity: 1,
+      discount: 0,
+      isService: true,
+      materialsConsumed: svc.materialsUsed.map(m => {
+        const product = products.find(p => p.id === m.inventoryItemId);
+        return {
+          inventoryItemId: m.inventoryItemId,
+          quantityPerUnit: m.quantityPerUnit,
+          name: product?.name || m.inventoryItemId
+        };
+      })
     });
-    return { qty, matCost, labor, electricity, overhead, totalCost, revenue, profit, stockIssues };
-  }, [selectedStationerySvc, stationeryQty, products]);
+
+    playSound('success');
+    toast.success(`Added ${svc.serviceName} to cart`);
+  };
 
   const finalTotal = useMemo(() => {
     const baseTotal = cart.getTotal();
@@ -150,74 +165,6 @@ const playSound = (type: 'success' | 'error') => {
     console.error('Audio playback failed', e);
   }
 };
-
-  const handleStationeryCheckout = async () => {
-    if (!selectedStationerySvc || !stationeryCost) return;
-    const hasStockIssue = stationeryCost.stockIssues.some(s => !s.ok);
-    if (hasStockIssue) {
-      toast.error('Insufficient stock', {
-        description: stationeryCost.stockIssues.filter(s => !s.ok)
-          .map(s => `${s.name}: need ${s.needed}, have ${s.available}`).join('; ')
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const invoiceNumber = generateInvoiceNumber();
-    try {
-      const materialsConsumed = selectedStationerySvc.materialsUsed.map(m => {
-        const product = products.find(p => p.id === m.inventoryItemId);
-        return {
-          productId: m.inventoryItemId,
-          name: product?.name || m.inventoryItemId,
-          quantityUsed: m.quantityPerUnit * stationeryQty,
-          costPrice: product?.costPrice || 0,
-        };
-      });
-
-      await addStationeryServiceSale({
-        invoiceNumber,
-        cashier: user?.name || 'Staff',
-        branch: user?.branchId || settings.companyName,
-        paymentMethod,
-        amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) || stationeryCost.revenue : stationeryCost.revenue),
-        total: stationeryCost.revenue,
-        subtotal: stationeryCost.revenue,
-        discount: 0,
-        taxAmount: 0,
-        taxName: '',
-        taxType: 'EXCLUSIVE',
-        customerName: paymentMethod === 'CREDIT' ? customerName : '',
-        customerPhone: paymentMethod === 'CREDIT' ? customerPhone : '',
-        customerId: paymentMethod === 'CREDIT' ? customerId : '',
-        dueDate: paymentMethod === 'CREDIT' ? dueDate : '',
-        isCredit: paymentMethod === 'CREDIT',
-        stationeryServiceId: selectedStationerySvc.id,
-        stationeryServiceName: selectedStationerySvc.serviceName,
-        quantitySold: stationeryQty,
-        sellingPrice: selectedStationerySvc.sellingPrice,
-        materialCost: stationeryCost.matCost,
-        laborCostTotal: stationeryCost.labor,
-        electricityCostTotal: stationeryCost.electricity,
-        overheadCostTotal: stationeryCost.overhead,
-        totalCost: stationeryCost.totalCost,
-        profit: stationeryCost.profit,
-        materialsConsumed,
-      });
-
-      playSound('success');
-      toast.success(`${selectedStationerySvc.serviceName} × ${stationeryQty} completed!`, {
-        description: `Revenue: ${settings.currency} ${stationeryCost.revenue.toLocaleString()} | Profit: ${settings.currency} ${stationeryCost.profit.toFixed(2)}`
-      });
-      setSelectedStationerySvc(null);
-      setStationeryQty(1);
-      setAmountPaid('');
-    } catch (err: any) {
-      toast.error('Sale failed', { description: err.message });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handlePayNow = () => {
     setErrorMsg('');
@@ -292,7 +239,14 @@ const playSound = (type: 'success' | 'error') => {
         await addSale({
           invoiceNumber,
           cashier: useAuthStore.getState().user?.name || 'Staff',
-          items: cart.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, productId: i.id })),
+          items: cart.items.map(i => ({
+            name: i.name,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            costPrice: i.costPrice || 0,
+            productId: i.id,
+            ...(i.materialsConsumed && i.materialsConsumed.length > 0 ? { materialsConsumed: i.materialsConsumed } : {})
+          })),
           subtotal,
           discount,
           taxAmount,
@@ -308,20 +262,28 @@ const playSound = (type: 'success' | 'error') => {
           isCredit: paymentMethod === 'CREDIT',
         });
         
-        // Decrement stock for physical products locally as well for immediate UI response
+        // Decrement stock for physical products & stationery service materials
         cart.items.forEach(item => {
           if (!item.isService) {
             decrementStock(item.id, item.quantity);
+          } else if (item.materialsConsumed && item.materialsConsumed.length > 0) {
+            item.materialsConsumed.forEach(mat => {
+              decrementStock(mat.inventoryItemId, mat.quantityPerUnit * item.quantity);
+            });
           }
         });
 
         toast.success('Sale completed successfully');
       } catch (err: any) {
         if (err.message === 'OFFLINE_QUEUED') {
-          // Decrement stock for physical products locally as well for immediate UI response
+          // Decrement stock for physical products & stationery service materials
           cart.items.forEach(item => {
             if (!item.isService) {
               decrementStock(item.id, item.quantity);
+            } else if (item.materialsConsumed && item.materialsConsumed.length > 0) {
+              item.materialsConsumed.forEach(mat => {
+                decrementStock(mat.inventoryItemId, mat.quantityPerUnit * item.quantity);
+              });
             }
           });
           toast.warning('Offline', { description: 'Sale queued and will sync when online' });
@@ -497,7 +459,7 @@ const playSound = (type: 'success' | 'error') => {
                   key={product.id}
                   onClick={() => {
                     if (!outOfStock) {
-                      cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, quantity: 1, discount: 0, isService: product.isService });
+                      cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, costPrice: product.costPrice || 0, quantity: 1, discount: 0, isService: product.isService });
                     }
                   }}
                   className={`border p-3 rounded-lg flex flex-col justify-between h-32 transition ${
@@ -530,7 +492,7 @@ const playSound = (type: 'success' | 'error') => {
             {filteredStationeryServices.map(svc => (
               <div
                 key={svc.id}
-                onClick={() => { setSelectedStationerySvc(svc); setStationeryQty(1); }}
+                onClick={() => handleAddStationeryToCart(svc)}
                 className="border-2 border-blue-200 p-3 rounded-lg flex flex-col justify-between h-32 cursor-pointer hover:border-blue-500 hover:shadow-md bg-blue-50 transition"
               >
                 <div>
@@ -542,7 +504,7 @@ const playSound = (type: 'success' | 'error') => {
                 </div>
                 <div className="flex justify-between items-end">
                   <div className="font-bold text-blue-700 text-sm">{settings.currency} {svc.sellingPrice.toLocaleString()}/unit</div>
-                  <ChevronRight size={16} className="text-blue-400" />
+                  <Plus size={16} className="text-blue-500" />
                 </div>
               </div>
             ))}
@@ -669,6 +631,18 @@ const playSound = (type: 'success' | 'error') => {
                     <div className="flex justify-between font-bold text-2xl text-primary pt-2 border-t mt-2">
                       <span>Total</span>
                       <span>{settings.currency} {finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    </div>
+                  );
+                })()}
+
+                {/* Est. Profit Indicator */}
+                {cart.items.length > 0 && (() => {
+                  const totalCost = cart.items.reduce((sum, i) => sum + ((i.costPrice || 0) * i.quantity), 0);
+                  const estProfit = cart.getTotal() - totalCost;
+                  return (
+                    <div className={`flex justify-between text-xs font-semibold px-2 py-1 rounded ${estProfit >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                      <span>Est. Profit</span>
+                      <span>{settings.currency} {estProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                     </div>
                   );
                 })()}
@@ -970,144 +944,6 @@ const playSound = (type: 'success' | 'error') => {
           onClose={() => setReceiptData(null)}
           onNewSale={handleNewSale}
         />
-      )}
-
-      {/* Stationery Service Checkout Panel */}
-      {selectedStationerySvc && stationeryCost && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[95vh]">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-5 rounded-t-2xl flex justify-between items-start">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Printer size={20} />
-                  <span className="text-sm font-semibold opacity-80">STATIONERY SERVICE</span>
-                </div>
-                <h2 className="text-xl font-bold">{selectedStationerySvc.serviceName}</h2>
-                <div className="text-blue-200 text-sm">{settings.currency} {selectedStationerySvc.sellingPrice} per unit</div>
-              </div>
-              <button onClick={() => setSelectedStationerySvc(null)} className="p-1 hover:bg-white/20 rounded-lg">
-                <X size={22} />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm font-semibold mb-1.5">Quantity (pages / copies)</label>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setStationeryQty(q => Math.max(1, q - 1))}
-                    className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200"
-                  >
-                    <Minus size={18} />
-                  </button>
-                  <input
-                    type="number" min={1}
-                    className="flex-1 text-center font-bold text-2xl border-2 rounded-lg p-2 outline-none focus:border-blue-500"
-                    value={stationeryQty}
-                    onChange={e => setStationeryQty(Math.max(1, Number(e.target.value) || 1))}
-                  />
-                  <button
-                    onClick={() => setStationeryQty(q => q + 1)}
-                    className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200"
-                  >
-                    <Plus size={18} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Stock check */}
-              {stationeryCost.stockIssues.map((s, i) => (
-                <div key={i} className={`flex justify-between items-center text-sm rounded-lg px-3 py-2 ${s.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700 font-semibold'}`}>
-                  <span>{s.name}</span>
-                  <span>Need {s.needed} · Have {s.available} {s.ok ? '✓' : '⚠ Insufficient'}</span>
-                </div>
-              ))}
-
-              {/* Cost breakdown */}
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between text-gray-600">
-                  <span className="flex items-center gap-1"><Package size={13} /> Material Cost</span>
-                  <span>{settings.currency} {stationeryCost.matCost.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span className="flex items-center gap-1"><Users size={13} /> Labor Cost</span>
-                  <span>{settings.currency} {stationeryCost.labor.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span className="flex items-center gap-1"><Zap size={13} /> Electricity Cost</span>
-                  <span>{settings.currency} {stationeryCost.electricity.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span className="flex items-center gap-1"><Layers size={13} /> Other Overhead</span>
-                  <span>{settings.currency} {stationeryCost.overhead.toFixed(2)}</span>
-                </div>
-                <div className="border-t pt-2 flex justify-between font-semibold text-red-600">
-                  <span>Total Cost</span>
-                  <span>{settings.currency} {stationeryCost.totalCost.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-green-700 text-base">
-                  <span>Revenue</span>
-                  <span>{settings.currency} {stationeryCost.revenue.toLocaleString()}</span>
-                </div>
-                <div className={`flex justify-between font-extrabold text-lg border-t pt-2 ${stationeryCost.profit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                  <span>Est. Profit</span>
-                  <span>{settings.currency} {stationeryCost.profit.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Payment method */}
-              <div>
-                <label className="block text-sm font-semibold mb-1.5">Payment Method</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['CASH', 'BANK_TRANSFER', 'CREDIT'].map(m => (
-                    <button
-                      key={m}
-                      onClick={() => setPaymentMethod(m)}
-                      className={`py-2 rounded-lg text-xs font-semibold border-2 transition ${paymentMethod === m ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 text-gray-700 hover:border-blue-300'}`}
-                    >
-                      {m === 'BANK_TRANSFER' ? 'Transfer' : m === 'CREDIT' ? 'Credit' : 'Cash'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {paymentMethod === 'CREDIT' && (
-                <div className="space-y-2">
-                  <input
-                    type="text" placeholder="Customer Name *"
-                    className="w-full p-2.5 border rounded-lg text-sm"
-                    value={customerName}
-                    onChange={e => setCustomerName(e.target.value)}
-                  />
-                  <input
-                    type="tel" placeholder="Customer Phone *"
-                    className="w-full p-2.5 border rounded-lg text-sm"
-                    value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                  />
-                  <input
-                    type="date" placeholder="Due Date"
-                    className="w-full p-2.5 border rounded-lg text-sm"
-                    value={dueDate}
-                    onChange={e => setDueDate(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {/* Confirm */}
-              <button
-                onClick={handleStationeryCheckout}
-                disabled={isSubmitting || stationeryCost.stockIssues.some(s => !s.ok) || (paymentMethod === 'CREDIT' && (!customerName.trim() || !customerPhone.trim()))}
-                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
-              >
-                <Printer size={18} />
-                {isSubmitting ? 'Processing...' : `Confirm — ${settings.currency} ${stationeryCost.revenue.toLocaleString()}`}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )

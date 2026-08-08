@@ -124,6 +124,8 @@ export interface CartItem {
   quantity: number;
   discount: number;
   isService: boolean;
+  costPrice?: number;
+  materialsConsumed?: { inventoryItemId: string; quantityPerUnit: number; name: string }[];
 }
 
 export interface HeldCart {

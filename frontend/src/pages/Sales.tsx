@@ -44,11 +44,13 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
   const settings = useSettingsStore();
   const [confirmAction, setConfirmAction] = useState<'refunded' | 'voided' | null>(null);
 
-  const profit = sale.items.reduce((sum, item) => {
-    const itemRevenue = item.quantity * item.unitPrice;
-    const itemCost = item.costPrice ? item.quantity * item.costPrice : 0;
-    return sum + (itemRevenue - itemCost);
-  }, 0);
+  const profit = (sale as any).profit !== undefined
+    ? (sale as any).profit
+    : sale.items.reduce((sum, item) => {
+        const itemRevenue = item.quantity * item.unitPrice;
+        const itemCost = (item.costPrice || 0) * item.quantity;
+        return sum + (itemRevenue - itemCost);
+      }, 0) - (sale.discount || 0);
 
   const handleConfirm = () => {
     if (!confirmAction) return;
