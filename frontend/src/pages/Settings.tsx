@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -26,6 +26,13 @@ export default function Settings() {
     nbmDetails: settings.nbmDetails || ''
   });
 
+  const [securityForm, setSecurityForm] = useState({
+    autoLockEnabled: settings.autoLockEnabled || false,
+    workTimeStart: settings.workTimeStart || '08:00',
+    workTimeEnd: settings.workTimeEnd || '20:00',
+    idleLockMinutes: settings.idleLockMinutes || 10
+  });
+
   // User management state
   const [resetTarget, setResetTarget] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -40,6 +47,20 @@ export default function Settings() {
     e.preventDefault();
     await updateProfile(profileForm.name, profileForm.username, profileForm.profilePic);
     showSuccess('Profile updated and synced to all devices!');
+  };
+
+  const handleSecuritySave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateSettings(securityForm);
+      showSuccess('Security settings saved!');
+    } catch (err: any) {
+      if (err.message === 'OFFLINE_QUEUED') {
+        toast.warning('Offline', { description: 'Security settings saved locally and will sync when online.' });
+      } else {
+        toast.error('Failed to save security settings');
+      }
+    }
   };
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,7 +95,7 @@ export default function Settings() {
     e.preventDefault();
     try {
       await updateSettings(brandForm);
-      showSuccess('Company settings saved!');
+      showSuccess('Company branding & payment details saved!');
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
         toast.warning('Offline', { description: 'Settings saved locally and will sync when online.' });
@@ -414,6 +435,46 @@ export default function Settings() {
           </div>
         )}
       </div>
+
+      {/* Security & Access Section */}
+      {isAdmin && (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
+          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+            <Lock size={18} /> Security & Access Control
+          </div>
+          <form onSubmit={handleSecuritySave} className="p-6">
+            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-100 rounded-lg mb-6">
+              <div>
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">Automatic System Lock</h3>
+                <p className="text-sm text-gray-600 mt-1">Lock the system outside of business hours. Admins can temporarily unlock it.</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" className="sr-only peer" checked={securityForm.autoLockEnabled} onChange={e => setSecurityForm(f => ({ ...f, autoLockEnabled: e.target.checked }))} />
+                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+            
+            {securityForm.autoLockEnabled && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Work Start Time</label>
+                  <input type="time" value={securityForm.workTimeStart} onChange={e => setSecurityForm(f => ({ ...f, workTimeStart: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Work End Time</label>
+                  <input type="time" value={securityForm.workTimeEnd} onChange={e => setSecurityForm(f => ({ ...f, workTimeEnd: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Admin Idle Lock (mins)</label>
+                  <input type="number" min="1" max="60" value={securityForm.idleLockMinutes} onChange={e => setSecurityForm(f => ({ ...f, idleLockMinutes: parseInt(e.target.value) || 10 }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
+                </div>
+              </div>
+            )}
+            
+            <button type="submit" className="w-full md:w-auto bg-primary text-white font-bold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition">Save Security Settings</button>
+          </form>
+        </div>
+      )}
       
       {/* Audit Logs Section */}
       {isAdmin && <AuditLogs />}

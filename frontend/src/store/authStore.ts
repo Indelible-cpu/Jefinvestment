@@ -47,6 +47,12 @@ interface AuthState {
   addUser: (user: { username: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   loadUsers: () => Promise<void>;
+  
+  isTemporarilyUnlocked: boolean;
+  lastActiveTime: number;
+  unlockTemporarily: () => void;
+  lockSystem: () => void;
+  updateActivity: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -57,6 +63,16 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       users: [],
       isLoading: false,
+      
+      isTemporarilyUnlocked: false,
+      lastActiveTime: Date.now(),
+      unlockTemporarily: () => set({ isTemporarilyUnlocked: true, lastActiveTime: Date.now() }),
+      lockSystem: () => set({ isTemporarilyUnlocked: false }),
+      updateActivity: () => {
+        if (get().isTemporarilyUnlocked) {
+          set({ lastActiveTime: Date.now() });
+        }
+      },
 
       login: async (email, password) => {
         set({ isLoading: true });

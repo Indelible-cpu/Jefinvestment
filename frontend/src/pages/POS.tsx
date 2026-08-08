@@ -254,6 +254,7 @@ const playSound = (type: 'success' | 'error') => {
             unitPrice: i.unitPrice,
             costPrice: i.costPrice || 0,
             productId: i.id,
+            isService: i.isService || false,
             ...(i.materialsConsumed && i.materialsConsumed.length > 0 ? { materialsConsumed: i.materialsConsumed } : {})
           })),
           subtotal,

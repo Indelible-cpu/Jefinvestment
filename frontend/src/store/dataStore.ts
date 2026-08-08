@@ -207,13 +207,33 @@ export const useSaleStore = create<SaleState>()(
         const saleSnap = await getDoc(doc(db, 'sales', saleId));
         if (!saleSnap.exists()) return;
         const saleData = saleSnap.data();
-        if (!saleData.isStationeryService || !Array.isArray(saleData.materialsConsumed)) return;
 
         const batch = writeBatch(db);
-        for (const mat of saleData.materialsConsumed) {
-          batch.update(doc(db, 'products', mat.productId), { stock: increment(mat.quantityUsed) });
+        let hasRestores = false;
+
+        // Method 1: item-level materialsConsumed (new format)
+        if (Array.isArray(saleData.items)) {
+          for (const item of saleData.items) {
+            if (item.materialsConsumed && Array.isArray(item.materialsConsumed)) {
+              for (const mat of item.materialsConsumed) {
+                const invRef = doc(db, 'products', mat.inventoryItemId || mat.productId);
+                const qty = (mat.quantityPerUnit || mat.quantityUsed || 1) * (item.quantity || 1);
+                batch.update(invRef, { stock: increment(qty) });
+                hasRestores = true;
+              }
+            }
+          }
         }
-        await batch.commit();
+
+        // Method 2: top-level materialsConsumed (legacy format)
+        if (!hasRestores && saleData.isStationeryService && Array.isArray(saleData.materialsConsumed)) {
+          for (const mat of saleData.materialsConsumed) {
+            batch.update(doc(db, 'products', mat.productId), { stock: increment(mat.quantityUsed) });
+            hasRestores = true;
+          }
+        }
+
+        if (hasRestores) await batch.commit();
       } catch (e) {
         console.error('Failed to restore stationery materials', e);
       }

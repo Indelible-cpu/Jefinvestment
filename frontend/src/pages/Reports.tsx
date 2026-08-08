@@ -6,8 +6,12 @@ import { useSettingsStore } from '../store/settingsStore';
 
 const today = new Date().toISOString().slice(0, 10);
 
-/** Compute estimated profit from a list of completed sale records */
-function calcSaleProfit(sale: { items: Array<{ quantity: number; unitPrice: number; costPrice?: number }>; profit?: number; discount?: number }): number {
+/** Compute profit from a completed sale.
+ * For normal products: profit = (unitPrice - costPrice) * quantity.
+ * For stationery services: costPrice already includes material + labor + electricity + overhead
+ *   so the same formula applies correctly as long as the product's costPrice is per-sheet (not per-ream).
+ */
+function calcSaleProfit(sale: { items: Array<{ quantity: number; unitPrice: number; costPrice?: number; isService?: boolean }>; profit?: number; discount?: number }): number {
   if ((sale as any).profit !== undefined) return (sale as any).profit as number;
   const gross = sale.items.reduce((sum, item) => {
     const rev = item.quantity * item.unitPrice;
@@ -177,7 +181,7 @@ export default function Reports() {
         </div>
         <div className={`p-5 rounded-lg border shadow-sm ${data.dailyProfit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
           <div className="flex justify-between items-start mb-3">
-            <div className="text-sm text-gray-600 font-medium">Est. Daily Profit</div>
+            <div className="text-sm text-gray-600 font-medium">Current Day Profit</div>
             <Activity size={20} className={data.dailyProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} />
           </div>
           <div className={`text-2xl font-bold ${data.dailyProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>

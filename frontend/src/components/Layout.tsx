@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
@@ -10,8 +10,8 @@ import { useSyncQueueStore } from '../store/syncQueueStore';
 import { toast } from 'sonner';
 
 export default function Layout() {
-  const { user, logout, loadProfile } = useAuthStore();
-  const { companyName, companyLogo, loadSettings } = useSettingsStore();
+  const { user, logout, loadProfile, isTemporarilyUnlocked, unlockTemporarily, lockSystem, updateActivity } = useAuthStore();
+  const { companyName, companyLogo, loadSettings, autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes } = useSettingsStore();
   const { products, loadProducts } = useProductStore();
   const { loadHeldCarts } = useCartStore();
   const { loadSales } = useSaleStore();
@@ -22,6 +22,7 @@ export default function Layout() {
   const { queue, isSyncing, syncAll } = useSyncQueueStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isSystemLocked, setIsSystemLocked] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -62,6 +63,67 @@ export default function Layout() {
     return () => window.removeEventListener('online', handleOnline);
   }, []);
 
+  // System Lock Logic
+  useEffect(() => {
+    const checkLockStatus = () => {
+      if (!autoLockEnabled) {
+        setIsSystemLocked(false);
+        return;
+      }
+      
+      const now = new Date();
+      const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      
+      let isOutsideWorkingHours = false;
+      const start = workTimeStart || '08:00';
+      const end = workTimeEnd || '20:00';
+      
+      if (start <= end) {
+        isOutsideWorkingHours = currentTimeStr < start || currentTimeStr >= end;
+      } else {
+        isOutsideWorkingHours = currentTimeStr < start && currentTimeStr >= end;
+      }
+
+      const { isTemporarilyUnlocked, lastActiveTime, lockSystem } = useAuthStore.getState();
+
+      if (isOutsideWorkingHours) {
+        if (isTemporarilyUnlocked) {
+          const idleMinutes = (Date.now() - lastActiveTime) / (1000 * 60);
+          if (idleMinutes >= (idleLockMinutes || 10)) {
+            lockSystem();
+            setIsSystemLocked(true);
+          } else {
+            setIsSystemLocked(false);
+          }
+        } else {
+          setIsSystemLocked(true);
+        }
+      } else {
+        setIsSystemLocked(false);
+        if (isTemporarilyUnlocked) lockSystem();
+      }
+    };
+
+    checkLockStatus(); // Check immediately
+    const interval = setInterval(checkLockStatus, 60000); // Check every minute
+
+    // Activity listeners
+    const handleActivity = () => {
+      useAuthStore.getState().updateActivity();
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('click', handleActivity);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('click', handleActivity);
+    };
+  }, [autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes]);
+
   const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
   const overdueCreditCount = credits?.filter(c => c.status === 'OVERDUE').length || 0;
   const notificationCount = lowStockCount + overdueCreditCount;
@@ -101,6 +163,53 @@ export default function Layout() {
   const navLinkClass = (path: string) => `flex items-center gap-3 p-3 rounded-lg transition font-medium ${
     location.pathname === path ? 'bg-blue-700 text-white' : 'hover:bg-blue-800 text-blue-100 hover:text-white'
   }`;
+
+  if (isSystemLocked) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center border-t-8 border-primary relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-32 bg-primary/10 -mt-16 rounded-[100%] scale-150 pointer-events-none"></div>
+          
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 relative z-10">
+            <Lock size={40} className="text-primary" />
+          </div>
+          
+          <h1 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">System Locked</h1>
+          <p className="text-gray-500 mb-8 font-medium">
+            Operating hours are from <span className="font-bold text-gray-800">{workTimeStart}</span> to <span className="font-bold text-gray-800">{workTimeEnd}</span>. Access is currently restricted.
+          </p>
+
+          {isAdmin ? (
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  unlockTemporarily();
+                  setIsSystemLocked(false);
+                  toast.success('System unlocked temporarily.');
+                }}
+                className="w-full py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-blue-700 active:scale-95 transition"
+              >
+                Unlock Temporarily
+              </button>
+              <p className="text-xs text-gray-400">
+                System will auto-lock again after {idleLockMinutes} minutes of inactivity.
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 border rounded-xl text-sm text-gray-600 font-medium">
+              Only Administrators can bypass this lock. Please contact an admin if you require immediate access.
+            </div>
+          )}
+          
+          <div className="mt-8 pt-6 border-t flex justify-center">
+             <button onClick={handleLogout} className="text-sm font-semibold text-gray-500 hover:text-red-500 transition flex items-center gap-1.5">
+               <LogOut size={16} /> Sign out completely
+             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden relative">

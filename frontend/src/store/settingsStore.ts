@@ -19,6 +19,10 @@ interface SettingsState {
   nbsDetails: string;
   nbmDetails: string;
   quickActions: string[];
+  autoLockEnabled: boolean;
+  workTimeStart: string;
+  workTimeEnd: string;
+  idleLockMinutes: number;
   updateSettings: (settings: Partial<Omit<SettingsState, 'updateSettings' | 'loadSettings'>>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
@@ -40,6 +44,10 @@ export const useSettingsStore = create<SettingsState>()(
       nbsDetails: '',
       nbmDetails: '',
       quickActions: ['new-sale', 'add-item', 'print-service', 'tech-service'],
+      autoLockEnabled: false,
+      workTimeStart: '08:00',
+      workTimeEnd: '20:00',
+      idleLockMinutes: 10,
       updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
         try {
