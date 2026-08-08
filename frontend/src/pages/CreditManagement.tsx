@@ -10,6 +10,7 @@ export default function CreditManagement() {
   const [selectedRecord, setSelectedRecord] = useState<string | null>(null);
   const [repayAmount, setRepayAmount] = useState('');
   const [repayMethod, setRepayMethod] = useState('CASH');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     loadCredits();
@@ -27,6 +28,7 @@ export default function CreditManagement() {
     const amountNum = parseFloat(repayAmount);
     if (isNaN(amountNum) || amountNum <= 0) return;
 
+    setIsSubmitting(true);
     try {
       await recordRepayment(selectedRecord, amountNum);
       setSelectedRecord(null);
@@ -40,6 +42,8 @@ export default function CreditManagement() {
       } else {
         toast.error('Failed to record repayment', { description: err.message });
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -86,7 +90,7 @@ export default function CreditManagement() {
       </div>
 
       {/* Credit Table */}
-      <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
+      <div className="bg-card rounded-lg border shadow-sm flex-1 overflow-auto">
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-600 text-sm font-semibold">
@@ -199,9 +203,10 @@ export default function CreditManagement() {
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded hover:bg-blue-700 font-medium"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-primary text-white rounded hover:bg-blue-700 font-medium disabled:opacity-50"
                 >
-                  Confirm Payment
+                  {isSubmitting ? 'Processing...' : 'Confirm Payment'}
                 </button>
               </div>
             </form>

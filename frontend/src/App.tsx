@@ -14,6 +14,7 @@ const Expenses = lazy(() => import('./pages/Expenses'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Login = lazy(() => import('./pages/Login'));
 const Settings = lazy(() => import('./pages/Settings'));
+const StationeryServices = lazy(() => import('./pages/StationeryServices'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
@@ -42,6 +43,7 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="credits" element={<CreditManagement />} />
                 <Route path="employees" element={<Employees />} />
+                <Route path="stationery-services" element={<StationeryServices />} />
                 <Route path="reports" element={<Reports />} />
               </Route>
 

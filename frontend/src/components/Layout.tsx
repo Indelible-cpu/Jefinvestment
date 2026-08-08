@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore, useCartStore } from '../store/cartStore';
+import { useStationeryStore } from '../store/stationeryStore';
 import { useSyncQueueStore } from '../store/syncQueueStore';
 import { toast } from 'sonner';
 
@@ -17,6 +18,7 @@ export default function Layout() {
   const { credits, loadCredits } = useCreditStore();
   const { loadExpenses } = useExpenseStore();
   const { loadEmployees } = useEmployeeStore();
+  const { loadStationeryServices } = useStationeryStore();
   const { queue, isSyncing, syncAll } = useSyncQueueStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -43,6 +45,7 @@ export default function Layout() {
     loadExpenses();
     loadCredits();
     loadEmployees();
+    loadStationeryServices();
     loadProfile();
     syncAll();
     
@@ -249,6 +252,9 @@ export default function Layout() {
               </Link>
               <Link to="/employees" className={navLinkClass('/employees')}>
                 <Users size={20} /> <span>Employees & HR</span>
+              </Link>
+              <Link to="/stationery-services" className={navLinkClass('/stationery-services')}>
+                <Printer size={20} /> <span>Stationery Services</span>
               </Link>
               <Link to="/reports" className={navLinkClass('/reports')}>
                 <BarChart3 size={20} /> <span>Reports</span>

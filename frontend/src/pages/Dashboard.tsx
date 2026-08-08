@@ -62,7 +62,7 @@ export default function Dashboard() {
     { label: 'Active Employees', value: `${activeStaff} staff`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees' },
   ];
 
-  const recentSales = sales.slice(0, 5);
+  const recentSales = sales.filter(s => (s.status || 'completed') === 'completed').slice(0, 5);
 
   return (
     <div className="p-4 md:p-6 md:pt-6 relative -mt-4 md:mt-0">

@@ -184,7 +184,8 @@ export default function Sales() {
 
   // Filters
   const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
+  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+  const [dateFrom, setDateFrom] = useState(currentMonthStart);
   const [dateTo, setDateTo] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [cashierFilter, setCashierFilter] = useState('ALL');

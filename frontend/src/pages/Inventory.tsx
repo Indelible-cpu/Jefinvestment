@@ -5,7 +5,8 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useProductStore, type Product } from '../store/cartStore';
 import BarcodeScanner from '../components/BarcodeScanner';
 
-const UNITS = ['pcs', 'box', 'ream', 'roll', 'pack'];
+const UNITS = ['pcs', 'box', 'ream', 'roll', 'pack', 'sheet'];
+const SHEETS_PER_REAM = 500;
 
 const emptyForm: Omit<Product, 'id'> = {
   name: '', sku: '', category: 'Accessories', costPrice: 0, sellingPrice: 0,
@@ -26,12 +27,14 @@ export default function Inventory() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Product, 'id'>>(emptyForm);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reamRestockProduct, setReamRestockProduct] = useState<Product | null>(null);
+  const [reamQty, setReamQty] = useState('');
 
-  // Get all unique categories dynamically
   const CATEGORIES = Array.from(new Set([
-    'Smartphones', 'Accessories', 'Stationery', 'Services', 'Other', 
+    'Smartphones', 'Accessories', 'Stationery', 'Stationery Service', 'Services', 'Other',
     ...products.map(p => p.category)
-  ]));
+  ])).filter(c => c !== 'General');
 
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
@@ -46,6 +49,7 @@ export default function Inventory() {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.sku.trim()) return;
+    setIsSubmitting(true);
     try {
       if (editId) {
         await updateProduct({ ...form, id: editId });
@@ -62,6 +66,24 @@ export default function Inventory() {
       } else {
         toast.error('Failed to save product', { description: err.message });
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReamRestock = async () => {
+    if (!reamRestockProduct || !reamQty || Number(reamQty) <= 0) return;
+    const sheetsToAdd = Math.round(Number(reamQty) * SHEETS_PER_REAM);
+    setIsSubmitting(true);
+    try {
+      await updateProduct({ ...reamRestockProduct, stock: reamRestockProduct.stock + sheetsToAdd });
+      toast.success(`Added ${sheetsToAdd.toLocaleString()} sheets (${reamQty} ream${Number(reamQty) > 1 ? 's' : ''}) to ${reamRestockProduct.name}`);
+      setReamRestockProduct(null);
+      setReamQty('');
+    } catch (err: any) {
+      toast.error('Restock failed', { description: err.message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -185,6 +207,15 @@ export default function Inventory() {
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex gap-2 justify-end">
+                      {!p.isService && p.unit === 'ream' && (
+                        <button
+                          onClick={() => { setReamRestockProduct(p); setReamQty(''); }}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition text-xs font-semibold flex items-center gap-1"
+                          title="Restock in Reams"
+                        >
+                          <RefreshCw size={14} /> Restock
+                        </button>
+                      )}
                       <button onClick={() => openEdit(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit"><Edit2 size={16} /></button>
                       <button onClick={() => setConfirmDelete(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition" title="Delete"><Trash2 size={16} /></button>
                     </div>
@@ -303,8 +334,12 @@ export default function Inventory() {
             </div>
             <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end rounded-b-xl">
               <button onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 transition font-medium">Cancel</button>
-              <button onClick={handleSave} className="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md">
-                {editId ? 'Save Changes' : 'Add Product'}
+              <button
+                onClick={handleSave}
+                disabled={isSubmitting}
+                className="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50"
+              >
+                {isSubmitting ? 'Saving...' : editId ? 'Save Changes' : 'Add Product'}
               </button>
             </div>
           </div>
@@ -320,6 +355,45 @@ export default function Inventory() {
             <div className="flex gap-3 justify-end">
               <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 font-medium">Cancel</button>
               <button onClick={() => handleDelete(confirmDelete)} className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ream Restock Modal */}
+      {reamRestockProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setReamRestockProduct(null)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-1">Restock in Reams</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              <strong>{reamRestockProduct.name}</strong> — Current stock: <strong>{reamRestockProduct.stock.toLocaleString()} sheets</strong><br />
+              1 ream = {SHEETS_PER_REAM} sheets
+            </p>
+            <div className="mb-4">
+              <label className="block text-xs font-semibold mb-1">Number of Reams to Add</label>
+              <input
+                type="number" min={1} step={1}
+                className="w-full p-2.5 border rounded-lg text-center font-bold text-lg"
+                placeholder="e.g. 3"
+                value={reamQty}
+                onChange={e => setReamQty(e.target.value)}
+                autoFocus
+              />
+              {reamQty && Number(reamQty) > 0 && (
+                <p className="text-xs text-green-700 mt-1.5 font-medium">
+                  Will add {(Number(reamQty) * SHEETS_PER_REAM).toLocaleString()} sheets → New stock: {(reamRestockProduct.stock + Number(reamQty) * SHEETS_PER_REAM).toLocaleString()} sheets
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setReamRestockProduct(null)} className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 font-medium">Cancel</button>
+              <button
+                onClick={handleReamRestock}
+                disabled={isSubmitting || !reamQty || Number(reamQty) <= 0}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Restocking...' : 'Confirm Restock'}
+              </button>
             </div>
           </div>
         </div>

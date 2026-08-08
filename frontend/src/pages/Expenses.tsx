@@ -24,6 +24,7 @@ export default function Expenses() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filtered = expenses.filter(e => !dateFilter || e.date === dateFilter);
   const totalToday = filtered.reduce((sum, e) => sum + e.amount, 0);
@@ -33,6 +34,7 @@ export default function Expenses() {
     if (!form.description.trim()) { setError('Description is required.'); return; }
     if (form.amount <= 0) { setError('Amount must be greater than zero.'); return; }
     
+    setIsSubmitting(true);
     try {
       await addExpense({ ...form, loggedBy: 'Admin' });
       toast.success('Expense logged successfully');
@@ -46,6 +48,8 @@ export default function Expenses() {
       } else {
         setError(err.message || 'Failed to save expense');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -111,7 +115,7 @@ export default function Expenses() {
       </div>
 
       {/* Table - wrapped for horizontal scroll on mobile */}
-      <div className="bg-white rounded-lg border shadow overflow-hidden flex-1 overflow-x-auto">
+      <div className="bg-white rounded-lg border shadow flex-1 overflow-auto">
         <table className="w-full text-left min-w-[700px]">
           <thead>
             <tr className="bg-gray-50 border-b">
@@ -208,7 +212,13 @@ export default function Expenses() {
             </div>
             <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end rounded-b-xl">
               <button onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 font-medium">Cancel</button>
-              <button onClick={handleSave} className="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md">Save Expense</button>
+              <button 
+                onClick={handleSave} 
+                disabled={isSubmitting}
+                className="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50"
+              >
+                {isSubmitting ? 'Saving...' : 'Save Expense'}
+              </button>
             </div>
           </div>
         </div>

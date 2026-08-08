@@ -9,7 +9,9 @@ import {
   query, 
   orderBy, 
   where,
-  increment
+  increment,
+  getDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -95,11 +97,53 @@ export interface SaleRecord {
   branch?: string;
   dueDate?: string;
   isCredit?: boolean;
+  // Stationery service fields
+  isStationeryService?: boolean;
+  stationeryServiceId?: string;
+  stationeryServiceName?: string;
+  quantitySold?: number;
+  materialCost?: number;
+  laborCostTotal?: number;
+  electricityCostTotal?: number;
+  overheadCostTotal?: number;
+  totalCost?: number;
+  profit?: number;
+  materialsConsumed?: Array<{ productId: string; name: string; quantityUsed: number; costPrice: number }>;
 }
 
 interface SaleState {
   sales: SaleRecord[];
   addSale: (sale: Omit<SaleRecord, 'id' | 'date' | 'time' | 'status' | 'syncStatus'>) => Promise<void>;
+  addStationeryServiceSale: (params: {
+    invoiceNumber: string;
+    cashier: string;
+    branch: string;
+    paymentMethod: string;
+    amountPaid: number;
+    total: number;
+    subtotal: number;
+    discount: number;
+    taxAmount: number;
+    taxName: string;
+    taxType: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerId?: string;
+    dueDate?: string;
+    isCredit?: boolean;
+    stationeryServiceId: string;
+    stationeryServiceName: string;
+    quantitySold: number;
+    sellingPrice: number;
+    materialCost: number;
+    laborCostTotal: number;
+    electricityCostTotal: number;
+    overheadCostTotal: number;
+    totalCost: number;
+    profit: number;
+    materialsConsumed: Array<{ productId: string; name: string; quantityUsed: number; costPrice: number }>;
+  }) => Promise<void>;
+  restoreStationeryMaterials: (saleId: string) => Promise<void>;
   updateSaleStatus: (id: string, status: 'completed' | 'refunded' | 'voided') => void;
   getTodaySales: () => SaleRecord[];
   getTodayCashTotal: () => number;
@@ -166,17 +210,126 @@ export const useSaleStore = create<SaleState>()(
       };
       await addDoc(collection(db, 'sales'), newSale);
     },
+    addStationeryServiceSale: async (params) => {
+      const batch = writeBatch(db);
+
+      // 1. Validate stock for all materials and build deduction ops
+      for (const mat of params.materialsConsumed) {
+        const productRef = doc(db, 'products', mat.productId);
+        const productSnap = await getDoc(productRef);
+        if (!productSnap.exists()) {
+          throw new Error(`Material product not found: ${mat.name}`);
+        }
+        const currentStock = Number(productSnap.data().stock) || 0;
+        if (currentStock < mat.quantityUsed) {
+          throw new Error(`Insufficient stock for "${mat.name}". Available: ${currentStock}, Required: ${mat.quantityUsed}`);
+        }
+        // Queue the stock decrement in the batch
+        batch.update(productRef, { stock: increment(-mat.quantityUsed) });
+      }
+
+      // 2. Build the sale document
+      const saleRef = doc(collection(db, 'sales'));
+      const now = Date.now();
+      batch.set(saleRef, {
+        invoiceNumber: params.invoiceNumber,
+        cashier: params.cashier,
+        branch: params.branch || '',
+        paymentMethod: params.paymentMethod,
+        amountPaid: params.amountPaid,
+        total: params.total,
+        subtotal: params.subtotal,
+        discount: params.discount,
+        taxAmount: params.taxAmount,
+        taxName: params.taxName,
+        taxType: params.taxType,
+        customerName: params.customerName || '',
+        customerPhone: params.customerPhone || '',
+        customerId: params.customerId || '',
+        dueDate: params.dueDate || '',
+        isCredit: params.isCredit || false,
+        creditPaid: 0,
+        isStationeryService: true,
+        stationeryServiceId: params.stationeryServiceId,
+        stationeryServiceName: params.stationeryServiceName,
+        quantitySold: params.quantitySold,
+        materialCost: params.materialCost,
+        laborCostTotal: params.laborCostTotal,
+        electricityCostTotal: params.electricityCostTotal,
+        overheadCostTotal: params.overheadCostTotal,
+        totalCost: params.totalCost,
+        profit: params.profit,
+        materialsConsumed: params.materialsConsumed,
+        // Items array for receipt compatibility
+        items: [{
+          name: `${params.stationeryServiceName} × ${params.quantitySold}`,
+          quantity: params.quantitySold,
+          unitPrice: params.sellingPrice,
+          isStationeryService: true,
+        }],
+        status: 'completed',
+        createdAt: now,
+      });
+
+      // 3. Commit atomically — either all stock deductions + sale go through, or nothing does
+      await batch.commit();
+    },
+
+    restoreStationeryMaterials: async (saleId) => {
+      try {
+        const saleSnap = await getDoc(doc(db, 'sales', saleId));
+        if (!saleSnap.exists()) return;
+        const saleData = saleSnap.data();
+        if (!saleData.isStationeryService || !Array.isArray(saleData.materialsConsumed)) return;
+
+        const batch = writeBatch(db);
+        for (const mat of saleData.materialsConsumed) {
+          batch.update(doc(db, 'products', mat.productId), { stock: increment(mat.quantityUsed) });
+        }
+        await batch.commit();
+      } catch (e) {
+        console.error('Failed to restore stationery materials', e);
+      }
+    },
+
     syncPendingSales: async () => {
       // No-op. Firestore syncs automatically.
     },
     updateSaleStatus: async (id, status) => {
       try {
-        // Store lowercase consistently so getTodaySales() filter always works
+        const saleDoc = await getDoc(doc(db, 'sales', id));
+        if (saleDoc.exists()) {
+          const saleData = saleDoc.data() as any;
+          const newStatus = status.toLowerCase();
+          
+          // If changing to refunded or voided from completed
+          if ((newStatus === 'refunded' || newStatus === 'voided') && saleData.status !== newStatus) {
+            if (saleData.isStationeryService && Array.isArray(saleData.materialsConsumed)) {
+              // Restore stationery materials atomically
+              const batch = writeBatch(db);
+              for (const mat of saleData.materialsConsumed) {
+                batch.update(doc(db, 'products', mat.productId), { stock: increment(mat.quantityUsed) });
+              }
+              await batch.commit();
+            } else {
+              // Restore regular product inventory
+              for (const item of saleData.items) {
+                if (item.isService || item.isStationeryService) continue;
+                const invRef = doc(db, 'products', item.id || item.productId);
+                const invDoc = await getDoc(invRef);
+                if (invDoc.exists()) {
+                  await updateDoc(invRef, { stock: increment(item.quantity) });
+                }
+              }
+            }
+          }
+        }
         await updateDoc(doc(db, 'sales', id), { status: status.toLowerCase() });
       } catch (e) {
         console.error('Failed to update sale status', e);
       }
     },
+
     getTodaySales: () => {
       const today = new Date().toISOString().slice(0, 10);
       return get().sales.filter(s => s.date === today && s.status === 'completed');
@@ -281,6 +434,7 @@ interface EmployeeState {
   loadEmployees: () => Promise<void>;
   addEmployee: (emp: Omit<Employee, 'id'>) => void;
   updateStatus: (id: string, status: Employee['status']) => void;
+  updateEmployee: (id: string, emp: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => void;
   recordAdvancePay: (id: string, amount: number, notes?: string) => Promise<void>;
   clearAdvancePay: (id: string) => Promise<void>;
@@ -321,6 +475,9 @@ export const useEmployeeStore = create<EmployeeState>()(
     updateStatus: async (id, status) => {
       await updateDoc(doc(db, 'employees', id), { status });
     },
+    updateEmployee: async (id, emp) => {
+      await updateDoc(doc(db, 'employees', id), emp);
+    },
     deleteEmployee: async (id) => {
       await deleteDoc(doc(db, 'employees', id));
     },
@@ -341,6 +498,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         description: notes ? `Notes: ${notes}` : `Advance payment to ${emp.firstName} ${emp.lastName}`,
         paymentMethod: 'CASH',
         date: new Date().toISOString().slice(0, 10),
+        loggedBy: 'System',
         createdAt: Date.now()
       });
     },

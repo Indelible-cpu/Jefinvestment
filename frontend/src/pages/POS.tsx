@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCartStore, useProductStore, type CartItem } from '../store/cartStore';
 import { useSaleStore } from '../store/dataStore';
+import { useStationeryStore, type StationeryService } from '../store/stationeryStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
-import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine, Printer, Zap, Users, Layers, ChevronRight, Package } from 'lucide-react';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { generateInvoiceNumber } from '../utils/invoiceNumber';
@@ -33,6 +34,7 @@ export default function POS() {
     amountPaid: number; customerName?: string; customerPhone?: string; customerId?: string; invoiceNumber: string;
   }>(null);
   const [txStatus, setTxStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const cartSectionRef = useRef<HTMLDivElement>(null);
@@ -41,18 +43,56 @@ export default function POS() {
 
   const cart = useCartStore();
   const { products, isLoading: productsLoading, decrementStock } = useProductStore();
-  const { addSale } = useSaleStore();
+  const { addSale, addStationeryServiceSale } = useSaleStore();
+  const { services: stationeryServices } = useStationeryStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  // Stationery service panel state
+  const [selectedStationerySvc, setSelectedStationerySvc] = useState<StationeryService | null>(null);
+  const [stationeryQty, setStationeryQty] = useState(1);
+
+  const categories = ['All', ...Array.from(new Set(products.map(p => p.category))).filter(c => c !== 'Stationery Service')];
+  // Stationery services shown separately, regular products exclude 'Stationery Service' category
   const filteredProducts = products.filter(p => {
+    if (p.category === 'Stationery Service') return false;
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCat = catFilter === 'All' || p.category === catFilter;
     return matchSearch && matchCat;
   });
+
+  // Stationery services filtered by search
+  const filteredStationeryServices = stationeryServices.filter(s =>
+    catFilter === 'All' || catFilter === 'Stationery'
+      ? s.serviceName.toLowerCase().includes(searchTerm.toLowerCase())
+      : false
+  );
+
+  // Compute stationery service cost breakdown
+  const stationeryCost = useMemo(() => {
+    if (!selectedStationerySvc) return null;
+    const qty = stationeryQty || 1;
+    const matCost = selectedStationerySvc.materialsUsed.reduce((sum, m) => {
+      const product = products.find(p => p.id === m.inventoryItemId);
+      return sum + (product?.costPrice || 0) * m.quantityPerUnit * qty;
+    }, 0);
+    const labor = selectedStationerySvc.laborCost * qty;
+    const electricity = selectedStationerySvc.electricityCost * qty;
+    const overhead = selectedStationerySvc.otherOverheadCost * qty;
+    const totalCost = matCost + labor + electricity + overhead;
+    const revenue = selectedStationerySvc.sellingPrice * qty;
+    const profit = revenue - totalCost;
+    // Stock check
+    const stockIssues = selectedStationerySvc.materialsUsed.map(m => {
+      const product = products.find(p => p.id === m.inventoryItemId);
+      const needed = m.quantityPerUnit * qty;
+      const available = product?.stock || 0;
+      return { name: product?.name || m.inventoryItemId, needed, available, ok: available >= needed };
+    });
+    return { qty, matCost, labor, electricity, overhead, totalCost, revenue, profit, stockIssues };
+  }, [selectedStationerySvc, stationeryQty, products]);
 
   const finalTotal = useMemo(() => {
     const baseTotal = cart.getTotal();
@@ -111,6 +151,74 @@ const playSound = (type: 'success' | 'error') => {
   }
 };
 
+  const handleStationeryCheckout = async () => {
+    if (!selectedStationerySvc || !stationeryCost) return;
+    const hasStockIssue = stationeryCost.stockIssues.some(s => !s.ok);
+    if (hasStockIssue) {
+      toast.error('Insufficient stock', {
+        description: stationeryCost.stockIssues.filter(s => !s.ok)
+          .map(s => `${s.name}: need ${s.needed}, have ${s.available}`).join('; ')
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const invoiceNumber = generateInvoiceNumber();
+    try {
+      const materialsConsumed = selectedStationerySvc.materialsUsed.map(m => {
+        const product = products.find(p => p.id === m.inventoryItemId);
+        return {
+          productId: m.inventoryItemId,
+          name: product?.name || m.inventoryItemId,
+          quantityUsed: m.quantityPerUnit * stationeryQty,
+          costPrice: product?.costPrice || 0,
+        };
+      });
+
+      await addStationeryServiceSale({
+        invoiceNumber,
+        cashier: user?.name || 'Staff',
+        branch: user?.branchId || settings.companyName,
+        paymentMethod,
+        amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) || stationeryCost.revenue : stationeryCost.revenue),
+        total: stationeryCost.revenue,
+        subtotal: stationeryCost.revenue,
+        discount: 0,
+        taxAmount: 0,
+        taxName: '',
+        taxType: 'EXCLUSIVE',
+        customerName: paymentMethod === 'CREDIT' ? customerName : '',
+        customerPhone: paymentMethod === 'CREDIT' ? customerPhone : '',
+        customerId: paymentMethod === 'CREDIT' ? customerId : '',
+        dueDate: paymentMethod === 'CREDIT' ? dueDate : '',
+        isCredit: paymentMethod === 'CREDIT',
+        stationeryServiceId: selectedStationerySvc.id,
+        stationeryServiceName: selectedStationerySvc.serviceName,
+        quantitySold: stationeryQty,
+        sellingPrice: selectedStationerySvc.sellingPrice,
+        materialCost: stationeryCost.matCost,
+        laborCostTotal: stationeryCost.labor,
+        electricityCostTotal: stationeryCost.electricity,
+        overheadCostTotal: stationeryCost.overhead,
+        totalCost: stationeryCost.totalCost,
+        profit: stationeryCost.profit,
+        materialsConsumed,
+      });
+
+      playSound('success');
+      toast.success(`${selectedStationerySvc.serviceName} × ${stationeryQty} completed!`, {
+        description: `Revenue: ${settings.currency} ${stationeryCost.revenue.toLocaleString()} | Profit: ${settings.currency} ${stationeryCost.profit.toFixed(2)}`
+      });
+      setSelectedStationerySvc(null);
+      setStationeryQty(1);
+      setAmountPaid('');
+    } catch (err: any) {
+      toast.error('Sale failed', { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handlePayNow = () => {
     setErrorMsg('');
 
@@ -160,6 +268,7 @@ const playSound = (type: 'success' | 'error') => {
     playSound('success');
     setTxStatus({ type: 'success', message: 'Transaction completed successfully!' });
 
+    setIsSubmitting(true);
     setTimeout(async () => {
       setTxStatus(null);
       // Save receipt data and show preview modal (no auto-print)
@@ -228,6 +337,7 @@ const playSound = (type: 'success' | 'error') => {
       setCustomerId('');
       setDueDate('');
       setAmountPaid('');
+      setIsSubmitting(false);
     }, 50);
   };
 
@@ -357,6 +467,16 @@ const playSound = (type: 'success' | 'error') => {
                 {c}
               </button>
             ))}
+            {stationeryServices.length > 0 && (
+              <button
+                onClick={() => setCatFilter('Stationery')}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition flex items-center gap-1 ${
+                  catFilter === 'Stationery' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                }`}
+              >
+                <Printer size={11} /> Stationery
+              </button>
+            )}
           </div>
           
           <div className="flex-1 overflow-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
@@ -405,6 +525,27 @@ const playSound = (type: 'success' | 'error') => {
                 </div>
               );
             })}
+
+            {/* Stationery Service Cards */}
+            {filteredStationeryServices.map(svc => (
+              <div
+                key={svc.id}
+                onClick={() => { setSelectedStationerySvc(svc); setStationeryQty(1); }}
+                className="border-2 border-blue-200 p-3 rounded-lg flex flex-col justify-between h-32 cursor-pointer hover:border-blue-500 hover:shadow-md bg-blue-50 transition"
+              >
+                <div>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Printer size={12} className="text-blue-600" />
+                    <span className="text-[10px] font-semibold text-blue-600 uppercase">Stationery</span>
+                  </div>
+                  <h3 className="font-semibold text-sm line-clamp-2">{svc.serviceName}</h3>
+                </div>
+                <div className="flex justify-between items-end">
+                  <div className="font-bold text-blue-700 text-sm">{settings.currency} {svc.sellingPrice.toLocaleString()}/unit</div>
+                  <ChevronRight size={16} className="text-blue-400" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
         
@@ -470,9 +611,20 @@ const playSound = (type: 'success' | 'error') => {
                   <span>Subtotal</span>
                   <span>{settings.currency} {cart.getSubtotal().toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-gray-600">
+                <div className="flex justify-between items-center text-gray-600">
                   <span>Discount</span>
-                  <span>{settings.currency} {cart.globalDiscount.toLocaleString()}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm">{settings.currency}</span>
+                    <input 
+                      type="number"
+                      value={cart.globalDiscount || ''}
+                      onChange={e => cart.setGlobalDiscount(parseFloat(e.target.value) || 0)}
+                      onFocus={e => e.target.select()}
+                      className="w-24 text-right border rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="0"
+                      min={0}
+                    />
+                  </div>
                 </div>
                 
                 {(() => {
@@ -702,9 +854,9 @@ const playSound = (type: 'success' | 'error') => {
                 className={`p-3 text-white rounded-lg font-bold transition shadow-md disabled:opacity-50 flex flex-col items-center justify-center gap-1 ${
                   paymentMethod === 'CREDIT' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-primary hover:bg-blue-700'
                 }`}
-                disabled={cart.items.length === 0}
+                disabled={cart.items.length === 0 || isSubmitting}
               >
-                <span>{paymentMethod === 'CREDIT' ? 'Complete Credit Sale' : 'Pay Now'}</span>
+                <span>{isSubmitting ? 'Processing...' : paymentMethod === 'CREDIT' ? 'Complete Credit Sale' : 'Pay Now'}</span>
                 <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-normal">F8</span>
               </button>
             </div>
@@ -818,6 +970,144 @@ const playSound = (type: 'success' | 'error') => {
           onClose={() => setReceiptData(null)}
           onNewSale={handleNewSale}
         />
+      )}
+
+      {/* Stationery Service Checkout Panel */}
+      {selectedStationerySvc && stationeryCost && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[95vh]">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-5 rounded-t-2xl flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Printer size={20} />
+                  <span className="text-sm font-semibold opacity-80">STATIONERY SERVICE</span>
+                </div>
+                <h2 className="text-xl font-bold">{selectedStationerySvc.serviceName}</h2>
+                <div className="text-blue-200 text-sm">{settings.currency} {selectedStationerySvc.sellingPrice} per unit</div>
+              </div>
+              <button onClick={() => setSelectedStationerySvc(null)} className="p-1 hover:bg-white/20 rounded-lg">
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Quantity */}
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Quantity (pages / copies)</label>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setStationeryQty(q => Math.max(1, q - 1))}
+                    className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200"
+                  >
+                    <Minus size={18} />
+                  </button>
+                  <input
+                    type="number" min={1}
+                    className="flex-1 text-center font-bold text-2xl border-2 rounded-lg p-2 outline-none focus:border-blue-500"
+                    value={stationeryQty}
+                    onChange={e => setStationeryQty(Math.max(1, Number(e.target.value) || 1))}
+                  />
+                  <button
+                    onClick={() => setStationeryQty(q => q + 1)}
+                    className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Stock check */}
+              {stationeryCost.stockIssues.map((s, i) => (
+                <div key={i} className={`flex justify-between items-center text-sm rounded-lg px-3 py-2 ${s.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700 font-semibold'}`}>
+                  <span>{s.name}</span>
+                  <span>Need {s.needed} · Have {s.available} {s.ok ? '✓' : '⚠ Insufficient'}</span>
+                </div>
+              ))}
+
+              {/* Cost breakdown */}
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between text-gray-600">
+                  <span className="flex items-center gap-1"><Package size={13} /> Material Cost</span>
+                  <span>{settings.currency} {stationeryCost.matCost.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span className="flex items-center gap-1"><Users size={13} /> Labor Cost</span>
+                  <span>{settings.currency} {stationeryCost.labor.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span className="flex items-center gap-1"><Zap size={13} /> Electricity Cost</span>
+                  <span>{settings.currency} {stationeryCost.electricity.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span className="flex items-center gap-1"><Layers size={13} /> Other Overhead</span>
+                  <span>{settings.currency} {stationeryCost.overhead.toFixed(2)}</span>
+                </div>
+                <div className="border-t pt-2 flex justify-between font-semibold text-red-600">
+                  <span>Total Cost</span>
+                  <span>{settings.currency} {stationeryCost.totalCost.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-green-700 text-base">
+                  <span>Revenue</span>
+                  <span>{settings.currency} {stationeryCost.revenue.toLocaleString()}</span>
+                </div>
+                <div className={`flex justify-between font-extrabold text-lg border-t pt-2 ${stationeryCost.profit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                  <span>Est. Profit</span>
+                  <span>{settings.currency} {stationeryCost.profit.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Payment method */}
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Payment Method</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['CASH', 'BANK_TRANSFER', 'CREDIT'].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setPaymentMethod(m)}
+                      className={`py-2 rounded-lg text-xs font-semibold border-2 transition ${paymentMethod === m ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 text-gray-700 hover:border-blue-300'}`}
+                    >
+                      {m === 'BANK_TRANSFER' ? 'Transfer' : m === 'CREDIT' ? 'Credit' : 'Cash'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {paymentMethod === 'CREDIT' && (
+                <div className="space-y-2">
+                  <input
+                    type="text" placeholder="Customer Name *"
+                    className="w-full p-2.5 border rounded-lg text-sm"
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                  />
+                  <input
+                    type="tel" placeholder="Customer Phone *"
+                    className="w-full p-2.5 border rounded-lg text-sm"
+                    value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                  />
+                  <input
+                    type="date" placeholder="Due Date"
+                    className="w-full p-2.5 border rounded-lg text-sm"
+                    value={dueDate}
+                    onChange={e => setDueDate(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {/* Confirm */}
+              <button
+                onClick={handleStationeryCheckout}
+                disabled={isSubmitting || stationeryCost.stockIssues.some(s => !s.ok) || (paymentMethod === 'CREDIT' && (!customerName.trim() || !customerPhone.trim()))}
+                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+              >
+                <Printer size={18} />
+                {isSubmitting ? 'Processing...' : `Confirm — ${settings.currency} ${stationeryCost.revenue.toLocaleString()}`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

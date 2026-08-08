@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle, Trash2 } from 'lucide-react';
+import { Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle, Trash2, Edit } from 'lucide-react';
 import { useEmployeeStore, type Employee } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { toast } from 'sonner';
 
 export default function Employees() {
-  const { employees, addEmployee, updateStatus, recordAdvancePay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
+  const { employees, addEmployee, updateEmployee, updateStatus, recordAdvancePay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
   const settings = useSettingsStore();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingEmpId, setEditingEmpId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -21,17 +23,56 @@ export default function Employees() {
   const [advanceNotes, setAdvanceNotes] = useState('');
   const [isSubmittingAdvance, setIsSubmittingAdvance] = useState(false);
 
-  const handleAddEmployee = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFirstName || !newLastName) return;
-
-    addEmployee({ firstName: newFirstName, lastName: newLastName, phone: newPhone, role: newRole, salary: Number(newSalary), status: 'PRESENT' });
-    toast.success(`Employee ${newFirstName} ${newLastName} added successfully.`);
-    setShowAddModal(false);
+  const openAddModal = () => {
+    setEditingEmpId(null);
     setNewFirstName('');
     setNewLastName('');
     setNewPhone('');
+    setNewRole('Cashier');
     setNewSalary('');
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (emp: Employee) => {
+    setEditingEmpId(emp.id);
+    setNewFirstName(emp.firstName);
+    setNewLastName(emp.lastName);
+    setNewPhone(emp.phone);
+    setNewRole(emp.role);
+    setNewSalary(emp.salary.toString());
+    setShowAddModal(true);
+  };
+
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFirstName || !newLastName) return;
+
+    setIsSubmitting(true);
+    try {
+      if (editingEmpId) {
+        await updateEmployee(editingEmpId, {
+          firstName: newFirstName,
+          lastName: newLastName,
+          phone: newPhone,
+          role: newRole,
+          salary: Number(newSalary)
+        });
+        toast.success(`Employee updated successfully.`);
+      } else {
+        await addEmployee({ firstName: newFirstName, lastName: newLastName, phone: newPhone, role: newRole, salary: Number(newSalary), status: 'PRESENT' });
+        toast.success(`Employee ${newFirstName} ${newLastName} added successfully.`);
+      }
+      setShowAddModal(false);
+      setEditingEmpId(null);
+      setNewFirstName('');
+      setNewLastName('');
+      setNewPhone('');
+      setNewSalary('');
+    } catch (err: any) {
+      toast.error('Failed to save employee', { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleToggleStatus = (id: string, current: string) => {
@@ -85,12 +126,8 @@ export default function Employees() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Employee &amp; HR Management</h1>
           <p className="text-gray-500 text-sm mt-1">Manage staff records, roles, salary, attendance, and advance payments.</p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition shadow self-start"
-        >
-          <UserPlus size={18} />
-          Add Employee
+        <button onClick={openAddModal} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md self-start">
+          <UserPlus size={20} /> Add Employee
         </button>
       </div>
 
@@ -213,6 +250,13 @@ export default function Employees() {
                       Toggle
                     </button>
                     <button 
+                      onClick={() => openEditModal(emp)}
+                      className="text-xs text-blue-600 hover:bg-blue-50 p-1.5 rounded transition inline-flex items-center"
+                      title="Edit Employee"
+                    >
+                      <Edit size={15} />
+                    </button>
+                    <button 
                       onClick={() => handleDelete(emp)}
                       className="text-xs text-red-600 hover:bg-red-50 p-1.5 rounded transition inline-flex items-center"
                       title="Delete Employee"
@@ -231,7 +275,7 @@ export default function Employees() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setShowAddModal(false)}>
           <div className="bg-card w-full max-w-md rounded-lg shadow-lg border p-6" onClick={e => e.stopPropagation()}>
-            <h2 className="text-xl font-bold mb-4">Add New Employee</h2>
+            <h2 className="text-xl font-bold mb-4">{editingEmpId ? 'Edit Employee' : 'Add New Employee'}</h2>
             <form onSubmit={handleAddEmployee} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -277,6 +321,7 @@ export default function Employees() {
                   <option value="Technician">Technician</option>
                   <option value="Print Shop Operator">Print Shop Operator</option>
                   <option value="Manager">Manager</option>
+                  <option value="Security Guard">Security Guard</option>
                 </select>
               </div>
 
@@ -300,9 +345,10 @@ export default function Employees() {
                 </button>
                 <button 
                   type="submit"
-                  className="px-4 py-2 bg-primary text-white rounded hover:bg-blue-700 font-medium"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-primary text-white rounded hover:bg-blue-700 font-medium disabled:opacity-50"
                 >
-                  Save Employee
+                  {isSubmitting ? 'Saving...' : editingEmpId ? 'Save Changes' : 'Save Employee'}
                 </button>
               </div>
             </form>
