@@ -449,8 +449,26 @@ export default function Settings() {
                 <p className="text-sm text-gray-600 mt-1">Lock the system outside of business hours. Admins can temporarily unlock it.</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" checked={securityForm.autoLockEnabled} onChange={e => setSecurityForm(f => ({ ...f, autoLockEnabled: e.target.checked }))} />
-                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={securityForm.autoLockEnabled}
+                  onChange={e => setSecurityForm(f => ({ ...f, autoLockEnabled: e.target.checked }))}
+                />
+                <div
+                  style={{
+                    width: 44, height: 24, borderRadius: 12, position: 'relative',
+                    backgroundColor: securityForm.autoLockEnabled ? 'var(--color-primary, #2563eb)' : '#d1d5db',
+                    transition: 'background-color 0.2s',
+                    flexShrink: 0,
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 2, left: securityForm.autoLockEnabled ? 22 : 2,
+                    width: 20, height: 20, borderRadius: 10, backgroundColor: 'white',
+                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                  }} />
+                </div>
               </label>
             </div>
             
