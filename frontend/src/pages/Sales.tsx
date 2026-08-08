@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   Search, Filter, ChevronLeft, ChevronRight, Eye, Printer, MoreVertical,
   Ban, RefreshCcw, Download, CheckCircle2, Clock, X,
-  ShoppingBag, Banknote, WifiOff, Wifi, ArrowUpDown, CalendarRange,
+  ShoppingBag, Banknote, WifiOff, Wifi, ArrowUpDown, CalendarRange, Trash2,
 } from 'lucide-react';
 import { useSaleStore, type SaleRecord } from '../store/dataStore';
 import { useAuthStore } from '../store/authStore';
@@ -179,7 +179,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
 
 // ─── Main Sales Page ───────────────────────────────────────────────────────────
 export default function Sales() {
-  const { sales, updateSaleStatus } = useSaleStore();
+  const { sales, updateSaleStatus, deleteSale } = useSaleStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
@@ -200,6 +200,7 @@ export default function Sales() {
   const [detailSale, setDetailSale] = useState<SaleRecord | null>(null);
   const [reprintSale, setReprintSale] = useState<SaleRecord | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Visible sales based on role
   const visibleSales = isAdmin ? sales : sales.filter(s => s.cashier === user?.name);
@@ -490,6 +491,17 @@ export default function Sales() {
                                   </button>
                                 </>
                               )}
+                              {isAdmin && (sale.status === 'voided' || sale.status === 'refunded') && (
+                                <>
+                                  <div className="border-t my-1" />
+                                  <button
+                                    onClick={() => { setDeleteConfirmId(sale.id); setOpenMenuId(null); }}
+                                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 font-semibold transition"
+                                  >
+                                    <Trash2 size={15} /> Delete Record
+                                  </button>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>
@@ -530,6 +542,41 @@ export default function Sales() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirm Dialog */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 size={20} className="text-red-600" />
+              </div>
+              <div>
+                <div className="font-bold text-gray-900">Delete Sale Record?</div>
+                <div className="text-sm text-gray-500">This permanently removes the record. Cannot be undone.</div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={async () => {
+                  await deleteSale(deleteConfirmId);
+                  toast.success('Sale record deleted.');
+                  setDeleteConfirmId(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition"
+              >
+                Yes, Delete
+              </button>
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 px-4 py-2.5 border rounded-xl font-semibold text-sm text-gray-700 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {detailSale && (

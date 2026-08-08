@@ -116,6 +116,7 @@ interface SaleState {
   addSale: (sale: Omit<SaleRecord, 'id' | 'date' | 'time' | 'status' | 'syncStatus'>) => Promise<void>;
   restoreStationeryMaterials: (saleId: string) => Promise<void>;
   updateSaleStatus: (id: string, status: 'completed' | 'refunded' | 'voided') => void;
+  deleteSale: (id: string) => Promise<void>;
   getTodaySales: () => SaleRecord[];
   getTodayCashTotal: () => number;
   getTodayCreditTotal: () => number;
@@ -241,6 +242,14 @@ export const useSaleStore = create<SaleState>()(
         await updateDoc(doc(db, 'sales', id), { status: status.toLowerCase() });
       } catch (e) {
         console.error('Failed to update sale status', e);
+      }
+    },
+
+    deleteSale: async (id) => {
+      try {
+        await deleteDoc(doc(db, 'sales', id));
+      } catch (e) {
+        console.error('Failed to delete sale', e);
       }
     },
 

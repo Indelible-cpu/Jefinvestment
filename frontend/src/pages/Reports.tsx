@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBag, AlertCircle, Printer, Calendar, Package, Zap, Users, Layers } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBag, AlertCircle, Printer, Calendar, Package, Zap, Users, Layers, PiggyBank, Activity } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from 'recharts';
 import { useSaleStore, useExpenseStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -8,12 +8,26 @@ const today = new Date().toISOString().slice(0, 10);
 
 type Tab = 'daily' | 'stationery';
 
+/** Compute estimated profit from a list of completed sale records */
+function calcSaleProfit(sale: { items: Array<{ quantity: number; unitPrice: number; costPrice?: number }>; profit?: number; discount?: number }): number {
+  if ((sale as any).profit !== undefined) return (sale as any).profit as number;
+  const gross = sale.items.reduce((sum, item) => {
+    const rev = item.quantity * item.unitPrice;
+    const cost = (item.costPrice || 0) * item.quantity;
+    return sum + (rev - cost);
+  }, 0);
+  return gross - (sale.discount || 0);
+}
+
 export default function Reports() {
   const [reportDate, setReportDate] = useState(today);
   const [activeTab, setActiveTab] = useState<Tab>('daily');
   const { sales } = useSaleStore();
   const { expenses } = useExpenseStore();
   const settings = useSettingsStore();
+
+  // Only count completed sales everywhere
+  const completedSales = useMemo(() => sales.filter(s => (s.status ?? 'completed') === 'completed'), [sales]);
 
   /* ── 7-day trend ── */
   const trendData = useMemo(() => {
@@ -22,22 +36,24 @@ export default function Reports() {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
-      const daySales = sales.filter(s => s.date === dateStr).reduce((sum, s) => sum + s.total, 0);
+      const daySales = completedSales.filter(s => s.date === dateStr);
+      const daySalesTotal = daySales.reduce((sum, s) => sum + s.total, 0);
       const dayExpenses = expenses.filter(e => e.date === dateStr).reduce((sum, e) => sum + e.amount, 0);
+      const dayProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - dayExpenses;
       data.push({
         name: d.toLocaleDateString('en-GB', { weekday: 'short' }),
         date: dateStr,
-        Sales: daySales,
+        Sales: daySalesTotal,
         Expenses: dayExpenses,
-        Profit: daySales - dayExpenses,
+        Profit: dayProfit,
       });
     }
     return data;
-  }, [sales, expenses]);
+  }, [completedSales, expenses]);
 
-  /* ── Daily report ── */
+  /* ── Daily report (completed only) ── */
   const data = useMemo(() => {
-    const daySales = sales.filter(s => s.date === reportDate);
+    const daySales = completedSales.filter(s => s.date === reportDate);
     const dayExpenses = expenses.filter(e => e.date === reportDate);
     const cashSales = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
     const transferSales = daySales.filter(s => s.paymentMethod === 'BANK_TRANSFER').reduce((sum, s) => sum + s.total, 0);
@@ -45,12 +61,22 @@ export default function Reports() {
     const totalSales = cashSales + transferSales + creditSales;
     const totalExpenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
     const netCash = cashSales - totalExpenses;
-    return { date: reportDate, cashSales, transferSales, creditSales, totalSales, totalExpenses, netCash, txCount: daySales.length, transactions: daySales };
-  }, [reportDate, sales, expenses]);
+    // Estimated daily profit = gross profit from items minus expenses
+    const dailyProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
+    return { date: reportDate, cashSales, transferSales, creditSales, totalSales, totalExpenses, netCash, dailyProfit, txCount: daySales.length, transactions: daySales };
+  }, [reportDate, completedSales, expenses]);
+
+  /* ── Cumulative (all-time) totals ── */
+  const cumulative = useMemo(() => {
+    const totalRevenue = completedSales.reduce((sum, s) => sum + s.total, 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalProfit = completedSales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
+    return { totalRevenue, totalExpenses, totalProfit };
+  }, [completedSales, expenses]);
 
   /* ── Stationery reports ── */
   const stationeryData = useMemo(() => {
-    const staterySales = sales.filter(s => (s as any).isStationeryService);
+    const staterySales = completedSales.filter(s => (s as any).isStationeryService);
 
     // Group by service name
     const byService: Record<string, { revenue: number; totalCost: number; profit: number; count: number; materialCost: number; laborCost: number; electricityCost: number; overheadCost: number }> = {};
@@ -91,7 +117,7 @@ export default function Reports() {
     const chartData = serviceRows.map(r => ({ name: r.name, Revenue: r.revenue, Cost: r.totalCost, Profit: r.profit }));
 
     return { serviceRows, materialMap, totalRevenue, totalProfit, totalMaterialCost, totalLaborCost, totalElectricityCost, count: staterySales.length, chartData };
-  }, [sales]);
+  }, [completedSales]);
 
   const handlePrint = () => window.print();
 
@@ -165,6 +191,10 @@ export default function Reports() {
                       <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                     </linearGradient>
+                    <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} dy={10} />
@@ -173,13 +203,14 @@ export default function Reports() {
                   <Legend verticalAlign="top" height={36} iconType="circle" />
                   <Area type="monotone" dataKey="Sales" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
                   <Area type="monotone" dataKey="Expenses" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorExpenses)" />
+                  <Area type="monotone" dataKey="Profit" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorProfit)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* KPI Cards — 5 cards including Est. Daily Profit */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <div className="bg-white p-4 md:p-5 rounded-lg border shadow-sm">
               <div className="flex justify-between items-start mb-3">
                 <div className="text-sm text-gray-500 font-medium">Total Sales</div>
@@ -211,6 +242,19 @@ export default function Reports() {
               </div>
               <div className="text-2xl font-bold text-red-600">{cur} {data.totalExpenses.toLocaleString()}</div>
               <div className="text-xs text-gray-400 mt-1">Deducted from cash</div>
+            </div>
+            {/* NEW: Est. Daily Profit */}
+            <div className={`p-5 rounded-lg border shadow-sm ${data.dailyProfit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+              <div className="flex justify-between items-start mb-3">
+                <div className="text-sm text-gray-600 font-medium">Est. Daily Profit</div>
+                <PiggyBank size={20} className={data.dailyProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} />
+              </div>
+              <div className={`text-2xl font-bold ${data.dailyProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                {cur} {data.dailyProfit.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                {data.totalSales > 0 ? `${Math.round(data.dailyProfit / data.totalSales * 100)}% margin` : 'No sales today'}
+              </div>
             </div>
           </div>
 
@@ -255,11 +299,40 @@ export default function Reports() {
             </div>
           </div>
 
+          {/* ── Cumulative All-Time Summary ── */}
+          <div className="bg-gradient-to-r from-slate-700 to-slate-900 text-white rounded-xl p-6 mb-6 shadow-lg">
+            <h2 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
+              <Activity size={20} className="text-emerald-400" /> Cumulative All-Time Summary
+              <span className="text-xs font-normal text-slate-400 ml-2">(completed sales only)</span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white/10 rounded-xl p-4">
+                <div className="text-slate-300 text-xs font-semibold uppercase tracking-wide mb-1">Total Revenue</div>
+                <div className="text-3xl font-extrabold text-white">{cur} {cumulative.totalRevenue.toLocaleString()}</div>
+                <div className="text-slate-400 text-xs mt-1">All completed sales</div>
+              </div>
+              <div className="bg-white/10 rounded-xl p-4">
+                <div className="text-slate-300 text-xs font-semibold uppercase tracking-wide mb-1">Total Expenses</div>
+                <div className="text-3xl font-extrabold text-red-300">{cur} {cumulative.totalExpenses.toLocaleString()}</div>
+                <div className="text-slate-400 text-xs mt-1">All recorded expenses</div>
+              </div>
+              <div className={`rounded-xl p-4 ${cumulative.totalProfit >= 0 ? 'bg-emerald-500/30' : 'bg-red-500/30'}`}>
+                <div className="text-slate-300 text-xs font-semibold uppercase tracking-wide mb-1">Est. Total Profit</div>
+                <div className={`text-3xl font-extrabold ${cumulative.totalProfit >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {cur} {cumulative.totalProfit.toLocaleString()}
+                </div>
+                <div className="text-slate-400 text-xs mt-1">
+                  {cumulative.totalRevenue > 0 ? `${Math.round(cumulative.totalProfit / cumulative.totalRevenue * 100)}% overall margin` : 'No sales yet'}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Transactions table */}
           <div className="bg-white rounded-lg border shadow-sm overflow-x-auto">
             <div className="p-4 border-b bg-gray-50 font-bold text-gray-700 flex justify-between items-center">
               <span>Transactions for {reportDate}</span>
-              <span className="text-sm font-normal text-gray-500">{data.txCount} total</span>
+              <span className="text-sm font-normal text-gray-500">{data.txCount} completed</span>
             </div>
             <table className="w-full text-left min-w-[700px]">
               <thead>
@@ -269,27 +342,34 @@ export default function Reports() {
                   <th className="p-4 text-sm font-semibold text-gray-600">Cashier</th>
                   <th className="p-4 text-sm font-semibold text-gray-600">Method</th>
                   <th className="p-4 text-sm font-semibold text-gray-600 text-right">Amount ({cur})</th>
+                  <th className="p-4 text-sm font-semibold text-gray-600 text-right">Est. Profit ({cur})</th>
                 </tr>
               </thead>
               <tbody>
                 {data.transactions.length === 0 ? (
-                  <tr><td colSpan={5} className="p-4 text-center text-gray-500">No transactions found for this date.</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-gray-500">No completed transactions found for this date.</td></tr>
                 ) : (
-                  data.transactions.map(tx => (
-                    <tr key={tx.invoiceNumber} className="border-b hover:bg-gray-50">
-                      <td className="p-4 font-mono text-sm text-primary font-semibold">{tx.invoiceNumber}</td>
-                      <td className="p-4 text-gray-600">{tx.time}</td>
-                      <td className="p-4">{tx.cashier}</td>
-                      <td className="p-4">
-                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                          tx.paymentMethod === 'CASH' ? 'bg-green-100 text-green-700' :
-                          tx.paymentMethod === 'CREDIT' ? 'bg-amber-100 text-amber-700' :
-                          'bg-purple-100 text-purple-700'
-                        }`}>{tx.paymentMethod.replace('_', ' ')}</span>
-                      </td>
-                      <td className="p-4 text-right font-bold">{tx.total.toLocaleString()}</td>
-                    </tr>
-                  ))
+                  data.transactions.map(tx => {
+                    const txProfit = calcSaleProfit(tx);
+                    return (
+                      <tr key={tx.invoiceNumber} className="border-b hover:bg-gray-50">
+                        <td className="p-4 font-mono text-sm text-primary font-semibold">{tx.invoiceNumber}</td>
+                        <td className="p-4 text-gray-600">{tx.time}</td>
+                        <td className="p-4">{tx.cashier}</td>
+                        <td className="p-4">
+                          <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                            tx.paymentMethod === 'CASH' ? 'bg-green-100 text-green-700' :
+                            tx.paymentMethod === 'CREDIT' ? 'bg-amber-100 text-amber-700' :
+                            'bg-purple-100 text-purple-700'
+                          }`}>{tx.paymentMethod.replace('_', ' ')}</span>
+                        </td>
+                        <td className="p-4 text-right font-bold">{tx.total.toLocaleString()}</td>
+                        <td className={`p-4 text-right font-bold ${txProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {txProfit.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
