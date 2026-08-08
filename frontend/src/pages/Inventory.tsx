@@ -230,7 +230,7 @@ export default function Inventory() {
       {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <form className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); handleSave(); }}>
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-xl font-bold text-gray-800">{editId ? 'Edit Product' : 'Add New Product'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:bg-gray-100 p-1.5 rounded-full"><X size={20} /></button>
@@ -333,16 +333,16 @@ export default function Inventory() {
               </div>
             </div>
             <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end rounded-b-xl">
-              <button onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 transition font-medium">Cancel</button>
+              <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 transition font-medium">Cancel</button>
               <button
-                onClick={handleSave}
+                type="submit"
                 disabled={isSubmitting}
                 className="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50"
               >
                 {isSubmitting ? 'Saving...' : editId ? 'Save Changes' : 'Add Product'}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

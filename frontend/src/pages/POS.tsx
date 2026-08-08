@@ -314,12 +314,15 @@ const playSound = (type: 'success' | 'error') => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select';
+
       if (e.key === 'F2') {
         e.preventDefault();
         searchInputRef.current?.focus();
-      } else if (e.key === 'F8') {
+      } else if (e.key === 'F8' || (e.key === 'Enter' && !isTyping && cart.items.length > 0 && !receiptData && !showHeldCarts)) {
         e.preventDefault();
-        if (cart.items.length > 0) handlePayNow();
+        if (cart.items.length > 0 && !isSubmitting) handlePayNow();
       } else if (e.key === 'F9') {
         e.preventDefault();
         if (cart.items.length > 0) handleHoldCart();
@@ -333,7 +336,7 @@ const playSound = (type: 'success' | 'error') => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart.items.length, handlePayNow, paymentMethod, amountPaid, customerName, customerPhone]);
+  }, [cart.items.length, handlePayNow, paymentMethod, amountPaid, customerName, customerPhone, receiptData, showHeldCarts, isSubmitting]);
 
   const handleBarcodeScan = (scannedSku: string) => {
     // Find the product that matches the SKU exactly

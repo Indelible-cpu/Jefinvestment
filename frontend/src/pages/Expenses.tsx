@@ -158,7 +158,7 @@ export default function Expenses() {
       {/* Log Expense Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <form className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); handleSave(); }}>
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <Receipt size={22} /> Log Expense
@@ -211,16 +211,16 @@ export default function Expenses() {
               </div>
             </div>
             <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end rounded-b-xl">
-              <button onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 font-medium">Cancel</button>
+              <button type="button" onClick={() => setShowModal(false)} className="px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 font-medium">Cancel</button>
               <button 
-                onClick={handleSave} 
+                type="submit" 
                 disabled={isSubmitting}
                 className="px-5 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50"
               >
                 {isSubmitting ? 'Saving...' : 'Save Expense'}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>
