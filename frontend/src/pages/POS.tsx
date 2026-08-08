@@ -42,7 +42,7 @@ export default function POS() {
   const prevCartLengthRef = useRef(0);
 
   const cart = useCartStore();
-  const { products, isLoading: productsLoading, decrementStock } = useProductStore();
+  const { products, isLoading: productsLoading } = useProductStore();
   const { addSale } = useSaleStore();
   const { services: stationeryServices } = useStationeryStore();
   const settings = useSettingsStore();
@@ -271,30 +271,9 @@ const playSound = (type: 'success' | 'error') => {
           isCredit: paymentMethod === 'CREDIT',
         });
         
-        // Decrement stock for physical products & stationery service materials
-        cart.items.forEach(item => {
-          if (!item.isService) {
-            decrementStock(item.id, item.quantity);
-          } else if (item.materialsConsumed && item.materialsConsumed.length > 0) {
-            item.materialsConsumed.forEach(mat => {
-              decrementStock(mat.inventoryItemId, mat.quantityPerUnit * item.quantity);
-            });
-          }
-        });
-
         toast.success('Sale completed successfully');
       } catch (err: any) {
         if (err.message === 'OFFLINE_QUEUED') {
-          // Decrement stock for physical products & stationery service materials
-          cart.items.forEach(item => {
-            if (!item.isService) {
-              decrementStock(item.id, item.quantity);
-            } else if (item.materialsConsumed && item.materialsConsumed.length > 0) {
-              item.materialsConsumed.forEach(mat => {
-                decrementStock(mat.inventoryItemId, mat.quantityPerUnit * item.quantity);
-              });
-            }
-          });
           toast.warning('Offline', { description: 'Sale queued and will sync when online' });
         } else {
           toast.error('Sale failed', { description: err.message || 'Unknown error' });

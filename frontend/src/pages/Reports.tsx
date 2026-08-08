@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBag, AlertCircle, Printer, Calendar, Package, Activity } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBag, AlertCircle, Printer, Calendar, Package, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from 'recharts';
 import { useSaleStore, useExpenseStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -19,6 +19,9 @@ function calcSaleProfit(sale: { items: Array<{ quantity: number; unitPrice: numb
 
 export default function Reports() {
   const [reportDate, setReportDate] = useState(today);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
+  
   const { sales } = useSaleStore();
   const { expenses } = useExpenseStore();
   const settings = useSettingsStore();
@@ -358,7 +361,7 @@ export default function Reports() {
             {data.transactions.length === 0 ? (
               <tr><td colSpan={6} className="p-4 text-center text-gray-500">No completed transactions found for this date.</td></tr>
             ) : (
-              data.transactions.map(tx => {
+              data.transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(tx => {
                 const txProfit = calcSaleProfit(tx);
                 return (
                   <tr key={tx.invoiceNumber} className="border-b hover:bg-gray-50">
@@ -382,6 +385,30 @@ export default function Reports() {
             )}
           </tbody>
         </table>
+        
+        {data.transactions.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+            <div className="text-sm text-gray-500">
+              Showing {((page - 1) * PAGE_SIZE) + 1} to {Math.min(page * PAGE_SIZE, data.transactions.length)} of {data.transactions.length} entries
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1 border bg-white rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(Math.ceil(data.transactions.length / PAGE_SIZE), p + 1))}
+                disabled={page >= Math.ceil(data.transactions.length / PAGE_SIZE)}
+                className="p-1 border bg-white rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useSaleStore, type SaleRecord } from '../store/dataStore';
 import { useAuthStore } from '../store/authStore';
+import { useAuditStore } from '../store/auditStore';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import { toast } from 'sonner';
 import { useSettingsStore } from '../store/settingsStore';
@@ -180,6 +181,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
 // ─── Main Sales Page ───────────────────────────────────────────────────────────
 export default function Sales() {
   const { sales, updateSaleStatus, deleteSale } = useSaleStore();
+  const { addLog } = useAuditStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
@@ -560,6 +562,7 @@ export default function Sales() {
               <button
                 onClick={async () => {
                   await deleteSale(deleteConfirmId);
+                  addLog('DELETE_SALE', `Permanently deleted sale record ID: ${deleteConfirmId}`);
                   toast.success('Sale record deleted.');
                   setDeleteConfirmId(null);
                 }}
@@ -586,6 +589,7 @@ export default function Sales() {
           isAdmin={isAdmin}
           onUpdateStatus={(id, status) => {
             updateSaleStatus(id, status);
+            addLog(status.toUpperCase() + '_SALE', `Changed status of invoice ${detailSale.invoiceNumber} to ${status}`);
             setDetailSale(null);
           }}
         />

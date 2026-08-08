@@ -5,6 +5,7 @@ import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Tra
 import { toast } from 'sonner';
 import { storage } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import AuditLogs from '../components/AuditLogs';
 
 export default function Settings() {
   const { user, updateProfile, users, resetPassword, addUser, deleteUser } = useAuthStore();
@@ -409,9 +410,13 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+            </div>
           </div>
         )}
       </div>
+      
+      {/* Audit Logs Section */}
+      {isAdmin && <AuditLogs />}
 
       {/* Reset Password Modal */}
       {resetTarget && (

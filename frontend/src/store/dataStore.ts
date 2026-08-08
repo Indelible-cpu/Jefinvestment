@@ -180,7 +180,27 @@ export const useSaleStore = create<SaleState>()(
         createdAt: Date.now(),
         status: 'completed'
       };
-      await addDoc(collection(db, 'sales'), newSale);
+
+      const batch = writeBatch(db);
+      const saleRef = doc(collection(db, 'sales'));
+      batch.set(saleRef, newSale);
+
+      // Decrement inventory automatically inside the same batch for atomic checkouts
+      if (Array.isArray(sale.items)) {
+        sale.items.forEach((item: any) => {
+          if (!item.isService && item.productId) {
+            const invRef = doc(db, 'products', item.productId);
+            batch.update(invRef, { stock: increment(-item.quantity) });
+          } else if (item.materialsConsumed && Array.isArray(item.materialsConsumed)) {
+            item.materialsConsumed.forEach((mat: any) => {
+              const invRef = doc(db, 'products', mat.inventoryItemId || mat.productId);
+              batch.update(invRef, { stock: increment(-(mat.quantityPerUnit || mat.quantityUsed || 1) * item.quantity) });
+            });
+          }
+        });
+      }
+
+      await batch.commit();
     },
     restoreStationeryMaterials: async (saleId) => {
       try {

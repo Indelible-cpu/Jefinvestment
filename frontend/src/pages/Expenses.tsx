@@ -3,6 +3,7 @@ import { Plus, Receipt, X, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '../store/settingsStore';
 import { useExpenseStore } from '../store/dataStore';
+import { useAuditStore } from '../store/auditStore';
 
 const EXPENSE_CATEGORIES = [
   'Store Supplies', 'Transport', 'Electricity', 'Printing', 'Maintenance',
@@ -15,6 +16,7 @@ const emptyForm = { category: 'Store Supplies', description: '', amount: 0, logg
 
 export default function Expenses() {
   const { expenses, addExpense, deleteExpense, loadExpenses } = useExpenseStore();
+  const { addLog } = useAuditStore();
   const settings = useSettingsStore();
 
   useEffect(() => {
@@ -53,13 +55,14 @@ export default function Expenses() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, description: string) => {
     toast('Remove this expense entry?', {
       action: {
         label: 'Remove',
         onClick: async () => {
           try {
             await deleteExpense(id);
+            addLog('DELETE_EXPENSE', `Deleted expense: ${description}`);
             toast.success('Expense removed');
           } catch (err: any) {
             if (err.message === 'OFFLINE_QUEUED') {
@@ -140,7 +143,7 @@ export default function Expenses() {
                 <td className="p-4 text-gray-600">{e.loggedBy}</td>
                 <td className="p-4 text-right font-bold text-red-600">{e.amount.toLocaleString()}</td>
                 <td className="p-4 text-right">
-                  <button onClick={() => handleDelete(e.id)} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
+                  <button onClick={() => handleDelete(e.id, e.description)} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
                 </td>
               </tr>
             ))}
