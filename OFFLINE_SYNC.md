@@ -1,21 +1,41 @@
 # Offline Synchronization Architecture
 
-Jef Investment ERP uses an **Offline-First** approach to ensure the Point of Sale and core operations continue functioning without internet access.
+The **Jef Investment ERP** is engineered **Offline-First**, ensuring continuous Point of Sale (POS) operations even during internet outages.
 
-## Strategy
+---
 
-1. **Service Worker (Vite PWA):** 
-   Caches all static assets (HTML, CSS, JS, images, fonts). This ensures the application frame loads instantly, even offline.
+## 1. Static Asset Caching (Vite PWA)
 
-2. **Local Database (IndexedDB):**
-   The frontend uses `idb` to maintain a local subset of critical data (Products, Categories) and the `sync_queue`.
-   
-3. **Mutation Queue (SyncEngine):**
-   When a cashier performs an action (e.g., completes a sale, adds an expense) while offline, the frontend stores the transaction in the IndexedDB `sync_queue` with a status of `PENDING` and a unique `syncId`.
+- Configured using `vite-plugin-pwa` and Service Workers.
+- Caches all application bundles, styles, icons, and fonts locally.
+- The web app loads instantly from cache even when the device is completely disconnected from the network.
 
-4. **Background Sync:**
-   The `useSyncEngine` hook listens for the `online` window event. When the network is restored, it iterates through the `sync_queue` and pushes payloads to the respective REST API endpoints. If an API call succeeds, the item is removed from the queue. If it fails, the error is recorded and it remains in the queue for the next retry.
+---
 
-## Conflict Resolution
-- Every queued transaction carries a client-side timestamp and a `syncId`.
-- The backend Prisma schema enforces `syncId` uniqueness for Sales and Expenses. If the backend receives a transaction with an existing `syncId`, it idempotently ignores the request (or returns success without duplicating data), preventing double-billing during unstable network conditions.
+## 2. Local State & Cache (Zustand + LocalStorage)
+
+- Core application stores (`cartStore`, `authStore`, `settingsStore`, `dataStore`) persist critical operational state locally.
+- Product catalog data and held carts remain accessible offline.
+
+---
+
+## 3. Offline Sales Queuing
+
+- When a sale or expense is processed while offline:
+  1. The transaction is immediately saved to local pending state.
+  2. The Dashboard **Pending Syncs** indicator increments automatically.
+  3. Visual toast alerts notify the cashier that the sale was saved locally and queued for upload.
+
+---
+
+## 4. Automatic Background Synchronization
+
+- The application monitors network connectivity via browser online events (`window.addEventListener('online')`).
+- When connectivity is restored, the sync engine automatically flushes queued transactions to Firestore in the background.
+- Once successfully written to Firestore, local pending queues clear automatically.
+
+---
+
+## 5. Listener Safety on Logout
+
+- If a user signs out while offline or upon reconnection, `unsubscribeAllListeners()` safely unbinds all active Firestore snapshot channels, preventing permission errors or stale state pollution.

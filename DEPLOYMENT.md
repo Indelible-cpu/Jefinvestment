@@ -1,33 +1,59 @@
-# Deployment Guide
+# Deployment Guide — GitHub Actions & Firebase Hosting
 
-The Jef Investment ERP is designed for a cloud-native deployment.
+The **Jef Investment ERP** is automatically built and deployed to **Firebase Hosting** using **GitHub Actions**.
 
-## Frontend (Firebase Hosting or Cloudflare Pages)
+---
 
-1. Build the Vite application:
+## 1. Automated CI/CD Pipeline (GitHub Actions)
+
+Continuous Integration & Deployment is configured in `.github/workflows/deploy.yml`:
+
+### Workflow Steps:
+1. **Trigger:** Push to the `main` branch.
+2. **Setup:** Runs on Ubuntu runner with Node.js 24 environment.
+3. **Build Verification:** Executes `npx tsc --noEmit` and `npm run build` inside `frontend/`.
+4. **Deploy to Firebase:** Deploys static assets to **Firebase Hosting**.
+
+---
+
+## 2. Environment Variables in GitHub Secrets
+
+Ensure the following GitHub Repository Secrets are set in **Settings → Secrets and variables → Actions**:
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `FIREBASE_SERVICE_ACCOUNT` (Service account JSON key for deployment)
+
+---
+
+## 3. Manual Deployment (Alternative)
+
+To deploy manually from your terminal:
+
+1. Install Firebase CLI:
+   ```bash
+   npm install -g firebase-tools
+   ```
+2. Log into Firebase:
+   ```bash
+   firebase login
+   ```
+3. Build the frontend:
    ```bash
    cd frontend
    npm run build
    ```
-2. The output will be in `frontend/dist`.
-3. Deploy to Firebase:
+4. Deploy Hosting & Rules:
    ```bash
-   npm install -g firebase-tools
-   firebase login
-   firebase init hosting # select the dist folder
-   firebase deploy
+   firebase deploy --only hosting
+   firebase deploy --only firestore:rules
    ```
 
-## Backend (Google Cloud Run or Render)
+---
 
-1. The backend provides a `Dockerfile` for containerization.
-2. If using Cloud Run:
-   ```bash
-   gcloud builds submit --tag gcr.io/[PROJECT_ID]/jef-erp-backend
-   gcloud run deploy jef-erp-backend --image gcr.io/[PROJECT_ID]/jef-erp-backend --platform managed
-   ```
-3. Ensure Environment Variables (e.g., `DATABASE_URL`, `JWT_SECRET`) are configured in the Cloud Run service settings.
+## 4. Manual Firestore Rules Deployment
 
-## Database (PostgreSQL)
-We recommend a managed PostgreSQL instance (e.g., Supabase, Neon, AWS RDS, Google Cloud SQL) for production.
-Ensure the `DATABASE_URL` is set correctly in the backend environment to point to this managed instance.
+If deploying rules via CLI is unavailable, copy the exact contents of `firestore.rules` and paste them into the **Rules** tab of your **Firebase Console**, then click **Publish**.

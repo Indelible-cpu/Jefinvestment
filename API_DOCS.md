@@ -1,37 +1,48 @@
-# API Documentation
+# API & Realtime Data Architecture
 
-Base URL: `/api/v1`
+The **Jef Investment ERP** operates via a serverless architecture using **Firebase Auth**, **Google Cloud Firestore**, and **Zustand State Stores**.
 
-All protected endpoints require an `Authorization: Bearer <token>` header.
+---
 
-## Authentication
-- `POST /auth/login`
-  - Body: `{ "username": "admin", "password": "password" }`
-  - Returns: `{ "status": "success", "data": { "token": "...", "user": {...} } }`
+## 1. Authentication Service (`authStore.ts`)
 
-## Inventory
-- `GET /inventory/products`
-  - Returns array of products and services.
-- `POST /inventory/products` (Requires Admin)
-  - Body: `{ "name": "...", "categoryId": "...", "sku": "...", "unitPrice": 1000, "isService": false }`
+- **Sign In:**
+  `signInWithEmailAndPassword(auth, email, password)`
+- **Sign Out & Listener Cleanup:**
+  `signOut(auth)` — Triggers `unsubscribeAllListeners()` to cleanly terminate all background real-time subscriptions.
+- **Persistence:**
+  - `browserLocalPersistence`: Enabled when **Remember Me** is checked. Saves user email to local browser storage.
+  - `browserSessionPersistence`: Used when **Remember Me** is unchecked. Form fields are reset to empty on logout.
+- **Profile Listener:**
+  `onSnapshot(doc(db, 'users', uid))` — Keeps user role, branch, and profile picture updated in real time.
 
-## Sales
-- `GET /sales`
-  - Returns all completed sales with items and payments.
-- `POST /sales`
-  - Body: `{ "invoiceNumber": "INV-123", "subtotal": 1000, "discount": 0, "total": 1000, "items": [...], "payments": [...] }`
+---
 
-## Services
-- `GET /services/categories`
-- `POST /services/categories`
-- `POST /services/transactions` (Logs a specific service execution)
+## 2. Realtime Data Collections
 
-## Expenses
-- `GET /expenses`
-- `POST /expenses`
-- `PATCH /expenses/:id/approve` (Requires Admin)
+Data is synchronized in real time across all logged-in devices using Firestore `onSnapshot` subscriptions:
 
-## Accounting
-- `GET /accounts`
-- `GET /accounts/ledger`
-- `POST /accounts/journal` (Creates a double-entry journal)
+### Product & Inventory (`cartStore.ts`)
+- **Listen Products:** `onSnapshot(collection(db, 'products'))`
+- **Stock Decrement (Cashier):** `updateDoc(doc(db, 'products', id), { stock: increment(-qty) })`
+- **Listen Held Carts:** `onSnapshot(collection(db, 'users', userId, 'heldCarts'))`
+
+### Sales & Transactions (`dataStore.ts`)
+- **Listen Sales:** `onSnapshot(query(collection(db, 'sales'), orderBy('createdAt', 'desc')))`
+- **Add Sale:** `addDoc(collection(db, 'sales'), saleData)` + `writeBatch` for inventory updates.
+- **Listen Credits:** `onSnapshot(query(collection(db, 'sales'), where('isCredit', '==', true)))`
+- **Record Repayment:** `updateDoc(doc(db, 'sales', id), { creditPaid: increment(amount) })`
+
+### Expenses (`dataStore.ts`)
+- **Listen Expenses:** `onSnapshot(query(collection(db, 'expenses'), orderBy('createdAt', 'desc')))`
+- **Add Expense:** `addDoc(collection(db, 'expenses'), expenseData)`
+
+### Stationery Services (`stationeryStore.ts`)
+- **Listen Services:** `onSnapshot(collection(db, 'stationeryServices'))`
+
+### Employees (`dataStore.ts`)
+- **Listen Employees:** `onSnapshot(collection(db, 'employees'))`
+
+### Settings & Audit Logs
+- **Listen Settings:** `onSnapshot(doc(db, 'settings', 'global'))`
+- **Listen Audit Logs:** `onSnapshot(query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100)))`

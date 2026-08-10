@@ -1,21 +1,46 @@
-# Security Features
+# Security Features & Policies
 
-The Jef Investment ERP implements multiple layers of security to protect sensitive financial and personal data:
+The **Jef Investment ERP** enforces a strict security posture across authentication, authorization, database rules, and audit logging.
 
-1. **Authentication:** 
-   Uses JWT (JSON Web Tokens) with expirations. Passwords are cryptographically hashed using `bcrypt` with a 10-round salt.
+---
 
-2. **Authorization:** 
-   Strict Role-Based Access Control (RBAC). A user must be explicitly granted the `Super Admin` or `Admin` role to access sensitive endpoints (like modifying inventory, viewing gross ledgers, or approving expenses).
+## 1. Authentication & Persistence Security
 
-3. **HTTP Security:** 
-   The backend uses `helmet` to set secure HTTP headers, preventing clickjacking, sniffing, and other common web vulnerabilities.
+- **Firebase Authentication:** Secure token-based authentication. Passwords are handled exclusively by Firebase Auth infrastructure.
+- **Login Persistence Control:**
+  - When **Remember me** is checked: Your email address is stored locally for convenience.
+  - When **Remember me** is **unchecked**: No credentials are preserved in local storage. All input fields are explicitly cleared, and browser autofill (`autoComplete="off"`) is enforced.
+- **Listener Cleanup on Logout:**
+  Logging out executes `unsubscribeAllListeners()`, terminating all active Firestore `onSnapshot` connections *before* revoking auth tokens. This prevents unauthenticated network listener leaks or console error floods.
 
-4. **Data Validation:** 
-   All incoming requests are strictly validated using `zod` to prevent injection attacks and ensure data integrity.
+---
 
-5. **Prisma ORM:** 
-   Prisma automatically protects against SQL Injection by using prepared statements under the hood.
+## 2. Password Reset Policy
 
-6. **Audit Trails:** 
-   Critical actions (e.g., voiding sales, adjusting stock, modifying roles) log to an `AuditLog` table, tracking the exact user, action, and timestamp.
+- **Admin-Initiated Password Reset:** Self-service password resets from the public login screen are disabled.
+- **Controlled Access:** Only authenticated **Admins** can issue password resets for staff members from the **Settings → User Management** panel.
+
+---
+
+## 3. Role-Based Access Control (RBAC)
+
+Access is strictly governed by user roles (`ADMIN`, `MANAGER`, `CASHIER`):
+- **CASHIER:** Restricted to Point of Sale (POS) operations, viewing products, and decrementing stock during an active sale. Cannot view financial reports, employee records, or system settings.
+- **MANAGER:** Can manage inventory, view reports, manage employee attendance, and process expenses.
+- **ADMIN:** Full access to all modules, financial ledgers, system configuration, user creation, password resets, and real-time audit logs.
+
+---
+
+## 4. Firestore Security Rules (`firestore.rules`)
+
+- All collection reads and writes require `request.auth != null`.
+- `userRole()` verifies user role against `/databases/$(database)/documents/users/$(request.auth.uid)` securely.
+- Cashiers are restricted from modifying product details, allowing stock changes *only* via `increment(-qty)` during sales.
+- Fallback rule: `match /{document=**} { allow read, write: if false; }` blocks any unauthorized endpoints.
+
+---
+
+## 5. Audit Trails (`auditLogs`)
+
+- Critical administrative actions (user additions, role changes, password resets, sales returns, setting modifications) create immutable entries in the `auditLogs` collection.
+- Logs capture the exact action, metadata, user name, and Unix timestamp.
