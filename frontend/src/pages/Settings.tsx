@@ -1,22 +1,28 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { useSaleStore, useCreditStore, useEmployeeStore, useExpenseStore } from '../store/dataStore';
-import { useProductStore } from '../store/cartStore';
-import { useStationeryStore } from '../store/stationeryStore';
-import { useAuditStore } from '../store/auditStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, MailWarning } from 'lucide-react';
 import { toast } from 'sonner';
-import { storage, db } from '../lib/firebase';
+import { storage } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, query, getDocs, writeBatch, addDoc } from 'firebase/firestore';
 import AuditLogs from '../components/AuditLogs';
+import { useAuditStore } from '../store/auditStore';
 
 export default function Settings() {
-  const { user, updateProfile, users, resetPassword, addUser, deleteUser } = useAuthStore();
+  const { 
+    user, updateProfile, users, resetPassword, addUser, deleteUser,
+    resetRequests, fetchResetRequests, approvePasswordReset, denyPasswordReset 
+  } = useAuthStore();
   const settings = useSettingsStore();
   const { updateSettings } = settings;
-  
+  const isAdmin = user?.role === 'ADMIN';
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchResetRequests();
+    }
+  }, [isAdmin, fetchResetRequests]);
+
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
     companyName: settings.companyName,
@@ -47,26 +53,6 @@ export default function Settings() {
   const [showAddPw, setShowAddPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
-
-  // Change My Password State
-  const [userPwForm, setUserPwForm] = useState({ newPassword: '', confirmPassword: '' });
-  const [showUserPw, setShowUserPw] = useState(false);
-  const [isChangingUserPw, setIsChangingUserPw] = useState(false);
-
-  // Selective Reset State
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [resetOptions, setResetOptions] = useState({
-    sales: true,
-    inventory: true,
-    expenses: true,
-    stationery: true,
-    credits: true,
-    employees: false,
-    auditLogs: false,
-    settings: false,
-    userSessions: false,
-  });
-  const [isWiping, setIsWiping] = useState(false);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,147 +134,88 @@ export default function Settings() {
     }
   };
 
-  const handleChangeUserPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (userPwForm.newPassword !== userPwForm.confirmPassword) {
-      toast.error('Passwords do not match', { description: 'New password and confirmation must match.' });
-      return;
-    }
-    if (userPwForm.newPassword.length < 6) {
-      toast.error('Password too short', { description: 'Password must be at least 6 characters.' });
-      return;
-    }
-
-    setIsChangingUserPw(true);
-    try {
-      const { changePassword } = useAuthStore.getState();
-      await changePassword(userPwForm.newPassword);
-      setUserPwForm({ newPassword: '', confirmPassword: '' });
-      toast.success('Password updated successfully!', {
-        description: 'Your new password is now active. Admin has been notified of this action.'
-      });
-    } catch (err: any) {
-      toast.error('Password update failed', { description: err.message || 'Please check your inputs.' });
-    } finally {
-      setIsChangingUserPw(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
+  const handleResetPassword = () => {
     if (!resetTarget || !newPassword.trim()) return;
-    try {
-      await resetPassword(resetTarget, newPassword.trim());
-      setResetTarget(null);
-      setNewPassword('');
-      showSuccess('Password reset successfully!');
-    } catch (err: any) {
-      toast.error('Password reset failed', { description: err.message });
-    }
+    resetPassword(resetTarget, newPassword.trim());
+    setResetTarget(null);
+    setNewPassword('');
+    showSuccess('Password reset successfully!');
   };
 
-  const handleToggleAllReset = (enable: boolean) => {
-    setResetOptions({
-      sales: enable,
-      inventory: enable,
-      expenses: enable,
-      stationery: enable,
-      credits: enable,
-      employees: enable,
-      auditLogs: enable,
-      settings: enable,
-      userSessions: enable,
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserForm.name || !newUserForm.username || !newUserForm.password) return;
+    addUser(newUserForm);
+    const addedName = newUserForm.name;
+    setNewUserForm({ name: '', username: '', password: '', role: 'CASHIER' });
+    setShowAddUser(false);
+    showSuccess(`User "${addedName}" added successfully!`);
+  };
+
+  const handleDeleteUser = (userId: string, name: string) => {
+    if (userId === user?.id) { toast.error('You cannot delete your own account.'); return; }
+    toast(`Delete user "${name}"?`, {
+      description: 'This cannot be undone.',
+      action: { label: 'Delete', onClick: () => { deleteUser(userId); toast.success(`User "${name}" deleted.`); } },
+      cancel: { label: 'Cancel', onClick: () => {} },
     });
   };
 
-  const handleExecuteSelectiveReset = async () => {
-    const selectedKeys = Object.entries(resetOptions).filter(([_, val]) => val).map(([k]) => k);
-    if (selectedKeys.length === 0) {
-      toast.error('Please select at least one item to reset.');
-      return;
-    }
-
-    setIsWiping(true);
+  const handleExportData = () => {
     try {
-      const clearCollection = async (collName: string) => {
-        try {
-          const q = query(collection(db, collName));
-          const snapshot = await getDocs(q);
-          if (snapshot.empty) return;
-          const docs = snapshot.docs;
-          for (let i = 0; i < docs.length; i += 400) {
-            const batch = writeBatch(db);
-            const chunk = docs.slice(i, i + 400);
-            chunk.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-          }
-        } catch (err) {
-          console.warn(`Could not clear Firestore collection ${collName}`, err);
-        }
+      const allData: Record<string, string | null> = {
+        'jef-auth-storage': localStorage.getItem('jef-auth-storage'),
+        'jef-data-storage': localStorage.getItem('jef-data-storage'),
+        'jef-settings-storage': localStorage.getItem('jef-settings-storage')
       };
-
-      if (resetOptions.sales) {
-        await clearCollection('sales');
-        useSaleStore.setState({ sales: [] });
-      }
-      if (resetOptions.credits) {
-        await clearCollection('credits');
-        useCreditStore.setState({ credits: [] });
-      }
-      if (resetOptions.inventory) {
-        await clearCollection('products');
-        useProductStore.setState({ products: [] });
-      }
-      if (resetOptions.expenses) {
-        await clearCollection('expenses');
-        useExpenseStore.setState({ expenses: [] });
-      }
-      if (resetOptions.stationery) {
-        await clearCollection('stationeryServices');
-        useStationeryStore.setState({ stationeryServices: [] });
-      }
-      if (resetOptions.employees) {
-        await clearCollection('employees');
-        useEmployeeStore.setState({ employees: [] });
-      }
-      if (resetOptions.auditLogs) {
-        await clearCollection('auditLogs');
-        useAuditStore.setState({ logs: [] });
-      }
-      if (resetOptions.settings) {
-        await clearCollection('settings');
-        localStorage.removeItem('jef-settings-storage');
-      }
-      if (resetOptions.userSessions) {
-        localStorage.removeItem('jef-auth-storage');
-        localStorage.removeItem('jef-data-storage');
-      }
-
-      if (!resetOptions.auditLogs) {
-        try {
-          await addDoc(collection(db, 'auditLogs'), {
-            action: 'SELECTIVE_RESET',
-            details: `Selective Factory Reset executed by Admin "${user?.name}". Cleared categories: ${selectedKeys.join(', ')}.`,
-            user: user?.name || 'Admin',
-            timestamp: Date.now()
-          });
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      toast.success('Selective reset complete!', {
-        description: `Reset categories: ${selectedKeys.join(', ')}`
-      });
-      setShowResetModal(false);
-
-      if (resetOptions.userSessions) {
-        setTimeout(() => { window.location.href = '/login'; }, 1000);
-      }
-    } catch (err: any) {
-      toast.error('Selective reset failed', { description: err.message });
-    } finally {
-      setIsWiping(false);
+      const blob = new Blob([JSON.stringify(allData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Jef_ERP_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSuccess('Backup exported successfully!');
+    } catch (e) {
+      toast.error('Failed to export data');
     }
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (data['jef-auth-storage']) localStorage.setItem('jef-auth-storage', data['jef-auth-storage']);
+        if (data['jef-data-storage']) localStorage.setItem('jef-data-storage', data['jef-data-storage']);
+        if (data['jef-settings-storage']) localStorage.setItem('jef-settings-storage', data['jef-settings-storage']);
+        
+        toast.success('Data imported successfully! Reloading...');
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        toast.error('Invalid backup file');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFactoryReset = () => {
+    toast('Wipe all system data?', {
+      description: 'This will permanently delete all sales, inventory, and settings. Are you completely sure?',
+      action: { 
+        label: 'Wipe Data', 
+        onClick: () => {
+          localStorage.removeItem('jef-auth-storage');
+          localStorage.removeItem('jef-data-storage');
+          localStorage.removeItem('jef-settings-storage');
+          window.location.href = '/login';
+        }
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
   };
 
   const showSuccess = (msg: string) => toast.success(msg);
@@ -344,52 +271,6 @@ export default function Settings() {
               </div>
               <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition">Save Profile</button>
             </form>
-
-            {/* Change My Password Section for logged in user */}
-            <div className="p-6 border-t bg-gray-50/50">
-              <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <KeyRound size={16} className="text-primary" /> Change My Password
-              </h3>
-              <form onSubmit={handleChangeUserPassword} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">New Password *</label>
-                  <div className="relative">
-                    <input
-                      type={showUserPw ? 'text' : 'password'}
-                      required
-                      minLength={6}
-                      value={userPwForm.newPassword}
-                      onChange={e => setUserPwForm(f => ({ ...f, newPassword: e.target.value }))}
-                      className="w-full p-2.5 pr-10 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-sm"
-                      placeholder="At least 6 characters"
-                    />
-                    <button type="button" onClick={() => setShowUserPw(!showUserPw)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                      {showUserPw ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Confirm New Password *</label>
-                  <input
-                    type={showUserPw ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={userPwForm.confirmPassword}
-                    onChange={e => setUserPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-sm"
-                    placeholder="Re-enter new password"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isChangingUserPw}
-                  className="w-full py-2 bg-gray-800 text-white font-semibold text-sm rounded-lg hover:bg-gray-900 transition flex items-center justify-center gap-2"
-                >
-                  {isChangingUserPw ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                  Update My Password
-                </button>
-              </form>
-            </div>
           </div>
 
           {/* Company Branding */}
@@ -556,8 +437,8 @@ export default function Settings() {
                     <AlertTriangle className="text-red-600" size={24} />
                   </div>
                   <h4 className="font-bold text-red-700 mb-1">Factory Reset</h4>
-                  <p className="text-xs text-gray-500 mb-4">Selectively wipe specific system data or perform a full system reset.</p>
-                  <button onClick={() => setShowResetModal(true)} className="w-full py-2 bg-red-100 text-red-700 rounded-lg text-sm font-bold hover:bg-red-200 transition">Configure & Wipe Data</button>
+                  <p className="text-xs text-gray-500 mb-4">Permanently wipe all data on this device and return to default state.</p>
+                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-100 text-red-700 rounded-lg text-sm font-bold hover:bg-red-200 transition">Wipe Data</button>
                 </div>
               </div>
             </div>
@@ -623,103 +504,75 @@ export default function Settings() {
         </div>
       )}
       
-      {/* Audit Logs Section */}
-      {isAdmin && <AuditLogs />}
-
-      {/* Selective Reset Modal */}
-      {showResetModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto border border-red-100">
-            <div className="flex items-center gap-3 pb-3 border-b mb-4 text-red-600">
-              <div className="p-2 bg-red-100 rounded-xl">
-                <AlertTriangle size={24} />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-gray-900 leading-tight">Selective Factory Reset</h3>
-                <p className="text-xs text-gray-500">Choose specifically what data you want to permanently wipe.</p>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Select Categories to Wipe</span>
-              <div className="flex gap-2 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => handleToggleAllReset(true)}
-                  className="text-blue-600 hover:underline"
-                >
-                  Select All
-                </button>
-                <span className="text-gray-300">|</span>
-                <button
-                  type="button"
-                  onClick={() => handleToggleAllReset(false)}
-                  className="text-gray-500 hover:underline"
-                >
-                  Deselect All
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-6 max-h-[45vh] overflow-y-auto pr-1">
-              {[
-                { key: 'sales', label: 'Sales & Credit History', desc: 'All transactions, receipts, and customer debt records' },
-                { key: 'inventory', label: 'Product Inventory', desc: 'All inventory products, stock levels, and cost prices' },
-                { key: 'expenses', label: 'Expense Records', desc: 'All logged business operational expenses' },
-                { key: 'stationery', label: 'Stationery Services', desc: 'Stationery service items and paper sheet mappings' },
-                { key: 'employees', label: 'Employee Directory', desc: 'Registered staff records' },
-                { key: 'auditLogs', label: 'Audit Logs', desc: 'System activity logs and administrative audit entries' },
-                { key: 'settings', label: 'App Settings & Branding', desc: 'Company details, receipt config, and lock security options' },
-                { key: 'userSessions', label: 'User Auth & Local Cache', desc: 'Log out current session and wipe offline browser cache' },
-              ].map(opt => (
-                <label
-                  key={opt.key}
-                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
-                    resetOptions[opt.key as keyof typeof resetOptions]
-                      ? 'bg-red-50/50 border-red-200'
-                      : 'bg-white border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={resetOptions[opt.key as keyof typeof resetOptions]}
-                    onChange={e => setResetOptions(o => ({ ...o, [opt.key]: e.target.checked }))}
-                    className="mt-1 w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
-                  />
-                  <div>
-                    <div className="text-sm font-bold text-gray-800">{opt.label}</div>
-                    <div className="text-xs text-gray-500">{opt.desc}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-6 text-xs text-amber-800 font-medium">
-              ⚠️ Warning: Wiping data cannot be undone. Only checked categories will be deleted.
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowResetModal(false)}
-                disabled={isWiping}
-                className="flex-1 py-2.5 border rounded-xl font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleExecuteSelectiveReset}
-                disabled={isWiping}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-sm"
-              >
-                {isWiping ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                Confirm Selective Reset
-              </button>
-            </div>
+      {/* Password Reset Requests Section */}
+      {isAdmin && resetRequests.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
+          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+            <MailWarning size={18} className="text-amber-500" /> Pending Password Reset Requests
+          </div>
+          <div className="p-0">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-gray-500 border-b">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">User Email</th>
+                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resetRequests.map(req => (
+                  <tr key={req.id} className="border-b last:border-0 hover:bg-gray-50 transition">
+                    <td className="px-4 py-3 font-medium text-gray-700">{req.email}</td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {req.timestamp?.toDate ? req.timestamp.toDate().toLocaleString() : 'Just now'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
+                        req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                        req.status === 'approved' ? 'bg-green-100 text-green-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {req.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {req.status === 'pending' && (
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={async () => {
+                              await denyPasswordReset(req.id);
+                              useAuditStore.getState().addLog('PASSWORD_RESET_DENIED', `Denied password reset for ${req.email}`);
+                            }}
+                            className="px-3 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 font-medium text-xs transition"
+                          >
+                            Deny
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              const ok = await approvePasswordReset(req.id, req.email);
+                              if (ok) {
+                                toast.success(`Reset link sent to ${req.email}`);
+                                useAuditStore.getState().addLog('PASSWORD_RESET_APPROVED', `Approved and emailed password reset link to ${req.email}`);
+                              }
+                            }}
+                            className="px-3 py-1 bg-primary text-white rounded hover:bg-blue-700 font-bold text-xs shadow-sm transition"
+                          >
+                            Approve & Email Link
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
+
+      {/* Audit Logs Section */}
+      {isAdmin && <AuditLogs />}
 
       {/* Reset Password Modal */}
       {resetTarget && (

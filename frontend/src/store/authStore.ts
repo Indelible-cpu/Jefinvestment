@@ -5,6 +5,7 @@ import {
   signOut, 
   createUserWithEmailAndPassword,
   updatePassword,
+  sendPasswordResetEmail,
   onAuthStateChanged
 } from 'firebase/auth';
 import { 
@@ -12,10 +13,13 @@ import {
   getDoc, 
   setDoc, 
   collection,
+  deleteDoc,
+  updateDoc,
+  onSnapshot,
+  query,
+  orderBy,
   addDoc,
-  deleteDoc, 
-  updateDoc, 
-  onSnapshot
+  serverTimestamp
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
@@ -33,19 +37,30 @@ export interface UserAccount extends User {
   isActive?: boolean;
 }
 
+export interface PasswordResetRequest {
+  id: string;
+  email: string;
+  status: 'pending' | 'approved' | 'denied';
+  timestamp: any;
+}
+
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   users: UserAccount[];
+  resetRequests: PasswordResetRequest[];
   isLoading: boolean;
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
-  changePassword: (newPassword: string) => Promise<void>;
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<boolean>;
+  fetchResetRequests: () => void;
+  approvePasswordReset: (id: string, email: string) => Promise<boolean>;
+  denyPasswordReset: (id: string) => Promise<void>;
   addUser: (user: { username: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   loadUsers: () => Promise<void>;
@@ -64,15 +79,72 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       users: [],
+      resetRequests: [],
       isLoading: false,
-      
+
       isTemporarilyUnlocked: false,
       lastActiveTime: Date.now(),
-      unlockTemporarily: () => set({ isTemporarilyUnlocked: true, lastActiveTime: Date.now() }),
-      lockSystem: () => set({ isTemporarilyUnlocked: false }),
+      
+      unlockTemporarily: () => {
+        set({ isTemporarilyUnlocked: true, lastActiveTime: Date.now() });
+      },
+      lockSystem: () => {
+        set({ isTemporarilyUnlocked: false });
+      },
       updateActivity: () => {
-        if (get().isTemporarilyUnlocked) {
-          set({ lastActiveTime: Date.now() });
+        set({ lastActiveTime: Date.now() });
+      },
+
+      requestPasswordReset: async (email: string) => {
+        try {
+          await addDoc(collection(db, 'passwordResetRequests'), {
+            email: email.trim().toLowerCase(),
+            status: 'pending',
+            timestamp: serverTimestamp()
+          });
+          return true;
+        } catch (error) {
+          console.error("Failed to request reset", error);
+          return false;
+        }
+      },
+
+      fetchResetRequests: () => {
+        const q = query(
+          collection(db, 'passwordResetRequests'), 
+          orderBy('timestamp', 'desc')
+        );
+        onSnapshot(q, (snapshot) => {
+          const reqs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as PasswordResetRequest[];
+          set({ resetRequests: reqs });
+        }, (err) => {
+          console.warn("Failed to fetch reset requests", err);
+        });
+      },
+
+      approvePasswordReset: async (id: string, email: string) => {
+        try {
+          await sendPasswordResetEmail(auth, email);
+          await updateDoc(doc(db, 'passwordResetRequests', id), {
+            status: 'approved'
+          });
+          return true;
+        } catch (error) {
+          console.error("Failed to approve reset", error);
+          return false;
+        }
+      },
+
+      denyPasswordReset: async (id: string) => {
+        try {
+          await updateDoc(doc(db, 'passwordResetRequests', id), {
+            status: 'denied'
+          });
+        } catch (error) {
+          console.error("Failed to deny reset", error);
         }
       },
 
@@ -219,78 +291,13 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      changePassword: async (newPassword) => {
-        const currentUser = get().user;
-        if (!currentUser) throw new Error("Not authenticated.");
-
-        if (auth.currentUser) {
-          try {
-            await updatePassword(auth.currentUser, newPassword);
-          } catch (e: any) {
-            if (e.code === 'auth/requires-recent-login') {
-              throw new Error("Security check: Please log out and log back in before changing your password.");
-            }
-            console.warn("Firebase Auth updatePassword warning", e);
-          }
-        }
-
-        if (!currentUser.id.startsWith('local-')) {
-          try {
-            await updateDoc(doc(db, 'users', currentUser.id), {
-              passwordUpdatedAt: Date.now(),
-              updatedBy: currentUser.name
-            });
-          } catch (err) {
-            console.warn("Failed to update user doc timestamp", err);
-          }
-        }
-
-        try {
-          await addDoc(collection(db, 'auditLogs'), {
-            action: 'USER_PASSWORD_CHANGE',
-            details: `User "${currentUser.name}" (${currentUser.role}, ${currentUser.username}) successfully changed their account password.`,
-            user: currentUser.name,
-            timestamp: Date.now()
-          });
-        } catch (e) {
-          console.warn("Failed to create audit log for password change", e);
-        }
-      },
-
       resetPassword: async (userId, newPassword) => {
-        const adminUser = get().user;
-        const targetUser = get().users.find(u => u.id === userId);
-        const targetName = targetUser ? `${targetUser.name} (${targetUser.role})` : (userId === adminUser?.id ? `${adminUser?.name} (Admin)` : userId);
-
+        // This is tricky because Firebase client SDK only allows updating the CURRENT user's password.
         if (get().user?.id === userId && auth.currentUser) {
-          try {
-            await updatePassword(auth.currentUser, newPassword);
-          } catch (e: any) {
-            console.warn("Firebase Auth updatePassword warning", e);
-          }
-        }
-
-        if (!userId.startsWith('local-')) {
-          try {
-            await updateDoc(doc(db, 'users', userId), {
-              password: newPassword,
-              passwordResetAt: Date.now(),
-              resetByAdmin: adminUser?.name || 'Admin'
-            });
-          } catch (err) {
-            console.warn("Failed to update password in Firestore user doc", err);
-          }
-        }
-
-        try {
-          await addDoc(collection(db, 'auditLogs'), {
-            action: 'ADMIN_PASSWORD_RESET',
-            details: `Admin "${adminUser?.name || 'Admin'}" reset password for user: ${targetName}.`,
-            user: adminUser?.name || 'Admin',
-            timestamp: Date.now()
-          });
-        } catch (e) {
-          console.warn("Failed to create audit log for password reset", e);
+          await updatePassword(auth.currentUser, newPassword);
+        } else {
+          console.error("Cannot reset another user's password from client SDK without Cloud Functions.");
+          throw new Error("Cannot reset another user's password from client.");
         }
       },
 

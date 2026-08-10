@@ -13,8 +13,28 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Password Reset State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const navigate = useNavigate();
+  
+  const handleResetRequest = async () => {
+    if (!resetEmail.includes('@')) return;
+    setResetLoading(true);
+    const { requestPasswordReset } = useAuthStore.getState();
+    const success = await requestPasswordReset(resetEmail);
+    setResetLoading(false);
+    if (success) {
+      toast.success('Reset Request Sent', { description: 'The admin will review your request.' });
+      setShowResetModal(false);
+      setResetEmail('');
+    } else {
+      toast.error('Failed to send request', { description: 'Please try again later.' });
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,18 +125,29 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Remember me */}
-            <div className="flex items-center gap-2">
-              <input
-                id="rememberMe"
-                type="checkbox"
-                checked={rememberMe}
-                onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 accent-primary cursor-pointer"
-              />
-              <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer select-none">
-                Remember me
-              </label>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 accent-primary cursor-pointer"
+                />
+                <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer select-none">
+                  Remember me
+                </label>
+              </div>
+              
+              <button 
+                type="button" 
+                onClick={() => setShowResetModal(true)}
+                className="text-sm text-primary font-semibold hover:underline"
+              >
+                Forgot Password?
+              </button>
             </div>
 
             <button
@@ -136,6 +167,43 @@ export default function Login() {
             </button>
           </form>
 
+          {/* Password Reset Modal */}
+          {showResetModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+                <h2 className="text-lg font-bold text-gray-800 mb-2">Reset Password</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Enter your email address. Your request will be sent to the Admin for approval.
+                </p>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none mb-4"
+                  autoFocus
+                />
+                <div className="flex gap-2 justify-end">
+                  <button 
+                    onClick={() => {
+                      setShowResetModal(false);
+                      setResetEmail('');
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleResetRequest}
+                    disabled={!resetEmail.includes('@') || resetLoading}
+                    className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {resetLoading ? 'Sending...' : 'Request Reset'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <p className="text-center text-xs text-gray-400 mt-5 leading-relaxed">
             By signing in, you agree to our{' '}
