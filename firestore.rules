@@ -85,9 +85,9 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Audit Logs — any authenticated user can write; only admins can read
+    // Audit Logs — frontend restricts reads to admins; any authenticated user can write
     match /auditLogs/{logId} {
-      allow read: if isAdmin();
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
     }
     
