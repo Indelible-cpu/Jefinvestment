@@ -220,7 +220,7 @@ export default function Settings() {
 
   const showSuccess = (msg: string) => toast.success(msg);
 
-  const isAdmin = user?.role === 'ADMIN';
+
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
