@@ -166,6 +166,7 @@ export default function Inventory() {
                 <th className="p-4 font-semibold text-gray-600">Category</th>
                 <th className="p-4 font-semibold text-gray-600 text-right">Cost ({settings.currency})</th>
                 <th className="p-4 font-semibold text-gray-600 text-right">Price ({settings.currency})</th>
+                <th className="p-4 font-semibold text-gray-600 text-right">Profit ({settings.currency})</th>
                 <th className="p-4 font-semibold text-gray-600 text-center">Stock</th>
                 <th className="p-4 font-semibold text-gray-600 text-center">Type</th>
                 <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
@@ -175,7 +176,7 @@ export default function Inventory() {
               {productsLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
+                    {Array.from({ length: 9 }).map((_, j) => (
                       <td key={j} className="p-4">
                         <div className="h-4 bg-gray-200 rounded animate-pulse w-full"></div>
                       </td>
@@ -183,7 +184,7 @@ export default function Inventory() {
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="p-12 text-center text-gray-400">No products found.</td></tr>
+                <tr><td colSpan={9} className="p-12 text-center text-gray-400">No products found.</td></tr>
               ) : filtered.map(p => (
                 <tr key={p.id} className="border-b hover:bg-gray-50 transition">
                   <td className="p-4 font-medium">{p.name}</td>
@@ -191,6 +192,14 @@ export default function Inventory() {
                   <td className="p-4 text-gray-600">{p.category}</td>
                   <td className="p-4 text-right text-gray-600">{p.costPrice.toLocaleString()}</td>
                   <td className="p-4 text-right font-semibold text-primary">{p.sellingPrice.toLocaleString()}</td>
+                  <td className="p-4 text-right font-semibold">
+                    {(() => {
+                      const profit = p.sellingPrice - p.costPrice;
+                      if (profit > 0) return <span className="text-green-600">+{profit.toLocaleString()}</span>;
+                      if (profit < 0) return <span className="text-red-600">{profit.toLocaleString()}</span>;
+                      return <span className="text-gray-400">0</span>;
+                    })()}
+                  </td>
                   <td className="p-4 text-center">
                     {p.isService ? (
                       <span className="text-gray-400 text-sm">—</span>

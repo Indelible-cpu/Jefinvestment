@@ -24,6 +24,7 @@ export interface CompanySettings {
   workTimeStart?: string;
   workTimeEnd?: string;
   idleLockMinutes?: number;
+  lastDataClearDate?: number;
   updateSettings: (settings: Partial<CompanySettings>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }

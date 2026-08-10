@@ -91,6 +91,14 @@ service cloud.firestore {
       allow create: if isAuthenticated();
     }
     
+    // Password Reset Requests
+    match /passwordResetRequests/{requestId} {
+      allow read, update, delete: if isAdmin();
+      // Anyone can create a request (they are logged out when they forgot their password)
+      allow create: if request.resource.data.keys().hasAll(['email', 'status', 'timestamp'])
+                    && request.resource.data.status == 'pending';
+    }
+    
     // Fallback: Deny everything else
     match /{document=**} {
       allow read, write: if false;

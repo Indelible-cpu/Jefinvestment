@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock } from 'lucide-react';
@@ -9,11 +9,17 @@ import AuditLogs from '../components/AuditLogs';
 
 export default function Settings() {
   const { 
-    user, updateProfile, users, resetPassword, addUser, deleteUser
+    user, updateProfile, users, resetPassword, addUser, deleteUser, loadUsers
   } = useAuthStore();
   const settings = useSettingsStore();
   const { updateSettings } = settings;
   const isAdmin = user?.role === 'ADMIN';
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadUsers();
+    }
+  }, [isAdmin, loadUsers]);
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
@@ -322,13 +328,7 @@ export default function Settings() {
                 </form>
               </div>
             </div>
-          ) : (
-            <div className="bg-gray-50 rounded-xl shadow-sm border p-6 flex flex-col items-center justify-center text-center text-gray-500">
-              <Briefcase size={48} className="mb-4 text-gray-300" />
-              <h3 className="font-bold text-gray-700 mb-1">Admin Access Required</h3>
-              <p className="text-sm">Only administrators can modify company branding and settings.</p>
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Row 2: User Management (Admin only) */}

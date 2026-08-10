@@ -11,6 +11,7 @@ import {
   where,
   increment,
   getDoc,
+  getDocs,
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -117,6 +118,7 @@ interface SaleState {
   restoreStationeryMaterials: (saleId: string) => Promise<void>;
   updateSaleStatus: (id: string, status: 'completed' | 'refunded' | 'voided') => void;
   deleteSale: (id: string) => Promise<void>;
+  clearOldSales: (cutoffDateStr: string) => Promise<void>;
   getTodaySales: () => SaleRecord[];
   getTodayCashTotal: () => number;
   getTodayCreditTotal: () => number;
@@ -291,6 +293,25 @@ export const useSaleStore = create<SaleState>()(
         await deleteDoc(doc(db, 'sales', id));
       } catch (e) {
         console.error('Failed to delete sale', e);
+      }
+    },
+
+    clearOldSales: async (cutoffDateStr) => {
+      try {
+        const q = query(collection(db, 'sales'), where('date', '<', cutoffDateStr));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return;
+        // Firestore batch can hold max 500 operations, chunk if needed
+        const batchSize = 400;
+        const docs = snapshot.docs;
+        for (let i = 0; i < docs.length; i += batchSize) {
+          const batch = writeBatch(db);
+          docs.slice(i, i + batchSize).forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+      } catch (e) {
+        console.error('Failed to clear old sales', e);
+        throw e;
       }
     },
 

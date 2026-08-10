@@ -19,6 +19,8 @@ Welcome to the **Jef Investment ERP** official user guide. This system handles P
 
 ## 1. Logging In & Security
 
+![Login Screen](docs/images/login_screen.png)
+
 ### Logging In
 1. Open the ERP web application on your desktop or mobile device.
 2. Enter your registered **Email Address** and **Password**.
@@ -36,6 +38,8 @@ Welcome to the **Jef Investment ERP** official user guide. This system handles P
 
 ## 2. Dashboard Overview
 
+![Dashboard Screen](docs/images/dashboard_screen.png)
+
 The **Dashboard** provides real-time business metrics:
 - **Today's Revenue & Sales:** Track total sales processed today.
 - **Expenses & Net Profit:** Live calculation of daily expenses vs. income.
@@ -46,6 +50,8 @@ The **Dashboard** provides real-time business metrics:
 ---
 
 ## 3. Point of Sale (POS)
+
+![POS Screen](docs/images/pos_screen.png)
 
 ### Processing a Sale
 1. **Select Items:** Tap any product card or use the search bar to add items to the active cart.
@@ -105,6 +111,8 @@ Accessible to Admins and Managers:
 ---
 
 ## 8. Settings, Security & User Management
+
+![Settings Screen](docs/images/settings_screen.png)
 
 Accessible to **Admins**:
 - **Company Branding:** Update business name, address, phone, email, TPIN tax number, and payment account numbers (Airtel, Mpamba, NBS, NBM).

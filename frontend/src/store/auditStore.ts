@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { collection, query, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, limit, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore, registerListener } from './authStore';
 
@@ -15,6 +15,7 @@ interface AuditState {
   logs: AuditLog[];
   loadLogs: () => void;
   addLog: (action: string, details: string) => Promise<void>;
+  clearOldLogs: (cutoffTimestamp: number) => Promise<void>;
 }
 
 export const useAuditStore = create<AuditState>()((set) => ({
@@ -50,6 +51,23 @@ export const useAuditStore = create<AuditState>()((set) => ({
       });
     } catch (err) {
       console.warn('Failed to save audit log', err);
+    }
+  },
+  clearOldLogs: async (cutoffTimestamp: number) => {
+    try {
+      const q = query(collection(db, 'auditLogs'), where('timestamp', '<', cutoffTimestamp));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return;
+      const batchSize = 400;
+      const docs = snapshot.docs;
+      for (let i = 0; i < docs.length; i += batchSize) {
+        const batch = writeBatch(db);
+        docs.slice(i, i + batchSize).forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch (err) {
+      console.error('Failed to clear old audit logs', err);
+      throw err;
     }
   }
 }));
