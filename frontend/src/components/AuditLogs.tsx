@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useAuditStore } from '../store/auditStore';
+import { useAuthStore } from '../store/authStore';
 import { ShieldAlert, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function AuditLogs() {
   const { logs, loadLogs } = useAuditStore();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
   useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
+    if (isAdmin) loadLogs();
+  }, [isAdmin, loadLogs]);
 
   const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
   const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
