@@ -1,27 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, MailWarning } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import AuditLogs from '../components/AuditLogs';
-import { useAuditStore } from '../store/auditStore';
 
 export default function Settings() {
   const { 
-    user, updateProfile, users, resetPassword, addUser, deleteUser,
-    resetRequests, fetchResetRequests, approvePasswordReset, denyPasswordReset 
+    user, updateProfile, users, resetPassword, addUser, deleteUser
   } = useAuthStore();
   const settings = useSettingsStore();
   const { updateSettings } = settings;
   const isAdmin = user?.role === 'ADMIN';
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchResetRequests();
-    }
-  }, [isAdmin, fetchResetRequests]);
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
@@ -504,73 +496,6 @@ export default function Settings() {
         </div>
       )}
       
-      {/* Password Reset Requests Section */}
-      {isAdmin && resetRequests.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
-          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
-            <MailWarning size={18} className="text-amber-500" /> Pending Password Reset Requests
-          </div>
-          <div className="p-0">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-gray-500 border-b">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">User Email</th>
-                  <th className="px-4 py-3 font-semibold">Date</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resetRequests.map(req => (
-                  <tr key={req.id} className="border-b last:border-0 hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 font-medium text-gray-700">{req.email}</td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {req.timestamp?.toDate ? req.timestamp.toDate().toLocaleString() : 'Just now'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                        req.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        req.status === 'approved' ? 'bg-green-100 text-green-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {req.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {req.status === 'pending' && (
-                        <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={async () => {
-                              await denyPasswordReset(req.id);
-                              useAuditStore.getState().addLog('PASSWORD_RESET_DENIED', `Denied password reset for ${req.email}`);
-                            }}
-                            className="px-3 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 font-medium text-xs transition"
-                          >
-                            Deny
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              const ok = await approvePasswordReset(req.id, req.email);
-                              if (ok) {
-                                toast.success(`Reset link sent to ${req.email}`);
-                                useAuditStore.getState().addLog('PASSWORD_RESET_APPROVED', `Approved and emailed password reset link to ${req.email}`);
-                              }
-                            }}
-                            className="px-3 py-1 bg-primary text-white rounded hover:bg-blue-700 font-bold text-xs shadow-sm transition"
-                          >
-                            Approve & Email Link
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* Audit Logs Section */}
       {isAdmin && <AuditLogs />}
 

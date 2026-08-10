@@ -5,7 +5,6 @@ import {
   signOut, 
   createUserWithEmailAndPassword,
   updatePassword,
-  sendPasswordResetEmail,
   onAuthStateChanged
 } from 'firebase/auth';
 import { 
@@ -15,11 +14,7 @@ import {
   collection,
   deleteDoc,
   updateDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  addDoc,
-  serverTimestamp
+  onSnapshot
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
@@ -37,19 +32,11 @@ export interface UserAccount extends User {
   isActive?: boolean;
 }
 
-export interface PasswordResetRequest {
-  id: string;
-  email: string;
-  status: 'pending' | 'approved' | 'denied';
-  timestamp: any;
-}
-
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   users: UserAccount[];
-  resetRequests: PasswordResetRequest[];
   isLoading: boolean;
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
@@ -57,10 +44,6 @@ interface AuthState {
   updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<boolean>;
-  fetchResetRequests: () => void;
-  approvePasswordReset: (id: string, email: string) => Promise<boolean>;
-  denyPasswordReset: (id: string) => Promise<void>;
   addUser: (user: { username: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   loadUsers: () => Promise<void>;
@@ -79,7 +62,6 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       users: [],
-      resetRequests: [],
       isLoading: false,
 
       isTemporarilyUnlocked: false,
@@ -93,59 +75,6 @@ export const useAuthStore = create<AuthState>()(
       },
       updateActivity: () => {
         set({ lastActiveTime: Date.now() });
-      },
-
-      requestPasswordReset: async (email: string) => {
-        try {
-          await addDoc(collection(db, 'passwordResetRequests'), {
-            email: email.trim().toLowerCase(),
-            status: 'pending',
-            timestamp: serverTimestamp()
-          });
-          return true;
-        } catch (error) {
-          console.error("Failed to request reset", error);
-          return false;
-        }
-      },
-
-      fetchResetRequests: () => {
-        const q = query(
-          collection(db, 'passwordResetRequests'), 
-          orderBy('timestamp', 'desc')
-        );
-        onSnapshot(q, (snapshot) => {
-          const reqs = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as PasswordResetRequest[];
-          set({ resetRequests: reqs });
-        }, (err) => {
-          console.warn("Failed to fetch reset requests", err);
-        });
-      },
-
-      approvePasswordReset: async (id: string, email: string) => {
-        try {
-          await sendPasswordResetEmail(auth, email);
-          await updateDoc(doc(db, 'passwordResetRequests', id), {
-            status: 'approved'
-          });
-          return true;
-        } catch (error) {
-          console.error("Failed to approve reset", error);
-          return false;
-        }
-      },
-
-      denyPasswordReset: async (id: string) => {
-        try {
-          await updateDoc(doc(db, 'passwordResetRequests', id), {
-            status: 'denied'
-          });
-        } catch (error) {
-          console.error("Failed to deny reset", error);
-        }
       },
 
       login: async (email, password) => {
