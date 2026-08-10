@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Lock, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
@@ -16,13 +16,31 @@ export default function Login() {
   
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('jef_remembered_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    } else {
+      setEmail('');
+      setPassword('');
+      setRememberMe(false);
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    if (rememberMe) {
+      localStorage.setItem('jef_remembered_email', email.trim());
+    } else {
+      localStorage.removeItem('jef_remembered_email');
+    }
+
     try {
       // Set Firebase persistence based on Remember Me checkbox
-      // LOCAL = survives browser restarts; SESSION = cleared when browser closes
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
     } catch {
       // Non-critical, continue anyway
@@ -60,7 +78,7 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-5" autoComplete={rememberMe ? "on" : "off"}>
             {/* Email */}
             <div className="relative">
               <User className="absolute left-3 top-3.5 text-gray-400" size={18} />
@@ -72,7 +90,7 @@ export default function Login() {
                 className="w-full pl-10 pr-4 pt-5 pb-2 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition peer"
                 placeholder=" "
                 required
-                autoComplete="email"
+                autoComplete={rememberMe ? "email" : "off"}
               />
               <label htmlFor="email" className="absolute left-10 top-3.5 text-gray-400 text-sm font-medium transition-all peer-placeholder-shown:opacity-100 peer-not-placeholder-shown:opacity-0 peer-focus:opacity-0 pointer-events-none">
                 Email
@@ -90,7 +108,7 @@ export default function Login() {
                 className="w-full pl-10 pr-12 pt-5 pb-2 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition peer"
                 placeholder=" "
                 required
-                autoComplete="current-password"
+                autoComplete={rememberMe ? "current-password" : "new-password"}
               />
               <label htmlFor="password" className="absolute left-10 top-3.5 text-gray-400 text-sm font-medium transition-all peer-placeholder-shown:opacity-100 peer-not-placeholder-shown:opacity-0 peer-focus:opacity-0 pointer-events-none">
                 Password
