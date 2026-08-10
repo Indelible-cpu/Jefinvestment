@@ -14,6 +14,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { registerListener } from './authStore';
 
 // ─── Expense Store ─────────────────────────────────────────────────────────────
 export interface Expense {
@@ -38,7 +39,7 @@ export const useExpenseStore = create<ExpenseState>()(
     expenses: [],
     loadExpenses: async () => {
       const q = query(collection(db, 'expenses'), orderBy('createdAt', 'desc'));
-      onSnapshot(q, (snapshot) => {
+      const unsub = onSnapshot(q, (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -51,9 +52,8 @@ export const useExpenseStore = create<ExpenseState>()(
           };
         });
         set({ expenses: mapped });
-      }, (err) => {
-        console.warn('Failed to load expenses from Firestore', err);
-      });
+      }, (err) => console.error('Failed to load expenses from Firestore', err));
+      registerListener(unsub);
     },
     addExpense: async (expense) => {
       const newExpense = {
@@ -131,7 +131,7 @@ export const useSaleStore = create<SaleState>()(
     sales: [],
     loadSales: async () => {
       const q = query(collection(db, 'sales'), orderBy('createdAt', 'desc'));
-      onSnapshot(q, (snapshot) => {
+      const unsub_sales = onSnapshot(q, (snapshot) => {
         const mappedSales = snapshot.docs.map(doc => {
           const s = doc.data();
           const d = new Date(s.createdAt || Date.now());
@@ -165,6 +165,7 @@ export const useSaleStore = create<SaleState>()(
       }, (error) => {
         console.error('Failed to load sales from Firestore', error);
       });
+      registerListener(unsub_sales);
     },
     addSale: async (sale) => {
       // Clean any undefined values from payload (Firestore throws error on undefined fields)
@@ -330,7 +331,7 @@ export const useCreditStore = create<CreditState>()(
     credits: [],
     loadCredits: async () => {
       const q = query(collection(db, 'sales'), where('isCredit', '==', true));
-      onSnapshot(q, (snapshot) => {
+      const unsub_credits = onSnapshot(q, (snapshot) => {
         const today = new Date().toISOString().slice(0, 10);
         const mapped = snapshot.docs.map(doc => {
           const c = doc.data();
@@ -360,6 +361,7 @@ export const useCreditStore = create<CreditState>()(
       }, (err) => {
         console.warn('Failed to load credits from Firestore', err);
       });
+      registerListener(unsub_credits);
     },
     addCredit: async (credit) => {
       const newCredit = {
@@ -409,7 +411,7 @@ export const useEmployeeStore = create<EmployeeState>()(
   (set, get) => ({
     employees: [],
     loadEmployees: async () => {
-      onSnapshot(collection(db, 'employees'), (snapshot) => {
+      const unsub_employees = onSnapshot(collection(db, 'employees'), (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const e = doc.data();
           return {
@@ -427,6 +429,7 @@ export const useEmployeeStore = create<EmployeeState>()(
       }, (err) => {
         console.warn('Failed to load employees from Firestore', err);
       });
+      registerListener(unsub_employees);
     },
     addEmployee: async (emp) => {
       await addDoc(collection(db, 'employees'), {

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { collection, query, orderBy, onSnapshot, addDoc, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useAuthStore } from './authStore';
+import { useAuthStore, registerListener } from './authStore';
 
 export interface AuditLog {
   id: string;
@@ -22,7 +22,7 @@ export const useAuditStore = create<AuditState>()((set) => ({
   loadLogs: () => {
     // Only load the latest 100 logs for performance
     const q = query(collection(db, 'auditLogs'), orderBy('timestamp', 'desc'), limit(100));
-    onSnapshot(q, (snapshot) => {
+    const unsub = onSnapshot(q, (snapshot) => {
       const mapped = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -37,6 +37,7 @@ export const useAuditStore = create<AuditState>()((set) => ({
     }, (err) => {
       console.warn('Failed to load audit logs', err);
     });
+    registerListener(unsub);
   },
   addLog: async (action: string, details: string) => {
     const user = useAuthStore.getState().user?.name || 'System';

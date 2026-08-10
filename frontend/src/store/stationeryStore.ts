@@ -8,6 +8,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { registerListener } from './authStore';
 
 // ─── Stationery Service Store ──────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ export const useStationeryStore = create<StationeryState>()((set) => ({
   services: [],
 
   loadStationeryServices: () => {
-    onSnapshot(collection(db, 'stationeryServices'), (snapshot) => {
+    const unsub = onSnapshot(collection(db, 'stationeryServices'), (snapshot) => {
       const mapped = snapshot.docs.map((docSnap) => {
         const d = docSnap.data();
         return {
@@ -55,6 +56,7 @@ export const useStationeryStore = create<StationeryState>()((set) => ({
     }, (err) => {
       console.warn('Failed to load stationery services', err);
     });
+    registerListener(unsub);
   },
 
   addStationeryService: async (svc) => {

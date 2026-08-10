@@ -18,6 +18,18 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
+// Global registry of all active Firestore listeners — unsubscribed on logout
+const activeListeners: Array<() => void> = [];
+export function registerListener(unsub: () => void) {
+  activeListeners.push(unsub);
+}
+export function unsubscribeAllListeners() {
+  while (activeListeners.length > 0) {
+    const unsub = activeListeners.pop();
+    if (unsub) unsub();
+  }
+}
+
 export interface User {
   id: string;
   name: string;
@@ -162,6 +174,9 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Kill all active Firestore listeners BEFORE signing out
+        // to prevent "Missing or insufficient permissions" errors
+        unsubscribeAllListeners();
         try {
           await signOut(auth);
         } catch(e) {
@@ -201,7 +216,7 @@ export const useAuthStore = create<AuthState>()(
         if (!state.user || state.user.id.startsWith('local-')) return;
 
         try {
-          onSnapshot(doc(db, 'users', state.user.id), (userDoc) => {
+          const unsubProfile = onSnapshot(doc(db, 'users', state.user.id), (userDoc) => {
             if (userDoc.exists()) {
               const data = userDoc.data();
               set((state) => ({
@@ -215,6 +230,7 @@ export const useAuthStore = create<AuthState>()(
           }, (err) => {
             console.warn('Failed to load profile from Firestore', err);
           });
+          registerListener(unsubProfile);
         } catch (err) {
           console.warn('Failed to set up profile listener', err);
         }
@@ -260,7 +276,7 @@ export const useAuthStore = create<AuthState>()(
 
       loadUsers: async () => {
         try {
-          onSnapshot(collection(db, 'users'), (snapshot) => {
+          const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
             const loadedUsers: UserAccount[] = [];
             snapshot.forEach(doc => {
               const data = doc.data();
@@ -269,9 +285,7 @@ export const useAuthStore = create<AuthState>()(
                 username: data.username || '',
                 name: data.name || '',
                 role: data.role || 'CASHIER',
-                branchId: data.branchId,
-                branchName: data.branchName,
-                profilePic: data.profilePic,
+                branchId: data.branchId || null,
                 isActive: data.isActive !== false,
               });
             });
@@ -279,6 +293,7 @@ export const useAuthStore = create<AuthState>()(
           }, (err) => {
             console.warn("Failed to load users", err);
           });
+          registerListener(unsubUsers);
         } catch (e) {
           console.warn("Failed to set up users listener", e);
         }

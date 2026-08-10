@@ -11,6 +11,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { registerListener } from './authStore';
 
 // ─── Shared Product Store ─────────────────────────────────────────────────────
 export interface Product {
@@ -44,7 +45,7 @@ export const useProductStore = create<ProductState>()(
 
     loadProducts: async () => {
       set({ isLoading: true });
-      onSnapshot(collection(db, 'products'), (snapshot) => {
+      const unsub_products = onSnapshot(collection(db, 'products'), (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const p = doc.data();
           return {
@@ -65,6 +66,7 @@ export const useProductStore = create<ProductState>()(
         console.warn('Failed to load products from Firestore', err);
         set({ isLoading: false });
       });
+      registerListener(unsub_products);
     },
 
     setProducts: (products) => set({ products }),
@@ -245,13 +247,14 @@ export const useCartStore = create<CartState>()(
 
       loadHeldCarts: (userId: string) => {
         try {
-          onSnapshot(collection(db, 'users', userId, 'heldCarts'), (snapshot) => {
+          const unsub_carts = onSnapshot(collection(db, 'users', userId, 'heldCarts'), (snapshot) => {
             const loadedCarts: HeldCart[] = [];
             snapshot.forEach((document) => {
               loadedCarts.push({ id: document.id, ...document.data() } as HeldCart);
             });
             set({ heldCarts: loadedCarts });
           });
+          registerListener(unsub_carts);
         } catch (error) {
           console.error("Failed to load held carts from Firestore", error);
         }
