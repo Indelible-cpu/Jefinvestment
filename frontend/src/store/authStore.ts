@@ -18,6 +18,37 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
+// ─── Offline Credential Cache ──────────────────────────────────────────────────
+// We store a SHA-256 hash of the password alongside the user profile so that
+// real users can re-authenticate when the device is offline.
+const OFFLINE_CACHE_KEY = 'jef-offline-credential-cache';
+
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'jef-salt-2024');
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function saveOfflineCache(email: string, passwordHash: string, user: any) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
+    cache[email.trim().toLowerCase()] = { passwordHash, user, savedAt: Date.now() };
+    localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(cache));
+  } catch { /* ignore */ }
+}
+
+async function checkOfflineCache(email: string, password: string): Promise<any | null> {
+  try {
+    const cache = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
+    const entry = cache[email.trim().toLowerCase()];
+    if (!entry) return null;
+    const hash = await hashPassword(password);
+    if (hash === entry.passwordHash) return entry.user;
+  } catch { /* ignore */ }
+  return null;
+}
+
 // Global registry of all active Firestore listeners — unsubscribed on logout
 const activeListeners: Array<() => void> = [];
 export function registerListener(unsub: () => void) {
@@ -110,6 +141,19 @@ export const useAuthStore = create<AuthState>()(
           (password === 'Cashier@1234' || password === 'cashier1234#');
 
         if (isOffline) {
+          // First: try the offline credential cache for real users
+          const cachedUser = await checkOfflineCache(email, password);
+          if (cachedUser) {
+            set({
+              token: 'offline-cached-token',
+              user: cachedUser,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            return { success: true };
+          }
+
+          // Fallback: hardcoded emergency credentials
           if (isAdminLocal) {
             set({
               token: 'local-admin-token',
@@ -148,7 +192,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
           return {
             success: false,
-            error: 'No internet connection detected. Please check your network connection and try again.',
+            error: 'No internet connection. Your credentials were not recognised offline. Please connect to the internet for your first login on this device.',
             isNetworkError: true
           };
         }
@@ -169,17 +213,23 @@ export const useAuthStore = create<AuthState>()(
             await setDoc(doc(db, 'users', firebaseUser.uid), userData);
           }
 
+          const userObj = {
+            id: firebaseUser.uid,
+            name: userData.name || userData.username,
+            username: userData.username,
+            role: userData.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
+            branchId: userData.branchId,
+            branchName: userData.branchName,
+            profilePic: userData.profilePic || '',
+          };
+
+          // Cache credentials securely for offline re-login
+          const pwHash = await hashPassword(password);
+          saveOfflineCache(email, pwHash, userObj);
+
           set({
             token,
-            user: {
-              id: firebaseUser.uid,
-              name: userData.name || userData.username,
-              username: userData.username,
-              role: userData.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
-              branchId: userData.branchId,
-              branchName: userData.branchName,
-              profilePic: userData.profilePic || '',
-            },
+            user: userObj,
             isAuthenticated: true,
             isLoading: false,
           });
