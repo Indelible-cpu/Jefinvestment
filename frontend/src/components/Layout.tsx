@@ -367,7 +367,14 @@ export default function Layout() {
               <span className="text-2xl font-bold">{companyName.charAt(0)}</span>
             </div>
           )}
-          <h2 className="text-xl font-bold text-center leading-tight">{companyName}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-center leading-tight">{companyName}</h2>
+            {isOnline ? (
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shrink-0" title="Online"></div>
+            ) : (
+              <div className="w-2 h-2 bg-red-400 rounded-full shrink-0" title="Offline"></div>
+            )}
+          </div>
         </div>
 
         {/* Navigation */}
