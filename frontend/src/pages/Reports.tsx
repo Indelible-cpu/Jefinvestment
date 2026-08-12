@@ -63,11 +63,13 @@ export default function Reports() {
     const transferSales = daySales.filter(s => s.paymentMethod === 'BANK_TRANSFER').reduce((sum, s) => sum + s.total, 0);
     const creditSales = daySales.filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + s.total, 0);
     const totalSales = cashSales + transferSales + creditSales;
+    const realizedRevenue = cashSales + transferSales;
     const totalExpenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
     const netCash = cashSales - totalExpenses;
-    // Estimated daily profit = gross profit from items minus expenses
+    const netRevenue = realizedRevenue - totalExpenses;
+    // Daily profit = gross profit from items minus expenses
     const dailyProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
-    return { date: reportDate, cashSales, transferSales, creditSales, totalSales, totalExpenses, netCash, dailyProfit, txCount: daySales.length, transactions: daySales };
+    return { date: reportDate, cashSales, transferSales, creditSales, totalSales, realizedRevenue, totalExpenses, netCash, netRevenue, dailyProfit, txCount: daySales.length, transactions: daySales };
   }, [reportDate, completedSales, expenses]);
 
   /* ── Cumulative (all-time) totals ── */
@@ -131,16 +133,16 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Cash Reconciliation Box */}
+      {/* Realized Revenue Reconciliation Box */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-6 mb-6 shadow-lg">
         <div className="text-blue-200 font-medium mb-2 flex items-center gap-2">
-          <DollarSign size={18} /> Expected Cash in Drawer
+          <DollarSign size={18} /> Net Realized Revenue
         </div>
-        <div className="text-5xl font-extrabold mb-1">{cur} {data.netCash.toLocaleString()}</div>
-        <div className="text-blue-200 text-sm mt-2">Cash Sales ({cur} {data.cashSales.toLocaleString()}) – Expenses ({cur} {data.totalExpenses.toLocaleString()})</div>
-        {data.netCash < 0 && (
+        <div className="text-5xl font-extrabold mb-1">{cur} {data.netRevenue.toLocaleString()}</div>
+        <div className="text-blue-200 text-sm mt-2">Realized Revenue ({cur} {data.realizedRevenue.toLocaleString()}) – Expenses ({cur} {data.totalExpenses.toLocaleString()})</div>
+        {data.netRevenue < 0 && (
           <div className="mt-3 flex items-center gap-2 bg-red-400/30 px-3 py-2 rounded-lg text-sm font-semibold">
-            <AlertCircle size={16} /> Warning: Expenses exceed cash sales today!
+            <AlertCircle size={16} /> Warning: Expenses exceed realized revenue today!
           </div>
         )}
       </div>
@@ -177,7 +179,7 @@ export default function Reports() {
             <TrendingDown size={20} className="text-red-500" />
           </div>
           <div className="text-2xl font-bold text-red-600">{cur} {data.totalExpenses.toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-1">Deducted from cash</div>
+          <div className="text-xs text-gray-400 mt-1">Deducted from realized revenue</div>
         </div>
         <div className={`p-5 rounded-lg border shadow-sm ${data.dailyProfit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
           <div className="flex justify-between items-start mb-3">
@@ -250,21 +252,29 @@ export default function Reports() {
             ))}
           </div>
         </div>
-        {/* Cash Reconciliation */}
+        {/* Revenue Reconciliation */}
         <div className="bg-white rounded-lg border shadow-sm p-5">
-          <h2 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><DollarSign size={20} /> Cash Reconciliation</h2>
+          <h2 className="font-bold text-gray-700 mb-4 flex items-center gap-2"><DollarSign size={20} /> Revenue &amp; Expense Reconciliation</h2>
           <div className="space-y-2">
             <div className="flex justify-between py-2 border-b">
               <span className="text-gray-600">+ Cash Sales</span>
               <span className="font-semibold text-green-600">+ {cur} {data.cashSales.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-2 border-b">
-              <span className="text-gray-600">– Expenses Paid</span>
+              <span className="text-gray-600">+ Bank / Mobile Transfer Sales</span>
+              <span className="font-semibold text-purple-600">+ {cur} {data.transferSales.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b font-medium text-gray-700">
+              <span>= Total Realized Revenue</span>
+              <span>{cur} {data.realizedRevenue.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between py-2 border-b">
+              <span className="text-gray-600">– Total Expenses Paid</span>
               <span className="font-semibold text-red-600">– {cur} {data.totalExpenses.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-3 bg-blue-50 rounded-lg px-3 mt-3">
-              <span className="font-bold text-gray-800">Expected in Drawer</span>
-              <span className="font-extrabold text-blue-700 text-lg">{cur} {data.netCash.toLocaleString()}</span>
+              <span className="font-bold text-gray-800">Net Realized Revenue</span>
+              <span className="font-extrabold text-blue-700 text-lg">{cur} {data.netRevenue.toLocaleString()}</span>
             </div>
           </div>
         </div>
