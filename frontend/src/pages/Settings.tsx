@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
-import { storage } from '../lib/firebase';
+import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import AuditLogs from '../components/AuditLogs';
