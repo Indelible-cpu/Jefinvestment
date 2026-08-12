@@ -10,7 +10,7 @@ const SHEETS_PER_REAM = 500;
 
 const emptyForm: Omit<Product, 'id'> = {
   name: '', sku: '', category: 'Accessories', costPrice: 0, sellingPrice: 0,
-  stock: 0, reorderLevel: 5, isService: false, unit: 'pcs',
+  stock: 0, reorderLevel: 5, isService: false, isEquipment: false, unit: 'pcs',
 };
 
 export default function Inventory() {
@@ -42,7 +42,13 @@ export default function Inventory() {
     return matchSearch && matchCat;
   });
 
-  const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
+  const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
+
+  // Resale Inventory Valuation (Excludes Services & Equipment)
+  const resaleProducts = products.filter(p => !p.isService && !p.isEquipment && p.stock > 0);
+  const totalInventoryCost = resaleProducts.reduce((sum, p) => sum + (p.stock * p.costPrice), 0);
+  const expectedRevenue = resaleProducts.reduce((sum, p) => sum + (p.stock * p.sellingPrice), 0);
+  const expectedProfit = expectedRevenue - totalInventoryCost;
 
   const openAdd = () => { setForm(emptyForm); setEditId(null); setShowModal(true); };
   const openEdit = (p: Product) => { const { id, ...rest } = p; setForm(rest); setEditId(id); setShowModal(true); };
@@ -135,8 +141,35 @@ export default function Inventory() {
             </div>
           )}
           <button onClick={openAdd} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md">
-            <Plus size={20} /> Add Product
+            <Plus size={20} /> Add Product / Equipment
           </button>
+        </div>
+      </div>
+
+      {/* Inventory Valuation Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Inventory Cost</div>
+          <div className="text-2xl font-black text-gray-800 mt-1">
+            {settings.currency} {totalInventoryCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-gray-400 mt-1">Current capital invested in stock</div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
+          <div className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Expected Revenue</div>
+          <div className="text-2xl font-black text-blue-700 mt-1">
+            {settings.currency} {expectedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-gray-400 mt-1">Value if all current stock is sold</div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
+          <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Expected Profit</div>
+          <div className={`text-2xl font-black mt-1 ${expectedProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {settings.currency} {expectedProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className="text-[11px] text-gray-400 mt-1">Potential gross margin from stock</div>
         </div>
       </div>
 
@@ -210,8 +243,10 @@ export default function Inventory() {
                     )}
                   </td>
                   <td className="p-4 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.isService ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {p.isService ? 'Service' : 'Product'}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      p.isEquipment ? 'bg-amber-100 text-amber-800' : p.isService ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {p.isEquipment ? 'Equipment' : p.isService ? 'Service' : 'Product'}
                     </span>
                   </td>
                   <td className="p-4 text-right">
@@ -335,10 +370,28 @@ export default function Inventory() {
                   </div>
                 </div>
               )}
-              {/* Is Service */}
-              <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-lg">
-                <input type="checkbox" id="isService" name="isService" checked={form.isService} onChange={handleFormChange} className="w-5 h-5 accent-purple-600" />
-                <label htmlFor="isService" className="text-sm font-medium text-purple-800">This is a Service (not a physical product)</label>
+              {/* Is Service / Equipment checkboxes */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-lg">
+                  <input type="checkbox" id="isService" name="isService" checked={form.isService} onChange={e => {
+                    const checked = e.target.checked;
+                    setForm(prev => ({ ...prev, isService: checked, ...(checked ? { isEquipment: false } : {}) }));
+                  }} className="w-5 h-5 accent-purple-600" />
+                  <label htmlFor="isService" className="text-sm font-medium text-purple-800">This is a Service (not a physical product)</label>
+                </div>
+
+                {!form.isService && (
+                  <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                    <input type="checkbox" id="isEquipment" name="isEquipment" checked={form.isEquipment || false} onChange={e => {
+                      const checked = e.target.checked;
+                      setForm(prev => ({ ...prev, isEquipment: checked, ...(checked ? { isService: false } : {}) }));
+                    }} className="w-5 h-5 accent-amber-600" />
+                    <div>
+                      <label htmlFor="isEquipment" className="text-sm font-semibold text-amber-900 block">Business Equipment / Asset</label>
+                      <span className="text-xs text-amber-700">Printer, Computer, Copier, Laminator — Excluded from resale inventory valuation</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end rounded-b-xl">

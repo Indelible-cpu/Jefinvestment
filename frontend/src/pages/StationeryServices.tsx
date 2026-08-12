@@ -11,6 +11,7 @@ const EMPTY_SERVICE: Omit<StationeryService, 'id'> = {
   laborCost: 0,
   electricityCost: 0,
   otherOverheadCost: 0,
+  equipmentCostPerUnit: 0,
   materialsUsed: [],
 };
 
@@ -47,6 +48,7 @@ export default function StationeryServices() {
       laborCost: svc.laborCost,
       electricityCost: svc.electricityCost,
       otherOverheadCost: svc.otherOverheadCost,
+      equipmentCostPerUnit: svc.equipmentCostPerUnit || 0,
       materialsUsed: svc.materialsUsed.map(m => ({ ...m })),
     });
     setShowModal(true);
@@ -111,7 +113,7 @@ export default function StationeryServices() {
       const product = inventoryProducts.find(p => p.id === m.inventoryItemId);
       return sum + (product?.costPrice || 0) * m.quantityPerUnit;
     }, 0);
-    return matCost + svc.laborCost + svc.electricityCost + svc.otherOverheadCost;
+    return matCost + svc.laborCost + svc.electricityCost + svc.otherOverheadCost + (svc.equipmentCostPerUnit || 0);
   };
 
   return (
@@ -193,6 +195,11 @@ export default function StationeryServices() {
                   <span className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-full flex items-center gap-1">
                     <Zap size={11} /> Electricity: {settings.currency} {svc.electricityCost}
                   </span>
+                  {Boolean(svc.equipmentCostPerUnit) && (
+                    <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-1 rounded-full flex items-center gap-1">
+                      <Printer size={11} /> Equipment Wear: {settings.currency} {svc.equipmentCostPerUnit}
+                    </span>
+                  )}
                   <span className="bg-gray-50 text-gray-600 border px-2 py-1 rounded-full flex items-center gap-1">
                     <Layers size={11} /> Overhead: {settings.currency} {svc.otherOverheadCost}
                   </span>
@@ -272,6 +279,16 @@ export default function StationeryServices() {
                       className="w-full p-2 border rounded-lg"
                       value={form.electricityCost || ''}
                       onChange={e => setForm(f => ({ ...f, electricityCost: Number(e.target.value) }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Equipment Cost/Wear ({settings.currency})</label>
+                    <input
+                      type="number" min={0} step="any"
+                      className="w-full p-2 border rounded-lg"
+                      placeholder="e.g. 5"
+                      value={form.equipmentCostPerUnit || ''}
+                      onChange={e => setForm(f => ({ ...f, equipmentCostPerUnit: Number(e.target.value) }))}
                     />
                   </div>
                   <div>

@@ -24,6 +24,7 @@ export interface Product {
   stock: number;
   reorderLevel: number;
   isService: boolean;
+  isEquipment?: boolean;
   unit: string;
 }
 
@@ -58,6 +59,7 @@ export const useProductStore = create<ProductState>()(
             stock: p.stock ?? 0,
             reorderLevel: p.reorderLevel || 0,
             isService: !!p.isService,
+            isEquipment: !!p.isEquipment,
             unit: p.unit || 'pcs',
           };
         });
@@ -80,6 +82,7 @@ export const useProductStore = create<ProductState>()(
         sellingPrice: product.sellingPrice,
         reorderLevel: product.reorderLevel,
         isService: product.isService,
+        isEquipment: !!product.isEquipment,
         unit: product.unit,
         stock: product.stock,
         createdAt: Date.now(),
@@ -97,6 +100,7 @@ export const useProductStore = create<ProductState>()(
         sellingPrice: product.sellingPrice,
         reorderLevel: product.reorderLevel,
         isService: product.isService,
+        isEquipment: !!product.isEquipment,
         unit: product.unit,
         stock: product.stock,
       };

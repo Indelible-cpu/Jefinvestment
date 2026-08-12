@@ -145,7 +145,7 @@ export default function Reports() {
         )}
       </div>
 
-      {/* KPI Cards — 5 cards including Est. Daily Profit */}
+      {/* KPI Cards — 5 cards including Daily Profit */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white p-4 md:p-5 rounded-lg border shadow-sm">
           <div className="flex justify-between items-start mb-3">
@@ -295,7 +295,7 @@ export default function Reports() {
                   <th className="py-2 text-left">Item Name</th>
                   <th className="py-2 text-center">Units Sold</th>
                   <th className="py-2 text-right">Total Revenue</th>
-                  <th className="py-2 text-right">Est. Profit</th>
+                  <th className="py-2 text-right">Profit</th>
                 </tr>
               </thead>
               <tbody>
@@ -333,7 +333,7 @@ export default function Reports() {
             <div className="text-slate-400 text-xs mt-1">All recorded expenses</div>
           </div>
           <div className={`rounded-xl p-4 ${cumulative.totalProfit >= 0 ? 'bg-emerald-500/30' : 'bg-red-500/30'}`}>
-            <div className="text-slate-300 text-xs font-semibold uppercase tracking-wide mb-1">Est. Total Profit</div>
+            <div className="text-slate-300 text-xs font-semibold uppercase tracking-wide mb-1">Total Profit</div>
             <div className={`text-3xl font-extrabold ${cumulative.totalProfit >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
               {cur} {cumulative.totalProfit.toLocaleString()}
             </div>
@@ -358,7 +358,7 @@ export default function Reports() {
               <th className="p-4 text-sm font-semibold text-gray-600">Cashier</th>
               <th className="p-4 text-sm font-semibold text-gray-600">Method</th>
               <th className="p-4 text-sm font-semibold text-gray-600 text-right">Amount ({cur})</th>
-              <th className="p-4 text-sm font-semibold text-gray-600 text-right">Est. Profit ({cur})</th>
+              <th className="p-4 text-sm font-semibold text-gray-600 text-right">Profit ({cur})</th>
             </tr>
           </thead>
           <tbody>
