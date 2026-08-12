@@ -36,7 +36,7 @@ export default function Dashboard() {
   const todayTotal = getTodayTotal();
   const outstandingCredit = getTotalOutstanding();
   const activeStaff = getActiveCount();
-  const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
+  const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
 
   const today = new Date().toISOString().slice(0, 10);
   const todaysSales = sales.filter(s => s.date === today);

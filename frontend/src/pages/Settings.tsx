@@ -138,12 +138,16 @@ export default function Settings() {
     }
   };
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     if (!resetTarget || !newPassword.trim()) return;
-    resetPassword(resetTarget, newPassword.trim());
-    setResetTarget(null);
-    setNewPassword('');
-    showSuccess('Password reset successfully!');
+    try {
+      await resetPassword(resetTarget, newPassword.trim());
+      setResetTarget(null);
+      setNewPassword('');
+      showSuccess('Password reset successfully!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset password.');
+    }
   };
 
   const handleAddUser = (e: React.FormEvent) => {

@@ -65,12 +65,19 @@ export default function Inventory() {
   const handleSave = async () => {
     if (!form.name.trim() || !form.sku.trim()) return;
     setIsSubmitting(true);
+    
+    // Ensure equipment doesn't save a reorder level
+    const submitForm = { ...form };
+    if (submitForm.isEquipment) {
+      submitForm.reorderLevel = 0;
+    }
+
     try {
       if (editId) {
-        await updateProduct({ ...form, id: editId });
+        await updateProduct({ ...submitForm, id: editId });
         toast.success('Product updated successfully');
       } else {
-        await addProduct({ ...form, id: Date.now().toString() });
+        await addProduct({ ...submitForm, id: Date.now().toString() });
         toast.success('Product added successfully');
       }
       setShowModal(false);
@@ -287,8 +294,8 @@ export default function Inventory() {
                     {p.isService ? (
                       <span className="text-gray-400 text-sm">—</span>
                     ) : (
-                      <span className={`px-2 py-0.5 rounded-full text-sm font-semibold ${p.stock <= p.reorderLevel ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                        {p.stock} {p.unit}
+                      <span className={`px-2 py-0.5 rounded-full text-sm font-semibold ${(!p.isEquipment && p.stock <= p.reorderLevel) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                        {p.isEquipment ? `Asset: ${p.stock}` : `${p.stock} ${p.unit || ''}`}
                       </span>
                     )}
                   </td>
@@ -418,17 +425,19 @@ export default function Inventory() {
                   </div>
                 </div>
               )}
-              {/* Stock — only for non-services and non-equipment */}
-              {!form.isService && !form.isEquipment && (
+              {/* Stock / Asset Quantity */}
+              {!form.isService && (
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Current Stock</label>
-                    <input name="stock" type="number" value={form.stock} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
+                  <div className={form.isEquipment ? "col-span-2" : ""}>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">{form.isEquipment ? "Asset Quantity" : "Current Stock"}</label>
+                    <input name="stock" type="number" value={form.stock} onChange={handleFormChange} onFocus={(e) => e.target.select()} className={`w-full p-2.5 border rounded-lg focus:ring-2 outline-none ${form.isEquipment ? 'focus:ring-amber-400' : 'focus:ring-primary'}`} min={0} />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Reorder Level</label>
-                    <input name="reorderLevel" type="number" value={form.reorderLevel} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
-                  </div>
+                  {!form.isEquipment && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Reorder Level</label>
+                      <input name="reorderLevel" type="number" value={form.reorderLevel} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
+                    </div>
+                  )}
                 </div>
               )}
               {/* Is Service / Equipment checkboxes */}

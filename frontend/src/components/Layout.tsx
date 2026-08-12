@@ -151,7 +151,7 @@ export default function Layout() {
     };
   }, [autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes]);
 
-  const lowStockCount = products.filter(p => !p.isService && p.stock <= p.reorderLevel).length;
+  const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
   const overdueCreditCount = credits?.filter(c => c.status === 'OVERDUE').length || 0;
   const notificationCount = lowStockCount + overdueCreditCount;
 

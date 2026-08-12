@@ -60,6 +60,7 @@ export default function POS() {
   const categories = ['All', ...Array.from(new Set(products.map(p => normalizeCategory(p.category)).filter(Boolean)))];
 
   const filteredProducts = products.filter(p => {
+    if (p.isEquipment) return false;
     const pCat = normalizeCategory(p.category);
     if (!pCat) return false;
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -469,10 +470,10 @@ const playSound = (type: 'success' | 'error') => {
                       <div className="flex justify-between items-end">
                         <div className="font-bold text-primary text-sm">{settings.currency} {product.sellingPrice.toLocaleString()}</div>
                         {!product.isService && (
-                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                            product.stock <= product.reorderLevel ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            (!product.isEquipment && product.stock <= product.reorderLevel) ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
                           }`}>
-                            {product.stock} {product.unit}
+                            {product.isEquipment ? `Asset: ${product.stock}` : `${product.stock} in stock`}
                           </span>
                         )}
                         {product.isService && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Service</span>}

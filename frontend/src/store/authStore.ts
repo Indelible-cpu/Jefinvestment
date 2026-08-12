@@ -373,8 +373,7 @@ export const useAuthStore = create<AuthState>()(
         if (get().user?.id === userId && auth.currentUser) {
           await updatePassword(auth.currentUser, newPassword);
         } else {
-          console.error("Cannot reset another user's password from client SDK without Cloud Functions.");
-          throw new Error("Cannot reset another user's password from client.");
+          throw new Error("Firebase Security: Cannot change another user's password directly. Please delete the account and recreate it with the EXACT same Name (this will preserve all their sales history).");
         }
       },
 
