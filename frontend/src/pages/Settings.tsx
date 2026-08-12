@@ -5,6 +5,7 @@ import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Tra
 import { toast } from 'sonner';
 import { storage } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import AuditLogs from '../components/AuditLogs';
 
 export default function Settings() {
@@ -51,6 +52,11 @@ export default function Settings() {
   const [showAddPw, setShowAddPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
+
+  // Data Reset State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetOptions, setResetOptions] = useState({ sales: true, expenses: true, inventory: false, auditLogs: false });
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,19 +207,39 @@ export default function Settings() {
   };
 
   const handleFactoryReset = () => {
-    toast('Wipe all system data?', {
-      description: 'This will permanently delete all sales, inventory, and settings. Are you completely sure?',
-      action: { 
-        label: 'Wipe Data', 
-        onClick: () => {
-          localStorage.removeItem('jef-auth-storage');
-          localStorage.removeItem('jef-data-storage');
-          localStorage.removeItem('jef-settings-storage');
-          window.location.href = '/login';
+    setShowResetModal(true);
+  };
+
+  const executeReset = async () => {
+    setIsResetting(true);
+    try {
+      const batchDelete = async (colName: string) => {
+        const snap = await getDocs(collection(db, colName));
+        const chunks = [];
+        let i = 0;
+        while (i < snap.docs.length) {
+          chunks.push(snap.docs.slice(i, i + 500));
+          i += 500;
         }
-      },
-      cancel: { label: 'Cancel', onClick: () => {} },
-    });
+        for (const chunk of chunks) {
+          const b = writeBatch(db);
+          chunk.forEach(doc => b.delete(doc.ref));
+          await b.commit();
+        }
+      };
+
+      if (resetOptions.sales) await batchDelete('sales');
+      if (resetOptions.expenses) await batchDelete('expenses');
+      if (resetOptions.inventory) await batchDelete('products');
+      if (resetOptions.auditLogs) await batchDelete('auditLogs');
+
+      toast.success('Selected data has been reset successfully. Reloading...');
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to reset data');
+      setIsResetting(false);
+    }
   };
 
   const showSuccess = (msg: string) => toast.success(msg);
@@ -274,6 +300,15 @@ export default function Settings() {
           {/* Company Branding */}
           {isAdmin ? (
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <div className="bg-red-50 p-4 border-b font-bold text-red-700 flex items-center gap-2">
+                <AlertTriangle size={18} /> Danger Zone
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-gray-600 mb-4">Selectively clear system data. This action is irreversible.</p>
+                <button onClick={handleFactoryReset} className="w-full bg-white border border-red-200 text-red-600 font-bold px-6 py-2.5 rounded-lg hover:bg-red-50 hover:border-red-300 transition">
+                  Reset System Data
+                </button>
+              </div>
               <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
                 <Briefcase size={18} /> Company Branding & Tax
               </div>
@@ -574,6 +609,46 @@ export default function Settings() {
                 <button type="submit" className="flex-1 bg-primary hover:bg-blue-700 text-white py-2.5 rounded-lg font-bold transition">Add User</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Data Reset Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => !isResetting && setShowResetModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="bg-red-100 p-2 rounded-full"><AlertTriangle size={20} className="text-red-600" /></div>
+              <h2 className="font-bold text-gray-800 text-lg">Reset Data</h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">Select the data you want to permanently delete from the system:</p>
+            
+            <div className="space-y-3 mb-6">
+              <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50 border">
+                <input type="checkbox" checked={resetOptions.sales} onChange={e => setResetOptions(o => ({...o, sales: e.target.checked}))} className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm text-gray-700">Sales Records</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50 border">
+                <input type="checkbox" checked={resetOptions.expenses} onChange={e => setResetOptions(o => ({...o, expenses: e.target.checked}))} className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm text-gray-700">Expenses</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50 border">
+                <input type="checkbox" checked={resetOptions.auditLogs} onChange={e => setResetOptions(o => ({...o, auditLogs: e.target.checked}))} className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm text-gray-700">Audit Logs</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-red-50 border border-red-100 bg-red-50/30">
+                <input type="checkbox" checked={resetOptions.inventory} onChange={e => setResetOptions(o => ({...o, inventory: e.target.checked}))} className="w-4 h-4 text-red-600" />
+                <span className="font-medium text-sm text-red-700">Inventory & Products</span>
+              </label>
+            </div>
+
+            <div className="flex gap-3">
+              <button type="button" disabled={isResetting} onClick={() => setShowResetModal(false)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50">Cancel</button>
+              <button type="button" disabled={isResetting || !Object.values(resetOptions).some(Boolean)} onClick={executeReset} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 disabled:opacity-50">
+                {isResetting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                Reset Selected
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -26,6 +26,33 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Swipe detection state
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    const currentTouch = e.targetTouches[0].clientX;
+    const diff = currentTouch - touchStart;
+    // Open if starting near left edge (< 40px) and swiping right (> 50px)
+    if (diff > 50 && touchStart < 40) {
+      setMobileMenuOpen(true);
+      setTouchStart(null);
+    }
+    // Close if swiping left (> 50px) while open
+    if (diff < -50 && mobileMenuOpen) {
+      setMobileMenuOpen(false);
+      setTouchStart(null);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchStart(null);
+  };
+
   const handleLogout = async () => {
     const name = useAuthStore.getState().user?.name || 'User';
     await logout();
@@ -212,7 +239,12 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden relative">
+    <div 
+      className="flex h-screen bg-background overflow-hidden relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Mobile Top Bar */}
       <div className="md:hidden absolute top-0 left-0 right-0 h-24 bg-[#004bb4] text-white flex items-start justify-between px-4 pt-4 z-20">
         <div className="flex items-start gap-4">
@@ -332,11 +364,9 @@ export default function Layout() {
           onKeyDown={handleNavKeyDown}
           className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar"
         >
-          {isAdmin && (
-            <Link to="/" className={navLinkClass('/')}>
-              <LayoutDashboard size={20} /> <span>Dashboard</span>
-            </Link>
-          )}
+          <Link to="/" className={navLinkClass('/')}>
+            <LayoutDashboard size={20} /> <span>Dashboard</span>
+          </Link>
           
           <Link to="/pos" className={navLinkClass('/pos')}>
             <ShoppingCart size={20} /> <span>POS Terminal</span>
@@ -346,9 +376,11 @@ export default function Layout() {
             <ClipboardList size={20} /> <span>Sales</span>
           </Link>
           
-          <Link to="/inventory" className={navLinkClass('/inventory')}>
-            <Package size={20} /> <span>Inventory</span>
-          </Link>
+          {isAdmin && (
+            <Link to="/inventory" className={navLinkClass('/inventory')}>
+              <Package size={20} /> <span>Inventory</span>
+            </Link>
+          )}
           
           <Link to="/expenses" className={navLinkClass('/expenses')}>
             <Receipt size={20} /> <span>Expenses</span>
@@ -407,12 +439,10 @@ export default function Layout() {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center pb-safe z-40 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-        {isAdmin && (
-          <Link to="/" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/' ? 'text-primary' : 'text-gray-500'}`}>
-            <LayoutDashboard size={20} className="mb-1" />
-            <span className="text-[10px] font-medium">Dashboard</span>
-          </Link>
-        )}
+        <Link to="/" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/' ? 'text-primary' : 'text-gray-500'}`}>
+          <LayoutDashboard size={20} className="mb-1" />
+          <span className="text-[10px] font-medium">Dashboard</span>
+        </Link>
         
         <Link to="/sales" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/sales' ? 'text-primary' : 'text-gray-500'}`}>
           <ClipboardList size={22} className="mb-1" />
@@ -424,10 +454,12 @@ export default function Layout() {
           <span className="text-[10px] font-medium mt-0.5">POS</span>
         </Link>
         
-        <Link to="/inventory" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/inventory' ? 'text-primary' : 'text-gray-500'}`}>
-          <Package size={20} className="mb-1" />
-          <span className="text-[10px] font-medium">Inventory</span>
-        </Link>
+        {isAdmin && (
+          <Link to="/inventory" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/inventory' ? 'text-primary' : 'text-gray-500'}`}>
+            <Package size={20} className="mb-1" />
+            <span className="text-[10px] font-medium">Inventory</span>
+          </Link>
+        )}
         
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className={`flex flex-col items-center py-2 px-3 text-gray-500`}>
           <Menu size={20} className="mb-1" />

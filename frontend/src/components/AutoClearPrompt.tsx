@@ -32,12 +32,20 @@ export default function AutoClearPrompt() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    const lastClear = settings.lastDataClearDate ?? 0;
-    const daysSinceClear = (Date.now() - lastClear) / (1000 * 60 * 60 * 24);
-    if (daysSinceClear >= CHECK_INTERVAL_DAYS) {
+    
+    // If never cleared before, initialize the counter silently to today
+    if (!settings.lastDataClearDate) {
+      settings.updateSettings({ lastDataClearDate: Date.now() }).catch(console.error);
+      return;
+    }
+
+    const daysSinceClear = Math.floor((Date.now() - settings.lastDataClearDate) / (1000 * 60 * 60 * 24));
+    
+    // Only show if it's exactly 30 days or a multiple of 30, to avoid annoying persistent banners
+    if (daysSinceClear > 0 && daysSinceClear % CHECK_INTERVAL_DAYS === 0) {
       setShowBanner(true);
     }
-  }, [isAdmin, settings.lastDataClearDate]);
+  }, [isAdmin, settings.lastDataClearDate, settings]);
 
   if (!isAdmin || !showBanner) return null;
 

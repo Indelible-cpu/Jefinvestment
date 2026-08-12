@@ -121,7 +121,7 @@ export default function Reports() {
           <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
             <BarChart3 size={28} /> Business Reports
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">Shift summary, cash reconciliation, and business analytics</p>
+          <p className="text-gray-500 mt-1 text-sm">Daily summary, cash reconciliation, and business analytics</p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary outline-none text-sm" />

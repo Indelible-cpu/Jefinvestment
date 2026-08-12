@@ -632,7 +632,7 @@ const playSound = (type: 'success' | 'error') => {
                 })()}
 
                 {/* Est. Profit Indicator */}
-                {cart.items.length > 0 && (() => {
+                {cart.items.length > 0 && user?.role === 'ADMIN' && (() => {
                   const totalCost = cart.items.reduce((sum, i) => sum + ((i.costPrice || 0) * i.quantity), 0);
                   const estProfit = cart.getTotal() - totalCost;
                   return (

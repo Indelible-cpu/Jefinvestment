@@ -81,3 +81,61 @@
     -moz-appearance: textfield;
   }
 }
+
+/* ─── Print Styles ────────────────────────────────────────────────────────── */
+@media print {
+  /* Hide all layout chrome */
+  aside,
+  nav,
+  footer,
+  .no-print,
+  [class*="bottom-0"],
+  [class*="fixed"],
+  [class*="z-40"],
+  [class*="z-50"] {
+    display: none !important;
+  }
+
+  /* Reset layout to full width */
+  body {
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  main {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  /* Make the flex container vertical for print */
+  .flex.h-screen {
+    display: block !important;
+    height: auto !important;
+  }
+
+  /* Allow page breaks inside tables and sections */
+  table { page-break-inside: auto; }
+  tr    { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  /* Keep charts visible but avoid cutting them */
+  .recharts-wrapper { page-break-inside: avoid; }
+
+  /* Hide interactive controls in Reports */
+  button,
+  input[type="date"],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Ensure colors print correctly */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

@@ -40,7 +40,7 @@ function App() {
             <Route element={<Layout />}>
               {/* Admin only routes */}
               <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-                <Route index element={<Dashboard />} />
+                <Route path="inventory" element={<Inventory />} />
                 <Route path="credits" element={<CreditManagement />} />
                 <Route path="employees" element={<Employees />} />
                 <Route path="stationery-services" element={<StationeryServices />} />
@@ -48,9 +48,9 @@ function App() {
               </Route>
 
               {/* Shared routes (Admin + Cashier) */}
+              <Route index element={<Dashboard />} />
               <Route path="pos" element={<POS />} />
               <Route path="sales" element={<Sales />} />
-              <Route path="inventory" element={<Inventory />} />
               <Route path="expenses" element={<Expenses />} />
               <Route path="settings" element={<Settings />} />
             </Route>
