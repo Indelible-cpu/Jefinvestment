@@ -44,6 +44,12 @@ export interface UserAccount extends User {
   isActive?: boolean;
 }
 
+export interface LoginResult {
+  success: boolean;
+  error?: string;
+  isNetworkError?: boolean;
+}
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -51,7 +57,7 @@ interface AuthState {
   users: UserAccount[];
   isLoading: boolean;
   // Actions
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => void;
   updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
@@ -91,6 +97,62 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email, password) => {
         set({ isLoading: true });
+        
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+        // Check local offline fallback authentication if offline or network is down
+        const cleanEmail = email.trim().toLowerCase();
+        const isAdminLocal = 
+          (cleanEmail === 'jefinvestmentmw@gmail.com' || cleanEmail === 'admin@jefinvestment.com' || cleanEmail === 'admin') &&
+          (password === 'admin1234#' || password === 'Admin@1234');
+        const isCashierLocal = 
+          (cleanEmail === 'cashier@jefinvestment.com' || cleanEmail === 'cashier') &&
+          (password === 'Cashier@1234' || password === 'cashier1234#');
+
+        if (isOffline) {
+          if (isAdminLocal) {
+            set({
+              token: 'local-admin-token',
+              user: {
+                id: 'local-admin-id',
+                name: 'Admin User',
+                username: email,
+                role: 'ADMIN',
+                branchId: 'main-branch',
+                branchName: 'Main Branch',
+                profilePic: '',
+              },
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            return { success: true };
+          }
+          if (isCashierLocal) {
+            set({
+              token: 'local-cashier-token',
+              user: {
+                id: 'local-cashier-id',
+                name: 'Cashier User',
+                username: email,
+                role: 'CASHIER',
+                branchId: 'main-branch',
+                branchName: 'Main Branch',
+                profilePic: '',
+              },
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            return { success: true };
+          }
+
+          set({ isLoading: false });
+          return {
+            success: false,
+            error: 'No internet connection detected. Please check your network connection and try again.',
+            isNetworkError: true
+          };
+        }
+
         try {
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
           const firebaseUser = userCredential.user;
@@ -121,15 +183,12 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             isLoading: false,
           });
-          return true;
-        } catch (err) {
+          return { success: true };
+        } catch (err: any) {
           console.error("Firebase Auth Login Error:", err);
+          
           // Local / Offline fallback authentication if backend API is unreachable or fails
-          const cleanEmail = email.trim().toLowerCase();
-          if (
-            (cleanEmail === 'jefinvestmentmw@gmail.com' || cleanEmail === 'admin@jefinvestment.com' || cleanEmail === 'admin') &&
-            (password === 'admin1234#' || password === 'Admin@1234')
-          ) {
+          if (isAdminLocal) {
             set({
               token: 'local-admin-token',
               user: {
@@ -144,13 +203,10 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               isLoading: false,
             });
-            return true;
+            return { success: true };
           }
 
-          if (
-            (cleanEmail === 'cashier@jefinvestment.com' || cleanEmail === 'cashier') &&
-            (password === 'Cashier@1234' || password === 'cashier1234#')
-          ) {
+          if (isCashierLocal) {
             set({
               token: 'local-cashier-token',
               user: {
@@ -165,11 +221,37 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               isLoading: false,
             });
-            return true;
+            return { success: true };
           }
 
           set({ isLoading: false });
-          return false;
+
+          const errCode = err?.code || '';
+          const errMsg = (err?.message || '').toLowerCase();
+
+          const isNetworkErr = 
+            errCode === 'auth/network-request-failed' ||
+            errCode === 'auth/timeout' ||
+            errCode === 'auth/unavailable' ||
+            errMsg.includes('network') ||
+            errMsg.includes('offline') ||
+            errMsg.includes('failed to fetch') ||
+            errMsg.includes('connection') ||
+            (typeof navigator !== 'undefined' && !navigator.onLine);
+
+          if (isNetworkErr) {
+            return {
+              success: false,
+              error: 'Poor or unstable network connection. Please check your internet connection and try again.',
+              isNetworkError: true
+            };
+          }
+
+          return {
+            success: false,
+            error: 'Invalid username or password. Please check your credentials.',
+            isNetworkError: false
+          };
         }
       },
 

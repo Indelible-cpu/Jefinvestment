@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Lock, User, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ShieldCheck, WifiOff, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth } from '../lib/firebase';
@@ -12,6 +12,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [isNetworkError, setIsNetworkError] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsNetworkError(false);
     setLoading(true);
 
     if (rememberMe) {
@@ -46,14 +48,22 @@ export default function Login() {
       // Non-critical, continue anyway
     }
     const { login } = useAuthStore.getState();
-    const success = await login(email, password);
+    const result = await login(email, password);
     setLoading(false);
-    if (success) {
+
+    const isSuccess = typeof result === 'boolean' ? result : result.success;
+
+    if (isSuccess) {
       const user = useAuthStore.getState().user;
       toast.success(`Welcome back, ${user?.name || 'User'}!`, { description: `Signed in as ${user?.role?.toLowerCase()}` });
       navigate(user?.role === 'CASHIER' ? '/pos' : '/');
     } else {
-      setError('Invalid username or password. Please check your credentials.');
+      const msg = typeof result === 'object' && result.error
+        ? result.error
+        : 'Invalid username or password. Please check your credentials.';
+      const isNet = typeof result === 'object' ? !!result.isNetworkError : false;
+      setError(msg);
+      setIsNetworkError(isNet);
     }
   };
 
@@ -73,8 +83,17 @@ export default function Login() {
         {/* Form body */}
         <div className="p-8">
           {error && (
-            <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm mb-6 font-medium text-center border border-red-200">
-              {error}
+            <div className={`p-3.5 rounded-lg text-sm mb-6 font-medium flex items-start gap-2.5 border ${
+              isNetworkError 
+                ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                : 'bg-red-50 text-red-700 border-red-200'
+            }`}>
+              {isNetworkError ? (
+                <WifiOff size={20} className="text-amber-600 shrink-0 mt-0.5" />
+              ) : (
+                <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
+              )}
+              <span className="leading-snug">{error}</span>
             </div>
           )}
 
