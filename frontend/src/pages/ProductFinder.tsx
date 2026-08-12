@@ -237,6 +237,18 @@ export default function ProductFinder() {
 
   const hasAnyResults = filteredProducts.length > 0 || imageMatches.length > 0;
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (filteredProducts.length === 1) {
+        handleOpenMap(filteredProducts[0], false);
+      } else if (filteredProducts.length > 1) {
+        toast.info('Multiple products found. Please click "Open Map" on the correct item.');
+      } else {
+        toast.error('No products found matching that search.');
+      }
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
 
@@ -271,7 +283,8 @@ export default function ProductFinder() {
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="e.g. A12, Galaxy A12, SM-A125..."
+          onKeyDown={handleSearchKeyDown}
+          placeholder="e.g. A12, Galaxy A12, SM-A125... (Press Enter to auto-locate)"
           className="w-full pl-12 pr-24 py-4 bg-white border-2 border-gray-200 rounded-2xl text-lg focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none shadow-sm"
         />
         <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-1">
