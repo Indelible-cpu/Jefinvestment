@@ -1,26 +1,60 @@
 import { useEffect, useState } from 'react';
 import { useAuditStore } from '../store/auditStore';
 import { useAuthStore } from '../store/authStore';
-import { ShieldAlert, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShieldAlert, Clock, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AuditLogs() {
-  const { logs, loadLogs } = useAuditStore();
+  const { logs, loadLogs, clearOldLogs } = useAuditStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
   const [page, setPage] = useState(1);
+  const [isClearing, setIsClearing] = useState(false);
   const PAGE_SIZE = 10;
 
   useEffect(() => {
     if (isAdmin) loadLogs();
   }, [isAdmin, loadLogs]);
 
+  const handleClearLogs = async () => {
+    toast(`Clear all ${logs.length} audit logs?`, {
+      description: 'This action is permanent and cannot be undone.',
+      action: {
+        label: 'Clear All',
+        onClick: async () => {
+          setIsClearing(true);
+          try {
+            // Pass a future timestamp to clear everything
+            await clearOldLogs(Date.now() + 1000);
+            toast.success('All audit logs cleared.');
+          } catch {
+            toast.error('Failed to clear logs.');
+          } finally {
+            setIsClearing(false);
+          }
+        },
+      },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
+  };
+
   const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
   const paginated = logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
-      <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
-        <ShieldAlert size={18} className="text-red-500" /> System Audit Logs
+      <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2"><ShieldAlert size={18} className="text-red-500" /> System Audit Logs</span>
+        {logs.length > 0 && (
+          <button
+            onClick={handleClearLogs}
+            disabled={isClearing}
+            className="flex items-center gap-1.5 text-xs font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+          >
+            {isClearing ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            Clear Logs
+          </button>
+        )}
       </div>
       <div className="p-0 overflow-x-auto">
         <table className="w-full text-left text-sm">

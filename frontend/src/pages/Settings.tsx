@@ -300,15 +300,6 @@ export default function Settings() {
           {/* Company Branding */}
           {isAdmin ? (
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <div className="bg-red-50 p-4 border-b font-bold text-red-700 flex items-center gap-2">
-                <AlertTriangle size={18} /> Danger Zone
-              </div>
-              <div className="p-6 space-y-4">
-                <p className="text-sm text-gray-600 mb-4">Selectively clear system data. This action is irreversible.</p>
-                <button onClick={handleFactoryReset} className="w-full bg-white border border-red-200 text-red-600 font-bold px-6 py-2.5 rounded-lg hover:bg-red-50 hover:border-red-300 transition">
-                  Reset System Data
-                </button>
-              </div>
               <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
                 <Briefcase size={18} /> Company Branding & Tax
               </div>
@@ -463,9 +454,9 @@ export default function Settings() {
                   <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
                     <AlertTriangle className="text-red-600" size={24} />
                   </div>
-                  <h4 className="font-bold text-red-700 mb-1">Factory Reset</h4>
-                  <p className="text-xs text-gray-500 mb-4">Permanently wipe all data on this device and return to default state.</p>
-                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-100 text-red-700 rounded-lg text-sm font-bold hover:bg-red-200 transition">Wipe Data</button>
+                  <h4 className="font-bold text-red-700 mb-1">Data Reset</h4>
+                  <p className="text-xs text-gray-500 mb-4">Selectively wipe Sales, Expenses, Inventory, or Audit Logs. Choose exactly what to clear — irreversible.</p>
+                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition">Reset Data...</button>
                 </div>
               </div>
             </div>

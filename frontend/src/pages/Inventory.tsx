@@ -22,6 +22,7 @@ export default function Inventory() {
   }, []);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('All');
+  const [activeTab, setActiveTab] = useState<'All' | 'Products' | 'Services' | 'Equipment'>('All');
   const [showModal, setShowModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -39,8 +40,16 @@ export default function Inventory() {
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
     const matchCat = catFilter === 'All' || p.category === catFilter;
-    return matchSearch && matchCat;
+    const matchTab =
+      activeTab === 'All' ||
+      (activeTab === 'Equipment' && p.isEquipment) ||
+      (activeTab === 'Services' && p.isService && !p.isEquipment) ||
+      (activeTab === 'Products' && !p.isService && !p.isEquipment);
+    return matchSearch && matchCat && matchTab;
   });
+
+  const equipmentList = products.filter(p => p.isEquipment);
+  const totalEquipmentCost = equipmentList.reduce((sum, p) => sum + (p.costPrice || 0), 0);
 
   const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
 
@@ -173,20 +182,61 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4 mb-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-          <input type="text" placeholder="Search by name or SKU..." className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-primary outline-none" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {['All', ...CATEGORIES].map(c => (
-            <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${catFilter === c ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-              {c}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4 border-b">
+        {(['All', 'Products', 'Services', 'Equipment'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition ${
+              activeTab === tab
+                ? tab === 'Equipment' ? 'border-amber-500 text-amber-700' : 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab}
+            {tab === 'Equipment' && equipmentList.length > 0 && (
+              <span className="ml-1.5 bg-amber-100 text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{equipmentList.length}</span>
+            )}
+          </button>
+        ))}
       </div>
+
+      {/* Equipment Summary (shown when Equipment tab is active) */}
+      {activeTab === 'Equipment' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 flex items-center gap-4">
+          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Package size={20} className="text-amber-600" />
+          </div>
+          <div>
+            <div className="font-bold text-amber-900 text-sm">{equipmentList.length} Business Asset{equipmentList.length !== 1 ? 's' : ''} registered</div>
+            <div className="text-xs text-amber-700 mt-0.5">Total acquisition cost: <span className="font-bold">{settings.currency} {totalEquipmentCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> — Excluded from resale inventory valuation</div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Filters (only when not in Equipment tab) */}
+      {activeTab !== 'Equipment' && (
+        <div className="flex gap-4 mb-4 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <input type="text" placeholder="Search by name or SKU..." className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-primary outline-none" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {['All', ...CATEGORIES].map(c => (
+              <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${catFilter === c ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {activeTab === 'Equipment' && (
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+          <input type="text" placeholder="Search equipment..." className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-amber-400 outline-none" value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow border overflow-hidden flex-1 flex flex-col">
@@ -346,19 +396,30 @@ export default function Inventory() {
                   </select>
                 )}
               </div>
-              {/* Prices */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Cost Price ({settings.currency})</label>
-                  <input name="costPrice" type="number" value={form.costPrice} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
+              {/* Prices — Equipment only shows purchase/acquisition cost */}
+              {form.isEquipment ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                  <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider">Equipment / Asset Details</div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Purchase / Acquisition Cost ({settings.currency})</label>
+                    <input name="costPrice" type="number" value={form.costPrice} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" min={0} />
+                    <p className="text-xs text-amber-700 mt-1">This is the amount paid to acquire the equipment. It is <strong>not</strong> added to resale inventory or expected profit.</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Selling Price ({settings.currency}) *</label>
-                  <input name="sellingPrice" type="number" value={form.sellingPrice} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Cost Price ({settings.currency})</label>
+                    <input name="costPrice" type="number" value={form.costPrice} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Selling Price ({settings.currency}) *</label>
+                    <input name="sellingPrice" type="number" value={form.sellingPrice} onChange={handleFormChange} onFocus={(e) => e.target.select()} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" min={0} />
+                  </div>
                 </div>
-              </div>
-              {/* Stock (only for non-services) */}
-              {!form.isService && (
+              )}
+              {/* Stock — only for non-services and non-equipment */}
+              {!form.isService && !form.isEquipment && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Current Stock</label>
