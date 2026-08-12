@@ -196,7 +196,7 @@ export default function Layout() {
     }
   };
 
-  const navLinkClass = (path: string) => `flex items-center gap-3 p-3 rounded-lg transition font-medium ${
+  const navLinkClass = (path: string, hideOnMobile = false) => `${hideOnMobile ? 'hidden md:flex' : 'flex'} items-center gap-3 p-3 rounded-lg transition font-medium ${
     location.pathname === path ? 'bg-blue-700 text-white' : 'hover:bg-blue-800 text-blue-100 hover:text-white'
   }`;
 
@@ -377,24 +377,24 @@ export default function Layout() {
           onKeyDown={handleNavKeyDown}
           className="flex-1 overflow-y-auto p-4 space-y-1.5 custom-scrollbar"
         >
-          <Link to="/" className={navLinkClass('/')}>
+          <Link to="/" className={navLinkClass('/', true)}>
             <LayoutDashboard size={20} /> <span>Dashboard</span>
           </Link>
           
-          <Link to="/pos" className={navLinkClass('/pos')}>
+          <Link to="/pos" className={navLinkClass('/pos', true)}>
             <ShoppingCart size={20} /> <span>POS Terminal</span>
           </Link>
-          
-          <Link to="/sales" className={navLinkClass('/sales')}>
-            <ClipboardList size={20} /> <span>Sales</span>
-          </Link>
 
-          <Link to="/product-finder" className={navLinkClass('/product-finder')}>
+          <Link to="/product-finder" className={navLinkClass('/product-finder', true)}>
             <Search size={20} /> <span>Find Product</span>
           </Link>
           
+          <Link to="/sales" className={navLinkClass('/sales', true)}>
+            <ClipboardList size={20} /> <span>Sales</span>
+          </Link>
+          
           {isAdmin && (
-            <Link to="/inventory" className={navLinkClass('/inventory')}>
+            <Link to="/inventory" className={navLinkClass('/inventory', true)}>
               <Package size={20} /> <span>Inventory</span>
             </Link>
           )}
