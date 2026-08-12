@@ -37,8 +37,8 @@ export default function Layout() {
     if (touchStart === null) return;
     const currentTouch = e.targetTouches[0].clientX;
     const diff = currentTouch - touchStart;
-    // Open if starting near left edge (< 40px) and swiping right (> 50px)
-    if (diff > 50 && touchStart < 40) {
+    // Open if starting before 50% width and swiping right (> 50px)
+    if (diff > 50 && touchStart < (window.innerWidth / 2)) {
       setMobileMenuOpen(true);
       setTouchStart(null);
     }
