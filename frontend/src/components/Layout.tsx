@@ -84,19 +84,27 @@ export default function Layout() {
   }, [user?.id]);
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      syncAll();
+    const checkConnectivity = async () => {
+      try {
+        // Ping a tiny, reliable URL with no-cache to verify real internet access
+        const res = await fetch('https://www.gstatic.com/generate_204', {
+          method: 'HEAD',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(4000),
+        });
+        const nowOnline = res.status === 204 || res.ok;
+        setIsOnline(prev => {
+          if (!prev && nowOnline) syncAll(); // came back online → sync
+          return nowOnline;
+        });
+      } catch {
+        setIsOnline(false);
+      }
     };
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+
+    checkConnectivity(); // run immediately on mount
+    const interval = setInterval(checkConnectivity, 10000); // re-check every 10s
+    return () => clearInterval(interval);
   }, []);
 
   // System Lock Logic

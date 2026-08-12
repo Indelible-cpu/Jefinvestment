@@ -127,7 +127,7 @@ export const useAuthStore = create<AuthState>()(
         const state = get();
         const now = Date.now();
         // Sync online presence to Firestore at most once per minute
-        if (state.user && !state.user.id.startsWith('local-') && (now - state.lastActiveTime > 60000)) {
+        if (state.user && !state.user.id.startsWith('local-') && (now - state.lastActiveTime > 30000)) {
           updateDoc(doc(db, 'users', state.user.id), { lastActiveAt: now }).catch(() => {});
         }
         set({ lastActiveTime: now });
@@ -233,6 +233,9 @@ export const useAuthStore = create<AuthState>()(
           // Cache credentials securely for offline re-login
           const pwHash = await hashPassword(password);
           saveOfflineCache(email, pwHash, userObj);
+
+          // Write online presence immediately on login
+          updateDoc(doc(db, 'users', firebaseUser.uid), { lastActiveAt: Date.now() }).catch(() => {});
 
           set({
             token,
