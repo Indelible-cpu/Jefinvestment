@@ -49,21 +49,76 @@ export default function ProductFinder() {
   }, [searchTerm]);
 
   const normalizeString = (str: string) =>
-    str.toLowerCase().replace(/[\s\-_]+/g, '');
+    str.toLowerCase().replace(/[\s\-_.,()[\]]+/g, '');
 
-  // ── Text + alias search (Phase 1) ─────────────────────────────────────────
+  // Character bigram similarity for typo tolerance (0–1)
+  const bigramSimilarity = (a: string, b: string): number => {
+    if (!a || !b) return 0;
+    const getBigrams = (s: string) => {
+      const set = new Set<string>();
+      for (let i = 0; i < s.length - 1; i++) set.add(s.slice(i, i + 2));
+      return set;
+    };
+    const ba = getBigrams(a), bb = getBigrams(b);
+    let intersection = 0;
+    ba.forEach(g => { if (bb.has(g)) intersection++; });
+    return (2 * intersection) / (ba.size + bb.size || 1);
+  };
+
+  // ── Ranked Text Search ─────────────────────────────────────────────────────
   const filteredProducts = useMemo(() => {
     if (!debouncedSearch.trim()) return [];
     const q = normalizeString(debouncedSearch);
-    return products.filter(p => {
-      if (p.isService) return false;
-      return (
-        normalizeString(p.name).includes(q) ||
-        normalizeString(p.sku).includes(q) ||
-        p.aliases?.some(a => normalizeString(a).includes(q))
-      );
-    });
+    const raw = debouncedSearch.toLowerCase().trim();
+
+    type Scored = { product: Product; score: number };
+    const scored: Scored[] = [];
+
+    for (const p of products) {
+      if (p.isService) continue;
+      const name = normalizeString(p.name);
+      const sku  = normalizeString(p.sku);
+      const aliases = (p.aliases || []).map(normalizeString);
+      const allFields = [name, sku, ...aliases];
+
+      let score = 0;
+
+      // Exact full match — highest priority
+      if (allFields.some(f => f === q)) { score = 100; }
+      // Starts-with match
+      else if (allFields.some(f => f.startsWith(q))) { score = 80; }
+      // Contains match
+      else if (allFields.some(f => f.includes(q))) { score = 60; }
+      // Bigram typo-tolerance (catches 1–2 character typos)
+      else {
+        const best = Math.max(...allFields.map(f => bigramSimilarity(q, f)));
+        if (best >= 0.5) score = Math.round(best * 50); // 25–50 range
+      }
+
+      // Also check raw (un-normalized) search against display name for flexibility
+      if (score === 0 && p.name.toLowerCase().includes(raw)) score = 55;
+
+      if (score > 0) scored.push({ product: p, score });
+    }
+
+    // Sort by score descending (best match first)
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map(s => s.product);
   }, [debouncedSearch, products]);
+
+  // ── Closest-match suggestion when nothing found ────────────────────────────
+  const closestMatch = useMemo(() => {
+    if (filteredProducts.length > 0 || !debouncedSearch.trim()) return null;
+    const q = normalizeString(debouncedSearch);
+    let best: Product | null = null, bestScore = 0;
+    for (const p of products) {
+      if (p.isService) continue;
+      const score = bigramSimilarity(q, normalizeString(p.name));
+      if (score > bestScore) { bestScore = score; best = p; }
+    }
+    return bestScore >= 0.35 ? best : null;
+  }, [debouncedSearch, filteredProducts.length, products]);
+
 
   // ── Stock status helper ────────────────────────────────────────────────────
   const getStockStatus = (product: Product) => {
@@ -346,10 +401,29 @@ export default function ProductFinder() {
           ) : (
             <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
               <Box size={48} className="mx-auto text-gray-300 mb-3" />
-              <h3 className="text-lg font-bold text-gray-900 mb-1">No products found</h3>
-              <p className="text-gray-500">Try adjusting your search or scan with the camera.</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">No products found for "{debouncedSearch}"</h3>
+              {closestMatch ? (
+                <div className="mt-4 inline-block bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-left">
+                  <p className="text-sm text-amber-700 font-medium mb-2">Did you mean:</p>
+                  <button
+                    onClick={() => { setSearchTerm(closestMatch.name); setDebouncedSearch(closestMatch.name); }}
+                    className="font-bold text-primary hover:underline text-base"
+                  >
+                    {closestMatch.name}
+                  </button>
+                  <button
+                    onClick={() => handleOpenMap(closestMatch, false)}
+                    className="ml-3 text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-gray-700 transition"
+                  >
+                    📍 Locate It
+                  </button>
+                </div>
+              ) : (
+                <p className="text-gray-500 mt-1">Try adjusting your search or scan with the camera.</p>
+              )}
             </div>
           )}
+
         </div>
       )}
 
