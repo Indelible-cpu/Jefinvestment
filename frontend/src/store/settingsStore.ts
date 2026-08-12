@@ -25,6 +25,7 @@ export interface CompanySettings {
   workTimeEnd?: string;
   idleLockMinutes?: number;
   lastDataClearDate?: number;
+  shopMapImage?: string;
   updateSettings: (settings: Partial<CompanySettings>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }

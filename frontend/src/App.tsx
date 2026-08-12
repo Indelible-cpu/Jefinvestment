@@ -17,6 +17,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const StationeryServices = lazy(() => import('./pages/StationeryServices'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const ProductFinder = lazy(() => import('./pages/ProductFinder'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-screen w-full bg-gray-50">
@@ -53,6 +54,7 @@ function App() {
               <Route path="sales" element={<Sales />} />
               <Route path="expenses" element={<Expenses />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="product-finder" element={<ProductFinder />} />
             </Route>
           </Route>
         </Routes>

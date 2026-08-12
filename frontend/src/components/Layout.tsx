@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
@@ -375,6 +375,10 @@ export default function Layout() {
           <Link to="/sales" className={navLinkClass('/sales')}>
             <ClipboardList size={20} /> <span>Sales</span>
           </Link>
+
+          <Link to="/product-finder" className={navLinkClass('/product-finder')}>
+            <Search size={20} /> <span>Find Product</span>
+          </Link>
           
           {isAdmin && (
             <Link to="/inventory" className={navLinkClass('/inventory')}>
@@ -452,6 +456,11 @@ export default function Layout() {
         <Link to="/pos" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/pos' ? 'text-primary' : 'text-gray-500'}`}>
           <ShoppingCart size={22} className="mb-1" />
           <span className="text-[10px] font-medium mt-0.5">POS</span>
+        </Link>
+        
+        <Link to="/product-finder" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/product-finder' ? 'text-primary' : 'text-gray-500'}`}>
+          <Search size={22} className="mb-1" />
+          <span className="text-[10px] font-medium mt-0.5">Find</span>
         </Link>
         
         {isAdmin && (

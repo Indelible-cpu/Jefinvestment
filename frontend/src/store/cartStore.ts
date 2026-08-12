@@ -26,6 +26,11 @@ export interface Product {
   isService: boolean;
   isEquipment?: boolean;
   unit: string;
+  // AI-Assisted Visual Product Finder Fields (Phase 1)
+  aliases?: string[];
+  mapCoordinates?: { x: number; y: number };
+  displayLocationText?: string;
+  images?: string[];
 }
 
 interface ProductState {
@@ -61,6 +66,10 @@ export const useProductStore = create<ProductState>()(
             isService: !!p.isService,
             isEquipment: !!p.isEquipment,
             unit: p.unit || 'pcs',
+            aliases: p.aliases || [],
+            mapCoordinates: p.mapCoordinates,
+            displayLocationText: p.displayLocationText || '',
+            images: p.images || [],
           };
         });
         set({ products: mapped, isLoading: false });
@@ -85,6 +94,10 @@ export const useProductStore = create<ProductState>()(
         isEquipment: !!product.isEquipment,
         unit: product.unit,
         stock: product.stock,
+        aliases: product.aliases || [],
+        mapCoordinates: product.mapCoordinates || null,
+        displayLocationText: product.displayLocationText || '',
+        images: product.images || [],
         createdAt: Date.now(),
       };
 
@@ -103,6 +116,10 @@ export const useProductStore = create<ProductState>()(
         isEquipment: !!product.isEquipment,
         unit: product.unit,
         stock: product.stock,
+        aliases: product.aliases || [],
+        mapCoordinates: product.mapCoordinates || null,
+        displayLocationText: product.displayLocationText || '',
+        images: product.images || [],
       };
 
       await updateDoc(doc(db, 'products', product.id), payload);
