@@ -388,7 +388,7 @@ export default function Layout() {
             <Search size={20} /> <span>Find Product</span>
           </Link>
           
-          <Link to="/sales" className={navLinkClass('/sales', true)}>
+          <Link to="/sales" className={navLinkClass('/sales')}>
             <ClipboardList size={20} /> <span>Sales</span>
           </Link>
           
@@ -460,19 +460,14 @@ export default function Layout() {
           <span className="text-[10px] font-medium">Dashboard</span>
         </Link>
         
-        <Link to="/sales" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/sales' ? 'text-primary' : 'text-gray-500'}`}>
-          <ClipboardList size={22} className="mb-1" />
-          <span className="text-[10px] font-medium mt-0.5">Sales</span>
+        <Link to="/product-finder" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/product-finder' ? 'text-primary' : 'text-gray-500'}`}>
+          <Search size={22} className="mb-1" />
+          <span className="text-[10px] font-medium mt-0.5">Find</span>
         </Link>
         
         <Link to="/pos" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/pos' ? 'text-primary' : 'text-gray-500'}`}>
           <ShoppingCart size={22} className="mb-1" />
           <span className="text-[10px] font-medium mt-0.5">POS</span>
-        </Link>
-        
-        <Link to="/product-finder" className={`flex flex-col items-center py-2 px-3 ${location.pathname === '/product-finder' ? 'text-primary' : 'text-gray-500'}`}>
-          <Search size={22} className="mb-1" />
-          <span className="text-[10px] font-medium mt-0.5">Find</span>
         </Link>
         
         {isAdmin && (
