@@ -23,6 +23,7 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isSystemLocked, setIsSystemLocked] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -84,10 +85,18 @@ export default function Layout() {
 
   useEffect(() => {
     const handleOnline = () => {
+      setIsOnline(true);
       syncAll();
     };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // System Lock Logic
@@ -247,10 +256,14 @@ export default function Layout() {
     >
       {/* Mobile Top Bar */}
       <div className="md:hidden absolute top-0 left-0 right-0 h-24 bg-[#004bb4] text-white flex items-start justify-between px-4 pt-4 z-20">
-        <div className="flex items-start gap-4">
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-1 -ml-1">
-            <Menu size={28} />
-          </button>
+        <div className="flex items-start gap-3">
+          <div className="pt-2 pl-1">
+            {isOnline ? (
+              <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-[#004bb4] shadow-[0_0_0_2px_rgba(74,222,128,0.2)] animate-pulse" title="Online"></div>
+            ) : (
+              <div className="w-3 h-3 bg-red-400 rounded-full border-2 border-[#004bb4]" title="Offline"></div>
+            )}
+          </div>
           <div className="flex flex-col mt-0.5">
             <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">Jef Investment</h1>
             <p className="text-sm text-blue-100 mt-0.5">{greeting}, {user?.name?.split(' ')[0] || 'Jef'} 👋</p>

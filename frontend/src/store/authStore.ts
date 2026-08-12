@@ -69,6 +69,7 @@ export interface User {
   branchId?: string | null;
   branchName?: string;
   profilePic?: string;
+  lastActiveAt?: number;
 }
 
 export interface UserAccount extends User {
@@ -123,7 +124,13 @@ export const useAuthStore = create<AuthState>()(
         set({ isTemporarilyUnlocked: false });
       },
       updateActivity: () => {
-        set({ lastActiveTime: Date.now() });
+        const state = get();
+        const now = Date.now();
+        // Sync online presence to Firestore at most once per minute
+        if (state.user && !state.user.id.startsWith('local-') && (now - state.lastActiveTime > 60000)) {
+          updateDoc(doc(db, 'users', state.user.id), { lastActiveAt: now }).catch(() => {});
+        }
+        set({ lastActiveTime: now });
       },
 
       login: async (email, password) => {
@@ -418,6 +425,7 @@ export const useAuthStore = create<AuthState>()(
                 role: data.role || 'CASHIER',
                 branchId: data.branchId || null,
                 isActive: data.isActive !== false,
+                lastActiveAt: data.lastActiveAt || 0,
               });
             });
             set({ users: loadedUsers });
