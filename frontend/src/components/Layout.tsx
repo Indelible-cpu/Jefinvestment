@@ -254,18 +254,17 @@ export default function Layout() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Mobile Top Bar */}
       <div className="md:hidden absolute top-0 left-0 right-0 h-24 bg-[#004bb4] text-white flex items-start justify-between px-4 pt-4 z-20">
-        <div className="flex items-start gap-3">
-          <div className="pt-2 pl-1">
-            {isOnline ? (
-              <div className="w-3 h-3 bg-green-400 rounded-full border-2 border-[#004bb4] shadow-[0_0_0_2px_rgba(74,222,128,0.2)] animate-pulse" title="Online"></div>
-            ) : (
-              <div className="w-3 h-3 bg-red-400 rounded-full border-2 border-[#004bb4]" title="Offline"></div>
-            )}
-          </div>
+        <div className="flex items-start">
           <div className="flex flex-col mt-0.5">
-            <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">Jef Investment</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">Jef Investment</h1>
+              {isOnline ? (
+                <div className="w-2.5 h-2.5 bg-green-400 rounded-full shadow-[0_0_0_2px_rgba(74,222,128,0.2)] animate-pulse mt-1" title="Online"></div>
+              ) : (
+                <div className="w-2.5 h-2.5 bg-red-400 rounded-full mt-1" title="Offline"></div>
+              )}
+            </div>
             <p className="text-sm text-blue-100 mt-0.5">{greeting}, {user?.name?.split(' ')[0] || 'Jef'} 👋</p>
           </div>
         </div>
