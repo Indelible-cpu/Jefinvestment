@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, MapPin, Save, Map as MapIcon, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, MapPin, Save, Map as MapIcon, Image as ImageIcon, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
 import { useSettingsStore } from '../store/settingsStore';
 import { useProductStore } from '../store/cartStore';
 import type { Product } from '../store/cartStore';
@@ -26,13 +26,16 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
   const [locationText, setLocationText] = useState(product?.displayLocationText || '');
   const [productImages, setProductImages] = useState<string[]>(product?.images || []);
   const [isSaving, setIsSaving] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const imageRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setMapCoordinates(product?.mapCoordinates || null);
       setLocationText(product?.displayLocationText || '');
       setProductImages(product?.images || []);
+      setZoom(1);
     }
   }, [isOpen, product]);
 
@@ -40,12 +43,11 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
 
   const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isEditMode || !product) return;
-    
     if (imageRef.current) {
       const rect = imageRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
-      setMapCoordinates({ x, y });
+      setMapCoordinates({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
     }
   };
 
@@ -68,7 +70,7 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProductImages([...productImages, reader.result as string]);
+        setProductImages(prev => [...prev, reader.result as string]);
         toast.success('Product image added. Remember to save.');
       };
       reader.readAsDataURL(file);
@@ -77,7 +79,6 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
 
   const handleSave = async () => {
     if (!product || !isEditMode) return;
-    
     setIsSaving(true);
     try {
       await updateProduct({
@@ -96,174 +97,232 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
     }
   };
 
+  const hasPinned = !!mapCoordinates;
+  const hasLocationText = !!locationText.trim();
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        
+    <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+
         {/* Header */}
-        <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+        <div className="px-5 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-              <MapIcon size={24} />
+              <MapIcon size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {isEditMode ? 'Edit Product Location' : 'Shop Map'}
+              <h2 className="text-lg font-bold text-gray-900">
+                {isEditMode ? 'Set Product Location' : 'Where is this product?'}
               </h2>
               {product && (
-                <p className="text-sm text-gray-500 font-medium">{product.name} ({product.sku})</p>
+                <p className="text-sm text-gray-500 font-medium truncate max-w-[240px]">{product.name}</p>
               )}
             </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
-          >
-            <X size={24} />
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
+            <X size={22} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
-          
-          {/* Admin Controls */}
-          {isAdmin && (
-            <div className="flex flex-wrap items-end gap-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
-              <div className="flex-1">
-                <label className="block text-sm font-bold text-gray-700 mb-2">Upload Shop Map Image</label>
-                <div className="relative">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleMapUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 transition shadow-sm font-medium w-fit">
-                    <Upload size={18} />
-                    <span>Choose Map Image</span>
+        <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-5">
+
+          {/* ── No map uploaded yet ── */}
+          {!shopMapImage && (
+            <div className="flex flex-col items-center justify-center py-10 bg-amber-50 border-2 border-dashed border-amber-300 rounded-2xl text-center gap-3">
+              <MapIcon size={48} className="text-amber-400" />
+              <h3 className="text-lg font-bold text-gray-800">No Shop Map Uploaded Yet</h3>
+              <p className="text-sm text-gray-500 max-w-xs">
+                Take a photo of your shop layout (from above), or draw a simple floor plan and upload it here. Once uploaded, you can pin every product to its exact shelf.
+              </p>
+              {isAdmin && (
+                <label className="relative mt-2 cursor-pointer">
+                  <input type="file" accept="image/*" onChange={handleMapUpload} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                  <div className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-bold shadow hover:bg-blue-700 transition">
+                    <Upload size={18} /> Upload Map Image
                   </div>
-                </div>
-              </div>
-              
-              {isEditMode && (
-                <div className="flex-1">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Upload Product Image</label>
-                  <div className="relative">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={handleProductImageUpload}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <div className="flex items-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 transition shadow-sm font-medium w-fit">
-                      <ImageIcon size={18} />
-                      <span>Add Product Photo</span>
-                    </div>
-                  </div>
-                </div>
+                </label>
               )}
             </div>
           )}
 
-          {/* Map Display */}
-          <div className="bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 p-2 flex flex-col items-center justify-center relative min-h-[300px] overflow-hidden">
-            {shopMapImage ? (
-              <div 
-                className={`relative inline-block ${isEditMode ? 'cursor-crosshair' : ''}`}
-                onClick={handleMapClick}
-              >
-                <img 
-                  ref={imageRef}
-                  src={shopMapImage} 
-                  alt="Shop Map" 
-                  className="max-w-full max-h-[50vh] object-contain rounded shadow-sm select-none"
-                />
-                
-                {mapCoordinates && (
-                  <div 
-                    className="absolute w-8 h-8 -ml-4 -mt-8 flex items-center justify-center text-red-600 drop-shadow-md animate-bounce"
-                    style={{ left: `${mapCoordinates.x}%`, top: `${mapCoordinates.y}%` }}
-                  >
-                    <MapPin size={32} fill="currentColor" className="text-white" />
-                  </div>
-                )}
-                
-                {isEditMode && (
-                   <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-                     Click anywhere on map to set position
-                   </div>
-                )}
+          {/* ── Map with pin ── */}
+          {shopMapImage && (
+            <div className="flex flex-col gap-3">
+              {/* Zoom controls */}
+              <div className="flex items-center gap-2 justify-end">
+                <span className="text-xs text-gray-400 font-medium mr-auto">
+                  {isEditMode ? '📍 Click anywhere on the map to place the product' : ''}
+                </span>
+                <button onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))}
+                  className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition" title="Zoom in">
+                  <ZoomIn size={16} />
+                </button>
+                <button onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                  className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition" title="Zoom out">
+                  <ZoomOut size={16} />
+                </button>
+                <span className="text-xs text-gray-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
               </div>
-            ) : (
-              <div className="text-gray-400 flex flex-col items-center p-8 text-center">
-                <MapIcon size={48} className="mb-3 opacity-50" />
-                <p className="font-medium text-lg">No shop map available</p>
-                {isAdmin && <p className="text-sm mt-1">Upload a map image using the control above</p>}
-              </div>
-            )}
-          </div>
 
-          {/* Location Info */}
-          {(locationText || isEditMode) && (
+              {/* Map container */}
+              <div
+                ref={containerRef}
+                className={`relative overflow-auto bg-gray-100 rounded-xl border-2 ${isEditMode ? 'border-blue-300 cursor-crosshair' : 'border-gray-200'} flex items-start justify-center`}
+                style={{ maxHeight: '55vh', minHeight: '220px' }}
+              >
+                <div
+                  className="relative inline-block"
+                  onClick={handleMapClick}
+                  style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', transition: 'transform 0.2s' }}
+                >
+                  <img
+                    ref={imageRef}
+                    src={shopMapImage}
+                    alt="Shop Map"
+                    className="select-none block"
+                    style={{ maxWidth: '100%', display: 'block' }}
+                    draggable={false}
+                  />
+
+                  {/* ── The Pin ── */}
+                  {mapCoordinates && (
+                    <div
+                      className="absolute"
+                      style={{
+                        left: `${mapCoordinates.x}%`,
+                        top: `${mapCoordinates.y}%`,
+                        transform: 'translate(-50%, -100%)',
+                        zIndex: 10,
+                      }}
+                    >
+                      {/* Pulse ring */}
+                      <span className="absolute inset-0 flex items-end justify-center">
+                        <span className="w-8 h-8 rounded-full bg-red-500/30 animate-ping absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2" />
+                      </span>
+                      {/* Shadow dot on ground */}
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5 w-3 h-1.5 bg-black/20 rounded-full blur-sm" />
+                      {/* Pin icon */}
+                      <MapPin size={36} className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="#dc2626" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Admin map upload button when map already exists */}
+              {isAdmin && (
+                <label className="relative cursor-pointer self-start">
+                  <input type="file" accept="image/*" onChange={handleMapUpload} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg font-medium text-xs transition w-fit">
+                    <Upload size={13} /> Replace Map Image
+                  </div>
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* ── No pin set — view mode warning ── */}
+          {shopMapImage && !hasPinned && !isEditMode && (
+            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <Navigation size={20} className="text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-800 text-sm">Location not set yet</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  An admin needs to open "Edit Location" for this product and click on the map to mark where it is stored.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Location text description ── */}
+          {(hasLocationText || isEditMode) && (
             <div className="bg-white border rounded-xl p-4 shadow-sm">
-              <label className="block text-sm font-bold text-gray-700 mb-2">Location Description</label>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                📝 Location Description (human-readable hint)
+              </label>
               {isEditMode ? (
                 <textarea
                   value={locationText}
                   onChange={(e) => setLocationText(e.target.value)}
-                  placeholder="e.g. Near the front glass display, second section from the left."
-                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition"
+                  placeholder='e.g. "Second shelf from the top, left side of the accessories section"'
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition text-sm"
                   rows={2}
                 />
               ) : (
-                <div className="p-3 bg-blue-50 text-blue-900 rounded-lg font-medium border border-blue-100">
-                  {locationText || 'No description available.'}
+                <div className="p-3 bg-blue-50 text-blue-900 rounded-lg font-medium border border-blue-100 text-sm flex items-start gap-2">
+                  <Navigation size={16} className="shrink-0 mt-0.5 text-blue-600" />
+                  {locationText}
                 </div>
               )}
             </div>
           )}
 
-          {/* Product Images Preview */}
-          {productImages.length > 0 && (
-             <div>
-               <h3 className="text-sm font-bold text-gray-700 mb-3">Product Photos</h3>
-               <div className="flex gap-3 overflow-x-auto pb-2">
-                 {productImages.map((img, idx) => (
-                   <div key={idx} className="w-24 h-24 shrink-0 rounded-lg border shadow-sm overflow-hidden relative group">
-                     <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
-                     {isEditMode && (
-                       <button 
-                         onClick={() => setProductImages(productImages.filter((_, i) => i !== idx))}
-                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                       >
-                         <X size={14} />
-                       </button>
-                     )}
-                   </div>
-                 ))}
-               </div>
-             </div>
+          {/* ── Product image upload (edit mode) ── */}
+          {isEditMode && (
+            <div className="bg-white border rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-bold text-gray-700">📷 Product Photos</label>
+                <label className="relative cursor-pointer">
+                  <input type="file" accept="image/*" onChange={handleProductImageUpload} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium text-xs transition border border-blue-200">
+                    <ImageIcon size={13} /> Add Photo
+                  </div>
+                </label>
+              </div>
+              {productImages.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No photos yet. Adding photos enables AI visual search.</p>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {productImages.map((img, idx) => (
+                    <div key={idx} className="w-20 h-20 shrink-0 rounded-lg border shadow-sm overflow-hidden relative group">
+                      <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setProductImages(productImages.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
+          {/* Product photos in view mode */}
+          {!isEditMode && productImages.length > 0 && (
+            <div>
+              <h3 className="text-sm font-bold text-gray-700 mb-2">Product Photos</h3>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {productImages.map((img, idx) => (
+                  <div key={idx} className="w-20 h-20 shrink-0 rounded-lg border shadow-sm overflow-hidden">
+                    <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         {isEditMode && (
-          <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
-            <button 
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl font-bold text-gray-600 hover:bg-gray-200 transition"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-6 py-2.5 rounded-xl font-bold bg-primary text-white hover:bg-blue-700 transition shadow-lg shadow-primary/30 flex items-center gap-2"
-            >
-              <Save size={18} />
-              {isSaving ? 'Saving...' : 'Save Details'}
-            </button>
+          <div className="px-5 py-4 border-t bg-gray-50 flex justify-between items-center shrink-0">
+            <p className="text-xs text-gray-400">
+              {hasPinned ? `📍 Pin set at (${mapCoordinates!.x.toFixed(1)}%, ${mapCoordinates!.y.toFixed(1)}%)` : 'No pin placed yet'}
+            </p>
+            <div className="flex gap-3">
+              <button onClick={onClose} className="px-4 py-2.5 rounded-xl font-bold text-gray-600 hover:bg-gray-200 transition text-sm">
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-5 py-2.5 rounded-xl font-bold bg-primary text-white hover:bg-blue-700 transition shadow-lg shadow-primary/30 flex items-center gap-2 text-sm disabled:opacity-60"
+              >
+                <Save size={16} />
+                {isSaving ? 'Saving...' : 'Save Location'}
+              </button>
+            </div>
           </div>
         )}
       </div>
