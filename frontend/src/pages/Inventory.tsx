@@ -281,9 +281,11 @@ export default function Inventory() {
                   <td className="p-4 text-gray-500 font-mono text-sm">{p.sku}</td>
                   <td className="p-4 text-gray-600">{p.category}</td>
                   <td className="p-4 text-right text-gray-600">{p.costPrice.toLocaleString()}</td>
-                  <td className="p-4 text-right font-semibold text-primary">{p.sellingPrice.toLocaleString()}</td>
+                  <td className="p-4 text-right font-semibold text-primary">
+                    {p.isEquipment ? <span className="text-gray-400 text-sm">—</span> : p.sellingPrice.toLocaleString()}
+                  </td>
                   <td className="p-4 text-right font-semibold">
-                    {(() => {
+                    {p.isEquipment ? <span className="text-gray-400 text-sm">—</span> : (() => {
                       const profit = p.sellingPrice - p.costPrice;
                       if (profit > 0) return <span className="text-green-600">+{profit.toLocaleString()}</span>;
                       if (profit < 0) return <span className="text-red-600">{profit.toLocaleString()}</span>;
@@ -369,7 +371,8 @@ export default function Inventory() {
                   </div>
                 )}
               </div>
-              {/* Category */}
+              {/* Category — hidden for equipment */}
+              {!form.isEquipment && (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
                 {!CATEGORIES.includes(form.category) && form.category !== '' ? (
@@ -403,6 +406,7 @@ export default function Inventory() {
                   </select>
                 )}
               </div>
+              )}
               {/* Prices — Equipment only shows purchase/acquisition cost */}
               {form.isEquipment ? (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
