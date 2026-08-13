@@ -243,18 +243,28 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
                       style={{
                         left: `${mapCoordinates.x}%`,
                         top: `${mapCoordinates.y}%`,
-                        transform: 'translate(-50%, -100%)',
+                        transform: isEditMode ? 'translate(-50%, -100%)' : 'translate(-50%, -50%)',
                         zIndex: 10,
                       }}
                     >
-                      {/* Pulse ring */}
-                      <span className="absolute inset-0 flex items-end justify-center">
-                        <span className="w-8 h-8 rounded-full bg-red-500/30 animate-ping absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2" />
-                      </span>
-                      {/* Shadow dot on ground */}
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5 w-3 h-1.5 bg-black/20 rounded-full blur-sm" />
-                      {/* Pin icon */}
-                      <MapPin size={36} className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="#dc2626" />
+                      {!isEditMode ? (
+                        <div className="relative flex items-center justify-center">
+                          <span className="absolute w-12 h-12 rounded-full bg-red-500 opacity-60 animate-ping" />
+                          <span className="absolute w-8 h-8 rounded-full bg-red-600 opacity-40 animate-pulse" />
+                          <span className="relative w-5 h-5 bg-red-600 rounded-full border-2 border-white shadow-[0_0_15px_rgba(220,38,38,0.8)]" />
+                        </div>
+                      ) : (
+                        <>
+                          {/* Pulse ring */}
+                          <span className="absolute inset-0 flex items-end justify-center">
+                            <span className="w-8 h-8 rounded-full bg-red-500/30 animate-ping absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2" />
+                          </span>
+                          {/* Shadow dot on ground */}
+                          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5 w-3 h-1.5 bg-black/20 rounded-full blur-sm" />
+                          {/* Pin icon */}
+                          <MapPin size={36} className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="#dc2626" />
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
