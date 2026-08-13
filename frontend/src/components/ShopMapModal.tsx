@@ -333,9 +333,9 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
               {productImages.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-4">No photos yet. Adding photos enables AI visual search.</p>
               ) : (
-                <div className="flex gap-3 overflow-x-auto pb-2">
+                <div className="flex gap-3 overflow-x-auto md:flex-wrap pb-2">
                   {productImages.map((img, idx) => (
-                    <div key={idx} className="w-20 h-20 shrink-0 rounded-lg border shadow-sm overflow-hidden relative group">
+                    <div key={idx} className="w-20 h-20 md:w-24 md:h-24 shrink-0 rounded-lg border shadow-sm overflow-hidden relative group">
                       <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
                       <button
                         onClick={() => setProductImages(productImages.filter((_, i) => i !== idx))}
@@ -354,9 +354,9 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
           {!isEditMode && productImages.length > 0 && (
             <div>
               <h3 className="text-sm font-bold text-gray-700 mb-2">Product Photos</h3>
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <div className="flex gap-3 overflow-x-auto md:flex-wrap pb-2">
                 {productImages.map((img, idx) => (
-                  <div key={idx} className="w-20 h-20 shrink-0 rounded-lg border shadow-sm overflow-hidden">
+                  <div key={idx} className="w-20 h-20 md:w-32 md:h-32 shrink-0 rounded-lg border shadow-sm overflow-hidden">
                     <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
                   </div>
                 ))}
