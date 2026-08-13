@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, MapPin, Save, Map as MapIcon, Image as ImageIcon, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Upload, Save, Map as MapIcon, Image as ImageIcon, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
 import { useSettingsStore } from '../store/settingsStore';
 import { useProductStore } from '../store/cartStore';
 import type { Product } from '../store/cartStore';
@@ -217,25 +217,28 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
                     draggable={false}
                   />
 
-                  {/* ── The Pin ── */}
+                  {/* ── The Pin — small crosshair dot, centred on exact click point ── */}
                   {mapCoordinates && (
                     <div
-                      className="absolute"
+                      className="absolute pointer-events-none"
                       style={{
                         left: `${mapCoordinates.x}%`,
                         top: `${mapCoordinates.y}%`,
-                        transform: 'translate(-50%, -100%)',
+                        transform: 'translate(-50%, -50%)',
                         zIndex: 10,
                       }}
                     >
-                      {/* Pulse ring */}
-                      <span className="absolute inset-0 flex items-end justify-center">
-                        <span className="w-8 h-8 rounded-full bg-red-500/30 animate-ping absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2" />
-                      </span>
-                      {/* Shadow dot on ground */}
-                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5 w-3 h-1.5 bg-black/20 rounded-full blur-sm" />
-                      {/* Pin icon */}
-                      <MapPin size={36} className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="#dc2626" />
+                      {/* Outer pulse ring */}
+                      <span className="absolute w-8 h-8 rounded-full bg-red-500/25 animate-ping"
+                        style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+                      {/* Crosshair lines */}
+                      <span className="absolute bg-red-600"
+                        style={{ width: 1, height: 14, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+                      <span className="absolute bg-red-600"
+                        style={{ width: 14, height: 1, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+                      {/* Centre dot */}
+                      <span className="absolute w-2.5 h-2.5 rounded-full bg-red-600 border-2 border-white shadow-md"
+                        style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
                     </div>
                   )}
                 </div>
