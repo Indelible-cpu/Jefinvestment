@@ -21,7 +21,7 @@ export default function Inventory() {
   useEffect(() => {
     loadProducts();
   }, []);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') || '');
 
   useEffect(() => {
