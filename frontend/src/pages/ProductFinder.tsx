@@ -257,75 +257,69 @@ export default function ProductFinder() {
     const StatusIcon = stockStatus.icon;
 
     return (
-      <div key={product.id + (confidenceScore ?? 'text')} className="bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-3">
+      <div key={product.id + (confidenceScore ?? 'text')} className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden">
 
-        {/* Confidence badge for image matches */}
-        {confidenceScore !== undefined && (
-          <div className="flex items-center gap-1.5 self-start px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-full border border-purple-200">
-            <Sparkles size={12} />
-            {Math.round(confidenceScore * 100)}% image match
+        {/* Top image strip */}
+        <div className="relative w-full h-36 bg-gray-100 shrink-0">
+          {product.images?.[0] ? (
+            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-1">
+              <ImageIcon size={32} />
+              <span className="text-[10px] font-medium text-gray-400">No Photo</span>
+            </div>
+          )}
+          {/* Badge top-left */}
+          <div className="absolute top-2 left-2">
+            {confidenceScore !== undefined ? (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full shadow">
+                <Sparkles size={9} />{Math.round(confidenceScore * 100)}% match
+              </span>
+            ) : product.images && product.images.length > 0 ? (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-bold rounded-full shadow">
+                <Sparkles size={9} />AI Ready
+              </span>
+            ) : null}
           </div>
-        )}
-        {/* AI Ready indicator for normal text search */}
-        {confidenceScore === undefined && (
-          <div className={`flex items-center gap-1.5 self-start px-2.5 py-1 text-[10px] font-bold rounded-full border ${product.images && product.images.length > 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
-            {product.images && product.images.length > 0 ? (
-               <><Sparkles size={10} /> AI Ready</>
-            ) : (
-               <><ImageIcon size={10} /> No Photos</>
-            )}
-          </div>
-        )}
-
-        {/* Header: Image + Details */}
-        <div className="flex gap-4">
-          <div className="w-20 h-20 bg-gray-100 rounded-xl border flex items-center justify-center shrink-0 overflow-hidden">
-            {product.images?.[0] ? (
-              <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
-            ) : (
-              <ImageIcon size={24} className="text-gray-400" />
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900 truncate" title={product.name}>{product.name}</h3>
-            <p className="text-sm text-gray-500 truncate">{product.sku}</p>
-            <div className="mt-1 font-bold text-primary">K{product.sellingPrice.toLocaleString()}</div>
-            {product.displayLocationText && (
-              <p className="text-xs text-blue-700 bg-blue-50 mt-1.5 px-2 py-1 rounded truncate border border-blue-100 font-medium">
-                📍 {product.displayLocationText}
-              </p>
-            )}
+          {/* Stock badge top-right */}
+          <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full shadow ${stockStatus.color}`}>
+            <StatusIcon size={10} />{stockStatus.label}
           </div>
         </div>
 
-        {/* Stock Status */}
-        <div className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm font-bold ${stockStatus.color}`}>
-          <div className="flex items-center gap-1.5">
-            <StatusIcon size={16} />
-            <span>{stockStatus.label}</span>
+        {/* Body */}
+        <div className="flex flex-col gap-2 p-3 flex-1">
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm leading-tight line-clamp-2" title={product.name}>{product.name}</h3>
+            <p className="text-[11px] text-gray-400 font-mono mt-0.5">{product.sku}</p>
           </div>
-          <div className="flex items-center gap-1">
-            <Package size={14} />
-            {product.stock} {product.unit}
+          <div className="flex items-center justify-between">
+            <span className="text-base font-extrabold text-primary">K{product.sellingPrice.toLocaleString()}</span>
+            <span className="text-[11px] text-gray-500 flex items-center gap-1">
+              <Package size={11} />{product.stock} {product.unit}
+            </span>
           </div>
+          {product.displayLocationText && (
+            <p className="text-[11px] text-blue-700 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 font-medium line-clamp-1">
+              📍 {product.displayLocationText}
+            </p>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-1 gap-2 mt-auto">
+        {/* Footer actions */}
+        <div className="flex border-t border-gray-100 divide-x divide-gray-100">
           <button
             onClick={() => handleOpenMap(product, false)}
-            className="w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-800 transition"
+            className="flex-1 py-2.5 text-sm font-bold text-gray-800 flex items-center justify-center gap-1.5 hover:bg-gray-50 transition"
           >
-            <MapPin size={18} />
-            Open Map
+            <MapPin size={14} /> Locate
           </button>
           {isAdmin && (
             <button
               onClick={() => handleOpenMap(product, true)}
-              className="w-full py-2 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-200 flex items-center justify-center gap-2 hover:bg-blue-100 transition text-sm"
+              className="flex-1 py-2.5 text-sm font-bold text-blue-600 flex items-center justify-center gap-1.5 hover:bg-blue-50 transition"
             >
-              Edit Location/Photos
+              Edit
             </button>
           )}
         </div>
