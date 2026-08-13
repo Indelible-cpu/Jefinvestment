@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
-  Search as SearchIcon, MapPin, ScanBarcode, Package,
-  CheckCircle, AlertCircle, XCircle, Box, Map as MapIcon,
+  Search as SearchIcon, MapPin, ScanBarcode,
+  Box, Map as MapIcon,
   Image as ImageIcon, Camera, Sparkles, Loader2
 } from 'lucide-react';
 import { useProductStore } from '../store/cartStore';
@@ -126,15 +126,6 @@ export default function ProductFinder() {
   }, [debouncedSearch, filteredProducts.length, products]);
 
 
-  // ── Stock status helper ────────────────────────────────────────────────────
-  const getStockStatus = (product: Product) => {
-    if (product.stock > 0)
-      return { label: 'In Stock', color: 'text-green-600 bg-green-50 border-green-200', icon: CheckCircle };
-    if (product.stock === 0 && (product.costPrice > 0 || product.sellingPrice > 0))
-      return { label: 'Out of Stock', color: 'text-red-600 bg-red-50 border-red-200', icon: XCircle };
-    return { label: 'Never Stocked', color: 'text-gray-600 bg-gray-50 border-gray-200', icon: AlertCircle };
-  };
-
   // ── Map handlers ───────────────────────────────────────────────────────────
   const handleOpenMap = useCallback((product: Product, edit: boolean = false) => {
     setSelectedProduct(product);
@@ -253,9 +244,6 @@ export default function ProductFinder() {
 
   // ── Product card ───────────────────────────────────────────────────────────
   const renderProductCard = (product: Product, confidenceScore?: number) => {
-    const stockStatus = getStockStatus(product);
-    const StatusIcon = stockStatus.icon;
-
     return (
       <div key={product.id + (confidenceScore ?? 'text')} className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden">
 
@@ -269,7 +257,7 @@ export default function ProductFinder() {
               <span className="text-[10px] font-medium text-gray-400">No Photo</span>
             </div>
           )}
-          {/* Badge top-left */}
+          {/* Badge top-left: AI match indicator */}
           <div className="absolute top-2 left-2">
             {confidenceScore !== undefined ? (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full shadow">
@@ -281,10 +269,6 @@ export default function ProductFinder() {
               </span>
             ) : null}
           </div>
-          {/* Stock badge top-right */}
-          <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full shadow ${stockStatus.color}`}>
-            <StatusIcon size={10} />{stockStatus.label}
-          </div>
         </div>
 
         {/* Body */}
@@ -292,12 +276,6 @@ export default function ProductFinder() {
           <div>
             <h3 className="font-bold text-gray-900 text-sm leading-tight line-clamp-2" title={product.name}>{product.name}</h3>
             <p className="text-[11px] text-gray-400 font-mono mt-0.5">{product.sku}</p>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-base font-extrabold text-primary">K{product.sellingPrice.toLocaleString()}</span>
-            <span className="text-[11px] text-gray-500 flex items-center gap-1">
-              <Package size={11} />{product.stock} {product.unit}
-            </span>
           </div>
           {product.displayLocationText && (
             <p className="text-[11px] text-blue-700 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 font-medium line-clamp-1">
