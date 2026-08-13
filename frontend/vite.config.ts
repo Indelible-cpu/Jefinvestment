@@ -14,9 +14,9 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5000000 // 5 MB — covers Firebase SDK
       },
       manifest: {
-        name: 'JIMS ERP',
-        short_name: 'JIMS ERP',
-        description: 'JIMS ERP Custom ERP System',
+        name: 'StoreSight',
+        short_name: 'StoreSight',
+        description: 'StoreSight Custom ERP System',
         theme_color: '#004bb4',
         background_color: '#ffffff',
         display: 'standalone',
