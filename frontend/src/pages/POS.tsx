@@ -435,7 +435,7 @@ const playSound = (type: 'success' | 'error') => {
             )}
           </div>
           
-          <div className="flex-1 overflow-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-max">
+          <div className="flex-1 overflow-auto grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 auto-rows-max">
             {productsLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="border p-3 rounded-lg h-32 bg-gray-100 animate-pulse">

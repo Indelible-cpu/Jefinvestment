@@ -440,7 +440,7 @@ export default function ProductFinder() {
             </h2>
             <button onClick={() => setImageMatches([])} className="ml-auto text-xs text-gray-400 hover:text-gray-600">Clear</button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
             {imageMatches.map(({ product, score }) => renderProductCard(product, score))}
           </div>
         </div>
@@ -454,7 +454,7 @@ export default function ProductFinder() {
           </h2>
 
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
               {filteredProducts.map(product => renderProductCard(product))}
             </div>
           ) : (
