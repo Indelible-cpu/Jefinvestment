@@ -11,9 +11,10 @@ interface ShopMapModalProps {
   onClose: () => void;
   product?: Product | null;
   mode: 'view' | 'edit';
+  inline?: boolean;
 }
 
-export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMapModalProps) {
+export default function ShopMapModal({ isOpen, onClose, product, mode, inline = false }: ShopMapModalProps) {
   const { shopMapImage, updateSettings } = useSettingsStore();
   const { updateProduct } = useProductStore();
   const { user } = useAuthStore();
@@ -100,9 +101,10 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
   const hasPinned = !!mapCoordinates;
   const hasLocationText = !!locationText.trim();
 
-  return (
-    <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+  if (!isOpen) return null;
+
+  const content = (
+    <div className={`bg-white flex flex-col overflow-hidden ${inline ? 'h-full w-full' : 'rounded-2xl w-full max-w-4xl max-h-[95vh] shadow-2xl'}`}>
 
         {/* Header */}
         <div className="px-5 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
@@ -119,9 +121,11 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
-            <X size={22} />
-          </button>
+          {!inline && (
+            <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
+              <X size={22} />
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -326,6 +330,15 @@ export default function ShopMapModal({ isOpen, onClose, product, mode }: ShopMap
           </div>
         )}
       </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+      {content}
     </div>
   );
 }
