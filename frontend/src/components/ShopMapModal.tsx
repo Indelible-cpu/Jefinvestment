@@ -57,14 +57,29 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
   const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isAdmin) return;
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateSettings({ shopMapImage: reader.result as string });
-        toast.success('Shop map updated successfully');
+    if (!file) return;
+    e.target.value = ''; // reset so same file can be re-selected
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const originalDataUrl = reader.result as string;
+      // Compress before saving — Firestore has a 1 MB doc limit
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1400;
+        const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.72);
+        updateSettings({ shopMapImage: compressed });
+        toast.success('Shop map updated! (' + Math.round(compressed.length / 1024) + ' KB)');
       };
-      reader.readAsDataURL(file);
-    }
+      img.src = originalDataUrl;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
