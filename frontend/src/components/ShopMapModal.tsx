@@ -151,7 +151,7 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
   if (!isOpen) return null;
 
   const content = (
-    <div className={`bg-white flex flex-col overflow-hidden ${inline ? 'h-full w-full' : 'rounded-2xl w-full max-w-4xl max-h-[95vh] shadow-2xl'}`}>
+    <div className={`bg-white flex flex-col overflow-hidden ${inline ? 'h-full w-full' : 'rounded-2xl w-full max-w-6xl max-h-[95vh] shadow-2xl'}`}>
 
         {/* Header */}
         <div className="px-5 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
@@ -220,7 +220,7 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
               <div
                 ref={containerRef}
                 className={`relative overflow-auto bg-gray-100 rounded-xl border-2 ${isEditMode ? 'border-blue-300 cursor-crosshair' : 'border-gray-200'} flex items-start justify-center`}
-                style={{ maxHeight: '55vh', minHeight: '220px' }}
+                style={{ maxHeight: '70vh', minHeight: '300px' }}
               >
                 <div
                   className="relative inline-block"
