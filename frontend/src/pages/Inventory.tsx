@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, X, Package, AlertTriangle, ScanLine, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '../store/settingsStore';
@@ -20,7 +21,13 @@ export default function Inventory() {
   useEffect(() => {
     loadProducts();
   }, []);
-  const [search, setSearch] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+
+  useEffect(() => {
+    const query = searchParams.get('search');
+    if (query !== null) setSearch(query);
+  }, [searchParams]);
   const [catFilter, setCatFilter] = useState('All');
   const [activeTab, setActiveTab] = useState<'All' | 'Products' | 'Services' | 'Equipment'>('All');
   const [showModal, setShowModal] = useState(false);

@@ -88,27 +88,24 @@ export default function Layout() {
   }, [user?.id]);
 
   useEffect(() => {
-    const checkConnectivity = async () => {
-      try {
-        // Ping a tiny, reliable URL with no-cache to verify real internet access
-        const res = await fetch('https://www.gstatic.com/generate_204', {
-          method: 'HEAD',
-          cache: 'no-store',
-          signal: AbortSignal.timeout(4000),
-        });
-        const nowOnline = res.status === 204 || res.ok;
-        setIsOnline(prev => {
-          if (!prev && nowOnline) syncAll(); // came back online → sync
-          return nowOnline;
-        });
-      } catch {
-        setIsOnline(false);
-      }
+    const handleOnline = () => {
+      setIsOnline(true);
+      syncAll();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
     };
 
-    checkConnectivity(); // run immediately on mount
-    const interval = setInterval(checkConnectivity, 10000); // re-check every 10s
-    return () => clearInterval(interval);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial check
+    setIsOnline(navigator.onLine);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // System Lock Logic
@@ -172,7 +169,8 @@ export default function Layout() {
     };
   }, [autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes]);
 
-  const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
+  const lowStockItems = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel);
+  const lowStockCount = lowStockItems.length;
   const overdueCreditCount = credits?.filter(c => c.status === 'OVERDUE').length || 0;
   const notificationCount = lowStockCount + overdueCreditCount;
 
