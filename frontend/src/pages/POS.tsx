@@ -634,17 +634,7 @@ const playSound = (type: 'success' | 'error') => {
                   );
                 })()}
 
-                {/* Est. Profit Indicator */}
-                {cart.items.length > 0 && user?.role === 'ADMIN' && (() => {
-                  const totalCost = cart.items.reduce((sum, i) => sum + ((i.costPrice || 0) * i.quantity), 0);
-                  const estProfit = cart.getTotal() - totalCost;
-                  return (
-                    <div className={`flex justify-between text-xs font-semibold px-2 py-1 rounded ${estProfit >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                      <span>Est. Profit</span>
-                      <span>{settings.currency} {estProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                    </div>
-                  );
-                })()}
+
               </div>
 
               {/* Payment Method Selector */}
