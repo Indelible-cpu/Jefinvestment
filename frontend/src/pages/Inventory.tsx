@@ -442,13 +442,15 @@ export default function Inventory() {
               )}
               {/* Is Service / Equipment checkboxes */}
               <div className="space-y-2">
-                <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-lg">
-                  <input type="checkbox" id="isService" name="isService" checked={form.isService} onChange={e => {
-                    const checked = e.target.checked;
-                    setForm(prev => ({ ...prev, isService: checked, ...(checked ? { isEquipment: false } : {}) }));
-                  }} className="w-5 h-5 accent-purple-600" />
-                  <label htmlFor="isService" className="text-sm font-medium text-purple-800">This is a Service (not a physical product)</label>
-                </div>
+                {!form.isEquipment && (
+                  <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-lg">
+                    <input type="checkbox" id="isService" name="isService" checked={form.isService} onChange={e => {
+                      const checked = e.target.checked;
+                      setForm(prev => ({ ...prev, isService: checked, ...(checked ? { isEquipment: false } : {}) }));
+                    }} className="w-5 h-5 accent-purple-600" />
+                    <label htmlFor="isService" className="text-sm font-medium text-purple-800">This is a Service (not a physical product)</label>
+                  </div>
+                )}
 
                 {!form.isService && (
                   <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-lg">
