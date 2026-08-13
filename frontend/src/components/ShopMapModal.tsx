@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Save, Map as MapIcon, Image as ImageIcon, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, Upload, MapPin, Save, Map as MapIcon, Image as ImageIcon, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
 import { useSettingsStore } from '../store/settingsStore';
 import { useProductStore } from '../store/cartStore';
 import type { Product } from '../store/cartStore';
@@ -85,14 +85,29 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
   const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isEditMode || !product) return;
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProductImages(prev => [...prev, reader.result as string]);
-        toast.success('Product image added. Remember to save.');
+    if (!file) return;
+    e.target.value = ''; // reset
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const originalDataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1000; // smaller than map because we can have multiple
+        const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.72);
+        
+        setProductImages(prev => [...prev, compressed]);
+        toast.success(`Photo added! (${Math.round(compressed.length / 1024)} KB)`);
       };
-      reader.readAsDataURL(file);
-    }
+      img.src = originalDataUrl;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
@@ -217,28 +232,25 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
                     draggable={false}
                   />
 
-                  {/* ── The Pin — small crosshair dot, centred on exact click point ── */}
+                  {/* ── The Pin ── */}
                   {mapCoordinates && (
                     <div
-                      className="absolute pointer-events-none"
+                      className="absolute"
                       style={{
                         left: `${mapCoordinates.x}%`,
                         top: `${mapCoordinates.y}%`,
-                        transform: 'translate(-50%, -50%)',
+                        transform: 'translate(-50%, -100%)',
                         zIndex: 10,
                       }}
                     >
-                      {/* Outer pulse ring */}
-                      <span className="absolute w-8 h-8 rounded-full bg-red-500/25 animate-ping"
-                        style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
-                      {/* Crosshair lines */}
-                      <span className="absolute bg-red-600"
-                        style={{ width: 1, height: 14, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
-                      <span className="absolute bg-red-600"
-                        style={{ width: 14, height: 1, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
-                      {/* Centre dot */}
-                      <span className="absolute w-2.5 h-2.5 rounded-full bg-red-600 border-2 border-white shadow-md"
-                        style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+                      {/* Pulse ring */}
+                      <span className="absolute inset-0 flex items-end justify-center">
+                        <span className="w-8 h-8 rounded-full bg-red-500/30 animate-ping absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2" />
+                      </span>
+                      {/* Shadow dot on ground */}
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5 w-3 h-1.5 bg-black/20 rounded-full blur-sm" />
+                      {/* Pin icon */}
+                      <MapPin size={36} className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="#dc2626" />
                     </div>
                   )}
                 </div>
