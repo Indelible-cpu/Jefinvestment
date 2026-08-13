@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { collection, query, orderBy, onSnapshot, addDoc, limit, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, limit, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore, registerListener } from './authStore';
 
@@ -53,10 +53,10 @@ export const useAuditStore = create<AuditState>()((set) => ({
       console.warn('Failed to save audit log', err);
     }
   },
-  clearOldLogs: async (_cutoffTimestamp: number) => {
+  clearOldLogs: async (cutoffTimestamp: number) => {
     try {
-      // Fetch ALL audit logs (no limit) so we delete everything, not just the last 100
-      const snapshot = await getDocs(collection(db, 'auditLogs'));
+      const q = query(collection(db, 'auditLogs'), where('timestamp', '<', cutoffTimestamp));
+      const snapshot = await getDocs(q);
       if (snapshot.empty) return;
       const batchSize = 400;
       const docs = snapshot.docs;
@@ -65,9 +65,8 @@ export const useAuditStore = create<AuditState>()((set) => ({
         docs.slice(i, i + batchSize).forEach(d => batch.delete(d.ref));
         await batch.commit();
       }
-      set({ logs: [] });
     } catch (err) {
-      console.error('Failed to clear audit logs', err);
+      console.error('Failed to clear old audit logs', err);
       throw err;
     }
   }

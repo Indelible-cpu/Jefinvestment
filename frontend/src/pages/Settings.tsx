@@ -182,7 +182,7 @@ export default function Settings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Jef_ERP_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `StoreSight_Backup_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
       showSuccess('Backup exported successfully!');

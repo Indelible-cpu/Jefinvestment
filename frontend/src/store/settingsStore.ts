@@ -32,7 +32,7 @@ export interface CompanySettings {
 
 export const useSettingsStore = create<CompanySettings>()(
     (set) => ({
-      companyName: 'Jef Investment Limited',
+      companyName: 'StoreSight Limited',
       companyLogo: '',
       address: 'P.O. Box 123, Blantyre, Malawi',
       phone: '+265 999 123 456',
