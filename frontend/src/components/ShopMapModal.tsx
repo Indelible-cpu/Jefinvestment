@@ -200,27 +200,39 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
           {/* ── Map with pin ── */}
           {shopMapImage && (
             <div className="flex flex-col gap-3">
-              {/* Zoom controls */}
+              {/* Controls */}
               <div className="flex items-center gap-2 justify-end">
-                <span className="text-xs text-gray-400 font-medium mr-auto">
+                <span className="text-xs text-gray-400 font-medium mr-auto hidden sm:block">
                   {isEditMode ? '📍 Click anywhere on the map to place the product' : ''}
                 </span>
-                <button onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))}
-                  className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition" title="Zoom in">
-                  <ZoomIn size={16} />
-                </button>
-                <button onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                  className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition" title="Zoom out">
-                  <ZoomOut size={16} />
-                </button>
-                <span className="text-xs text-gray-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
+                
+                {isAdmin && (
+                  <label className="relative cursor-pointer">
+                    <input type="file" accept="image/*" onChange={handleMapUpload} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-xs transition">
+                      <Upload size={13} /> Replace Map
+                    </div>
+                  </label>
+                )}
+
+                <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                  <button onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                    className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition text-gray-600" title="Zoom out">
+                    <ZoomOut size={14} />
+                  </button>
+                  <span className="text-xs text-gray-500 w-10 text-center font-medium">{Math.round(zoom * 100)}%</span>
+                  <button onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))}
+                    className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition text-gray-600" title="Zoom in">
+                    <ZoomIn size={14} />
+                  </button>
+                </div>
               </div>
 
               {/* Map container */}
               <div
                 ref={containerRef}
                 className={`relative overflow-auto bg-gray-100 rounded-xl border-2 ${isEditMode ? 'border-blue-300 cursor-crosshair' : 'border-gray-200'} flex items-start justify-center`}
-                style={{ maxHeight: '70vh', minHeight: '300px' }}
+                style={{ maxHeight: '80vh', minHeight: '350px' }}
               >
                 <div
                   className="relative inline-block"
@@ -269,16 +281,6 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
                   )}
                 </div>
               </div>
-
-              {/* Admin map upload button when map already exists */}
-              {isAdmin && (
-                <label className="relative cursor-pointer self-start">
-                  <input type="file" accept="image/*" onChange={handleMapUpload} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg font-medium text-xs transition w-fit">
-                    <Upload size={13} /> Replace Map Image
-                  </div>
-                </label>
-              )}
             </div>
           )}
 
