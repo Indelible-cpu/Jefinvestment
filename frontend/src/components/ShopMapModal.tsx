@@ -249,9 +249,9 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
                     >
                       {!isEditMode ? (
                         <div className="relative flex items-center justify-center">
-                          <span className="absolute w-12 h-12 rounded-full bg-red-500 opacity-60 animate-ping" />
-                          <span className="absolute w-8 h-8 rounded-full bg-red-600 opacity-40 animate-pulse" />
-                          <span className="relative w-5 h-5 bg-red-600 rounded-full border-2 border-white shadow-[0_0_15px_rgba(220,38,38,0.8)]" />
+                          <span className="absolute w-7 h-7 rounded-full bg-red-500 opacity-60 animate-ping" />
+                          <span className="absolute w-5 h-5 rounded-full bg-red-600 opacity-40 animate-pulse" />
+                          <span className="relative w-3 h-3 bg-red-600 rounded-full border-[1.5px] border-white shadow-sm" />
                         </div>
                       ) : (
                         <>
