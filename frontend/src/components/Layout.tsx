@@ -7,9 +7,13 @@ import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from 
 import { useProductStore, useCartStore } from '../store/cartStore';
 import { useStationeryStore } from '../store/stationeryStore';
 import { useSyncQueueStore } from '../store/syncQueueStore';
+import { useEmbeddingPrewarm } from '../hooks/useEmbeddingPrewarm';
 import { toast } from 'sonner';
 
 export default function Layout() {
+  // Start AI prewarming in background
+  useEmbeddingPrewarm();
+
   const { user, logout, loadProfile, unlockTemporarily } = useAuthStore();
   const { companyName, companyLogo, loadSettings, autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes } = useSettingsStore();
   const { products, loadProducts } = useProductStore();

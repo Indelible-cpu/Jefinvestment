@@ -4,6 +4,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useProductStore } from '../store/cartStore';
 import type { Product } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
+import { useImageEmbedding } from '../hooks/useImageEmbedding';
 import { toast } from 'sonner';
 
 interface ShopMapModalProps {
@@ -18,6 +19,7 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
   const { shopMapImage, updateSettings } = useSettingsStore();
   const { updateProduct } = useProductStore();
   const { user } = useAuthStore();
+  const { getEmbedding, cacheEmbedding } = useImageEmbedding();
   const isAdmin = user?.role === 'ADMIN';
   const isEditMode = mode === 'edit' && isAdmin;
 
@@ -88,6 +90,17 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
         displayLocationText: locationText,
         images: productImages
       });
+
+      // Background task: compute embeddings for images so AI search is instant
+      if (productImages.length > 0) {
+        toast.info('Generating AI embeddings for photos...', { duration: 2000 });
+        Promise.all(productImages.map(async (img) => {
+          const key = `${product.id}::${img.substring(0, 64)}`;
+          const emb = await getEmbedding(img);
+          if (emb) await cacheEmbedding(key, emb);
+        })).catch(err => console.warn('Failed to embed images:', err));
+      }
+
       toast.success('Product location and images saved successfully');
       onClose();
     } catch (error) {

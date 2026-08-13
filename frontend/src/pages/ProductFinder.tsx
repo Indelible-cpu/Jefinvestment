@@ -41,6 +41,7 @@ export default function ProductFinder() {
   // Phase 3 image similarity state
   const [imageMatches, setImageMatches] = useState<ImageMatch[]>([]);
   const [isImageSearching, setIsImageSearching] = useState(false);
+  const [imageSearchProgress, setImageSearchProgress] = useState({ current: 0, total: 0 });
   const [lastScannedImage, setLastScannedImage] = useState<string | null>(null);
 
   const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
@@ -183,6 +184,7 @@ export default function ProductFinder() {
     }
 
     setIsImageSearching(true);
+    setImageSearchProgress({ current: 0, total: productsWithImages.length });
     toast.info('Comparing image against product photos...');
 
     try {
@@ -222,7 +224,15 @@ export default function ProductFinder() {
         if (bestScore >= SIMILARITY_THRESHOLD) {
           matches.push({ product, score: bestScore });
         }
+
+        // Yield and update progress every 10 products
+        if ((matches.length + 1) % 10 === 0) {
+          setImageSearchProgress(prev => ({ ...prev, current: prev.current + 10 }));
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
       }
+      
+      setImageSearchProgress({ current: productsWithImages.length, total: productsWithImages.length });
 
       // 3. Sort by score descending
       matches.sort((a, b) => b.score - a.score);
@@ -254,6 +264,16 @@ export default function ProductFinder() {
           <div className="flex items-center gap-1.5 self-start px-2.5 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-full border border-purple-200">
             <Sparkles size={12} />
             {Math.round(confidenceScore * 100)}% image match
+          </div>
+        )}
+        {/* AI Ready indicator for normal text search */}
+        {confidenceScore === undefined && (
+          <div className={`flex items-center gap-1.5 self-start px-2.5 py-1 text-[10px] font-bold rounded-full border ${product.images && product.images.length > 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+            {product.images && product.images.length > 0 ? (
+               <><Sparkles size={10} /> AI Ready</>
+            ) : (
+               <><ImageIcon size={10} /> No Photos</>
+            )}
           </div>
         )}
 
@@ -384,16 +404,28 @@ export default function ProductFinder() {
         </div>
       </div>
 
-      {/* AI Image Searching spinner */}
+      {/* AI Image Searching spinner & progress */}
       {isImageSearching && (
-        <div className="flex items-center gap-3 px-5 py-4 bg-purple-50 border border-purple-200 rounded-2xl text-purple-800">
-          <Loader2 size={22} className="animate-spin shrink-0" />
-          <div>
-            <p className="font-bold text-sm">AI Image Matching</p>
-            <p className="text-xs text-purple-600">Comparing photo against product images...</p>
+        <div className="flex flex-col gap-3 px-5 py-4 bg-purple-50 border border-purple-200 rounded-2xl text-purple-800">
+          <div className="flex items-center gap-3">
+            <Loader2 size={22} className="animate-spin shrink-0" />
+            <div>
+              <p className="font-bold text-sm">AI Image Matching</p>
+              <p className="text-xs text-purple-600">
+                Comparing photo against product images... ({imageSearchProgress.current}/{imageSearchProgress.total})
+              </p>
+            </div>
+            {lastScannedImage && (
+              <img src={lastScannedImage} alt="Scanned" className="ml-auto w-12 h-12 rounded-lg object-cover border border-purple-200 shrink-0" />
+            )}
           </div>
-          {lastScannedImage && (
-            <img src={lastScannedImage} alt="Scanned" className="ml-auto w-12 h-12 rounded-lg object-cover border border-purple-200 shrink-0" />
+          {imageSearchProgress.total > 0 && (
+            <div className="w-full bg-purple-200 rounded-full h-1.5">
+              <div 
+                className="bg-purple-600 h-1.5 rounded-full transition-all duration-300"
+                style={{ width: `${(imageSearchProgress.current / imageSearchProgress.total) * 100}%` }}
+              ></div>
+            </div>
           )}
         </div>
       )}

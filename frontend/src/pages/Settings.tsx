@@ -7,6 +7,8 @@ import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import AuditLogs from '../components/AuditLogs';
+import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
+import { Sparkles } from 'lucide-react';
 
 export default function Settings() {
   const { 
@@ -444,14 +446,14 @@ export default function Settings() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
                     <Download className="text-blue-600" size={24} />
                   </div>
                   <h4 className="font-bold text-gray-700 mb-1">Export Backup</h4>
                   <p className="text-xs text-gray-500 mb-4">Download a full JSON backup of all sales, inventory, and settings.</p>
-                  <button onClick={handleExportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition">Download JSON</button>
+                  <button onClick={handleExportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-auto">Download JSON</button>
                 </div>
 
                 <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
@@ -460,10 +462,19 @@ export default function Settings() {
                   </div>
                   <h4 className="font-bold text-gray-700 mb-1">Import Backup</h4>
                   <p className="text-xs text-gray-500 mb-4">Restore a previously downloaded JSON backup file.</p>
-                  <label className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer text-center">
+                  <label className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer text-center mt-auto block">
                     Select File
                     <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
                   </label>
+                </div>
+
+                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center bg-purple-50/30">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3">
+                    <Sparkles className="text-purple-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-700 mb-1">Clear AI Cache</h4>
+                  <p className="text-xs text-gray-500 mb-4">Clear pre-computed AI image embeddings. Forces a full recompute on next page load.</p>
+                  <button onClick={async () => { await clearEmbeddingCache(); toast.success('AI Image Cache cleared!'); }} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 transition mt-auto">Clear AI Cache</button>
                 </div>
 
                 <div className="border border-red-100 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-red-50/30">
@@ -471,8 +482,8 @@ export default function Settings() {
                     <AlertTriangle className="text-red-600" size={24} />
                   </div>
                   <h4 className="font-bold text-red-700 mb-1">Data Reset</h4>
-                  <p className="text-xs text-gray-500 mb-4">Selectively wipe Sales, Expenses, Inventory, or Audit Logs. Choose exactly what to clear — irreversible.</p>
-                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition">Reset Data...</button>
+                  <p className="text-xs text-gray-500 mb-4">Selectively wipe Sales, Expenses, Inventory, or Audit Logs. Irreversible.</p>
+                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition mt-auto">Reset Data...</button>
                 </div>
               </div>
             </div>
