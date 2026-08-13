@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Search as SearchIcon, MapPin, ScanBarcode,
+  CheckCircle, AlertCircle, XCircle,
   Box, Map as MapIcon,
   Image as ImageIcon, Camera, Sparkles, Loader2
 } from 'lucide-react';
@@ -242,8 +243,19 @@ export default function ProductFinder() {
     }
   }, [products, getEmbedding, getCachedEmbedding, cacheEmbedding]);
 
+  // ── Stock status helper ────────────────────────────────────────────────────
+  const getStockStatus = (product: Product) => {
+    if (product.stock > 0)
+      return { label: 'In Stock', color: 'bg-green-500 text-white', icon: CheckCircle };
+    if (product.stock === 0 && (product.costPrice > 0 || product.sellingPrice > 0))
+      return { label: 'Out of Stock', color: 'bg-red-500 text-white', icon: XCircle };
+    return { label: 'Never Stocked', color: 'bg-gray-400 text-white', icon: AlertCircle };
+  };
+
   // ── Product card ───────────────────────────────────────────────────────────
   const renderProductCard = (product: Product, confidenceScore?: number) => {
+    const stockStatus = getStockStatus(product);
+    const StatusIcon = stockStatus.icon;
     return (
       <div key={product.id + (confidenceScore ?? 'text')} className="bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden">
 
@@ -268,6 +280,10 @@ export default function ProductFinder() {
                 <Sparkles size={9} />AI Ready
               </span>
             ) : null}
+          </div>
+          {/* Stock badge top-right */}
+          <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-full shadow ${stockStatus.color}`}>
+            <StatusIcon size={10} />{stockStatus.label}
           </div>
         </div>
 
