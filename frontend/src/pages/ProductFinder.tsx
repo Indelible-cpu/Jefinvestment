@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Search as SearchIcon, MapPin, ScanBarcode, Package,
   CheckCircle, AlertCircle, XCircle, Box, Map as MapIcon,
@@ -8,9 +8,12 @@ import { useProductStore } from '../store/cartStore';
 import type { Product } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import ShopMapModal from '../components/ShopMapModal';
-import CameraOcrModal from '../components/CameraOcrModal';
 import { useImageEmbedding, cosineSimilarity } from '../hooks/useImageEmbedding';
 import { toast } from 'sonner';
+
+// Lazy-loaded heavy components (only downloaded when user opens them)
+const CameraOcrModal = lazy(() => import('../components/CameraOcrModal'));
+const BarcodeScanner = lazy(() => import('../components/BarcodeScanner'));
 
 // ── Similarity threshold: only show image matches above 40% ─────────────────
 const SIMILARITY_THRESHOLD = 0.40;
@@ -39,6 +42,8 @@ export default function ProductFinder() {
   const [imageMatches, setImageMatches] = useState<ImageMatch[]>([]);
   const [isImageSearching, setIsImageSearching] = useState(false);
   const [lastScannedImage, setLastScannedImage] = useState<string | null>(null);
+
+  const [barcodeModalOpen, setBarcodeModalOpen] = useState(false);
 
   // Debounce search input
   useEffect(() => {
@@ -130,17 +135,30 @@ export default function ProductFinder() {
   };
 
   // ── Map handlers ───────────────────────────────────────────────────────────
-  const handleOpenMap = (product: Product, edit: boolean = false) => {
+  const handleOpenMap = useCallback((product: Product, edit: boolean = false) => {
     setSelectedProduct(product);
     setMapMode(edit ? 'edit' : 'view');
     setMapModalOpen(true);
-  };
+  }, []);
 
   const handleOpenGlobalMap = () => {
     setSelectedProduct(null);
     setMapMode('edit');
     setMapModalOpen(true);
   };
+
+  // ── Auto-select single match ───────────────────────────────────────────────
+  useEffect(() => {
+    if (debouncedSearch.trim() && filteredProducts.length === 1) {
+      // Auto-select on desktop, auto-open modal on mobile
+      setSelectedProduct(filteredProducts[0]);
+      setMapMode('view');
+      // Only auto-open modal on mobile to avoid stealing focus on desktop
+      if (window.innerWidth < 768) {
+         setMapModalOpen(true);
+      }
+    }
+  }, [debouncedSearch, filteredProducts]);
 
   // ── OCR text handler (Phase 2) ─────────────────────────────────────────────
   const handleOcrText = (text: string) => {
@@ -253,6 +271,11 @@ export default function ProductFinder() {
             <h3 className="font-bold text-gray-900 truncate" title={product.name}>{product.name}</h3>
             <p className="text-sm text-gray-500 truncate">{product.sku}</p>
             <div className="mt-1 font-bold text-primary">K{product.sellingPrice.toLocaleString()}</div>
+            {product.displayLocationText && (
+              <p className="text-xs text-blue-700 bg-blue-50 mt-1.5 px-2 py-1 rounded truncate border border-blue-100 font-medium">
+                📍 {product.displayLocationText}
+              </p>
+            )}
           </div>
         </div>
 
@@ -305,9 +328,9 @@ export default function ProductFinder() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-
-      {/* Header */}
+    <div className="flex flex-col md:flex-row h-full bg-white">
+      {/* ── LEFT PANEL: Search & Results ── */}
+      <div className="w-full md:w-5/12 lg:w-1/3 flex flex-col p-4 md:p-6 border-r border-gray-200 overflow-y-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -351,7 +374,11 @@ export default function ProductFinder() {
             <Camera className="h-6 w-6" />
           </button>
           <div className="text-gray-300">|</div>
-          <button title="Barcode scan" className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors">
+          <button
+            onClick={() => setBarcodeModalOpen(true)}
+            title="Barcode scan"
+            className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
+          >
             <ScanBarcode className="h-6 w-6" />
           </button>
         </div>
@@ -440,21 +467,55 @@ export default function ProductFinder() {
         </div>
       )}
 
-      {/* Map Modal */}
-      <ShopMapModal
-        isOpen={mapModalOpen}
-        onClose={() => setMapModalOpen(false)}
-        product={selectedProduct}
-        mode={mapMode}
-      />
+      </div>
 
-      {/* Camera OCR + Image Similarity Modal */}
-      <CameraOcrModal
-        isOpen={cameraModalOpen}
-        onClose={() => setCameraModalOpen(false)}
-        onTextExtracted={handleOcrText}
-        onImageCaptured={handleImageCaptured}
-      />
+      {/* ── RIGHT PANEL: Desktop Live Map Preview ── */}
+      <div className="hidden md:flex flex-1 bg-gray-50 p-6 relative overflow-hidden">
+        <ShopMapModal
+          isOpen={true}
+          onClose={() => {}}
+          product={selectedProduct}
+          mode={mapMode}
+          inline={true}
+        />
+      </div>
+
+      {/* ── Mobile Map Modal ── */}
+      <div className="md:hidden">
+        <ShopMapModal
+          isOpen={mapModalOpen}
+          onClose={() => setMapModalOpen(false)}
+          product={selectedProduct}
+          mode={mapMode}
+        />
+      </div>
+
+      {/* Camera OCR + Image Similarity Modal (lazy-loaded) */}
+      <Suspense fallback={<div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center"><Loader2 size={40} className="text-white animate-spin" /></div>}>
+        {cameraModalOpen && (
+          <CameraOcrModal
+            isOpen={cameraModalOpen}
+            onClose={() => setCameraModalOpen(false)}
+            onTextExtracted={handleOcrText}
+            onImageCaptured={handleImageCaptured}
+          />
+        )}
+      </Suspense>
+
+      {/* Barcode Scanner Modal (lazy-loaded) */}
+      <Suspense fallback={<div className="fixed inset-0 bg-black/80 z-[110] flex items-center justify-center"><Loader2 size={40} className="text-white animate-spin" /></div>}>
+        {barcodeModalOpen && (
+          <BarcodeScanner
+            onClose={() => setBarcodeModalOpen(false)}
+            onScan={(text) => {
+              setSearchTerm(text);
+              setDebouncedSearch(text);
+              setBarcodeModalOpen(false);
+              toast.success(`Barcode scanned: ${text}`);
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
