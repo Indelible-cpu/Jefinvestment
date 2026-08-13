@@ -66,16 +66,20 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
       // Compress before saving — Firestore has a 1 MB doc limit
       const img = new Image();
       img.onload = () => {
-        const MAX_WIDTH = 1400;
+        const MAX_WIDTH = 1200;
         const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d')!;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressed = canvas.toDataURL('image/jpeg', 0.72);
-        updateSettings({ shopMapImage: compressed });
-        toast.success('Shop map updated! (' + Math.round(compressed.length / 1024) + ' KB)');
+        const compressed = canvas.toDataURL('image/jpeg', 0.6);
+        
+        toast.promise(updateSettings({ shopMapImage: compressed }), {
+          loading: `Uploading map (${Math.round(compressed.length / 1024)} KB)...`,
+          success: 'Shop map uploaded successfully to the cloud!',
+          error: 'Failed to upload map. Please try again with a smaller photo.'
+        });
       };
       img.src = originalDataUrl;
     };

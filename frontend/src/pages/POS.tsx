@@ -117,6 +117,7 @@ export default function POS() {
 
     playSound('success');
     toast.success(`Added ${svc.serviceName} to cart`);
+    setSearchTerm('');
   };
 
   const finalTotal = useMemo(() => {
@@ -455,6 +456,7 @@ const playSound = (type: 'success' | 'error') => {
                       onClick={() => {
                         if (!outOfStock) {
                           cart.addItem({ id: product.id, name: product.name, sku: product.sku, unitPrice: product.sellingPrice, costPrice: product.costPrice || 0, quantity: 1, discount: 0, isService: product.isService });
+                          setSearchTerm('');
                         }
                       }}
                       className={`border p-3 rounded-lg flex flex-col justify-between h-32 transition ${

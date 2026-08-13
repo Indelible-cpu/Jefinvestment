@@ -74,7 +74,13 @@ export default function Inventory() {
     setIsSubmitting(true);
     
     // Ensure equipment doesn't save a reorder level
-    const submitForm = { ...form };
+    const submitForm = { 
+      ...form,
+      costPrice: Number(form.costPrice) || 0,
+      sellingPrice: Number(form.sellingPrice) || 0,
+      stock: Number(form.stock) || 0,
+      reorderLevel: Number(form.reorderLevel) || 0
+    };
     if (submitForm.isEquipment) {
       submitForm.reorderLevel = 0;
     }
@@ -135,7 +141,7 @@ export default function Inventory() {
     setForm(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked
-        : ['costPrice', 'sellingPrice', 'stock', 'reorderLevel'].includes(name) ? parseFloat(value) || 0
+        : ['costPrice', 'sellingPrice', 'stock', 'reorderLevel'].includes(name) ? (value === '' ? '' : (parseFloat(value) || 0))
         : value
     }));
   };
