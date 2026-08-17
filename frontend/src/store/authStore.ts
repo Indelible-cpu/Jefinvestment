@@ -64,7 +64,6 @@ export function unsubscribeAllListeners() {
 export interface User {
   id: string;
   name: string;
-  username: string;
   email?: string;
   role: 'ADMIN' | 'CASHIER' | 'MANAGER';
   branchId?: string | null;
@@ -102,10 +101,10 @@ interface AuthState {
   // Actions
   login: (email: string, password: string) => Promise<LoginResult>;
   logout: () => void;
-  updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
+  updateProfile: (name: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
-  addUser: (user: { name: string; username?: string; email: string; password: string; role: string; branchId?: string }) => Promise<void>;
+  addUser: (user: { name: string; email: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   loadUsers: () => Promise<void>;
   
@@ -186,7 +185,6 @@ export const useAuthStore = create<AuthState>()(
               user: {
                 id: 'local-admin-id',
                 name: 'Admin User',
-                username: email,
                 role: 'ADMIN',
                 branchId: 'main-branch',
                 branchName: 'Main Branch',
@@ -203,7 +201,6 @@ export const useAuthStore = create<AuthState>()(
               user: {
                 id: 'local-cashier-id',
                 name: 'Cashier User',
-                username: email,
                 role: 'CASHIER',
                 branchId: 'main-branch',
                 branchName: 'Main Branch',
@@ -230,7 +227,7 @@ export const useAuthStore = create<AuthState>()(
 
           // Fetch user profile from Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          let userData: any = { role: 'CASHIER', name: email.split('@')[0], username: email };
+          let userData: any = { role: 'CASHIER', name: email.split('@')[0] };
           
           if (userDoc.exists()) {
             userData = userDoc.data();
@@ -241,8 +238,7 @@ export const useAuthStore = create<AuthState>()(
 
           const userObj = {
             id: firebaseUser.uid,
-            name: userData.name || userData.username,
-            username: userData.username,
+            name: userData.name || email.split('@')[0],
             email: userData.email || email,
             role: userData.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
             branchId: userData.branchId,
@@ -275,7 +271,6 @@ export const useAuthStore = create<AuthState>()(
               user: {
                 id: 'local-admin-id',
                 name: 'Admin User',
-                username: email,
                 role: 'ADMIN',
                 branchId: 'main-branch',
                 branchName: 'Main Branch',
@@ -293,7 +288,6 @@ export const useAuthStore = create<AuthState>()(
               user: {
                 id: 'local-cashier-id',
                 name: 'Cashier User',
-                username: email,
                 role: 'CASHIER',
                 branchId: 'main-branch',
                 branchName: 'Main Branch',
@@ -355,14 +349,13 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      updateProfile: async (name, username, profilePic) => {
+      updateProfile: async (name, profilePic) => {
         const state = get();
         if (!state.user) return;
         
         try {
           await updateDoc(doc(db, 'users', state.user.id), { 
             name, 
-            username,
             ...(profilePic !== undefined && { profilePic }) 
           });
         } catch (err) {
@@ -370,7 +363,7 @@ export const useAuthStore = create<AuthState>()(
         }
         
         set((state) => ({
-          user: state.user ? { ...state.user, name, username, ...(profilePic !== undefined && { profilePic }) } : null,
+          user: state.user ? { ...state.user, name, ...(profilePic !== undefined && { profilePic }) } : null,
         }));
       },
 
@@ -414,7 +407,6 @@ export const useAuthStore = create<AuthState>()(
           
           await setDoc(doc(db, 'users', res.user.uid), {
             name: userData.name,
-            username: userData.username,
             email: userData.email,
             role: userData.role,
             branchId: userData.branchId || null,
@@ -449,7 +441,6 @@ export const useAuthStore = create<AuthState>()(
               const data = doc.data();
               loadedUsers.push({
                 id: doc.id,
-                username: data.username || '',
                 name: data.name || '',
                 email: data.email || '',
                 role: data.role || 'CASHIER',
