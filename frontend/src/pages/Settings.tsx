@@ -327,7 +327,7 @@ export default function Settings() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Role</label>
                 <input type="text" value={user?.role || ''} disabled className="w-full p-2.5 border rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed" />
               </div>
-              <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition">Save Profile</button>
+              <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Profile</button>
             </form>
           </div>
 
@@ -384,7 +384,7 @@ export default function Settings() {
                       <div><label className="block text-xs font-semibold text-gray-700 mb-1">Type</label><select value={settings.taxType} onChange={e => updateSettings({ taxType: e.target.value as 'INCLUSIVE' | 'EXCLUSIVE' })} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white"><option value="EXCLUSIVE">Exclusive</option><option value="INCLUSIVE">Inclusive</option></select></div>
                     </div>
                   </div>
-                  <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition">Save Settings</button>
+                  <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Settings</button>
                 </form>
               </div>
             </div>
@@ -553,7 +553,7 @@ export default function Settings() {
                   </div>
                   <h4 className="font-bold text-gray-700 mb-1">Export Backup</h4>
                   <p className="text-xs text-gray-500 mb-4">Download a full JSON backup of all sales, inventory, and settings.</p>
-                  <button onClick={handleExportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-auto">Download JSON</button>
+                  <button onClick={handleExportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-auto active:scale-95">Download JSON</button>
                 </div>
 
                 <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
@@ -583,7 +583,7 @@ export default function Settings() {
                   </div>
                   <h4 className="font-bold text-red-700 mb-1">Data Reset</h4>
                   <p className="text-xs text-gray-500 mb-4">Selectively wipe Sales, Expenses, Inventory, or Audit Logs. Irreversible.</p>
-                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition mt-auto">Reset Data...</button>
+                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition mt-auto active:scale-95">Reset Data...</button>
                 </div>
               </div>
             </div>
@@ -644,7 +644,7 @@ export default function Settings() {
               </div>
             )}
             
-            <button type="submit" className="w-full md:w-auto bg-primary text-white font-bold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition">Save Security Settings</button>
+            <button type="submit" className="w-full md:w-auto bg-primary text-white font-bold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Security Settings</button>
           </form>
         </div>
       )}
@@ -693,7 +693,7 @@ export default function Settings() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setResetTarget(null)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
-              <button onClick={handleResetPassword} disabled={!newPassword.trim()} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-lg font-bold transition disabled:opacity-50 flex items-center justify-center gap-2">
+              <button onClick={handleResetPassword} disabled={!newPassword.trim()} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-lg font-bold transition disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95">
                 <ShieldCheck size={18} /> Reset
               </button>
             </div>
@@ -749,7 +749,7 @@ export default function Settings() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowAddUser(false)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
-                <button type="submit" className="flex-1 bg-primary hover:bg-blue-700 text-white py-2.5 rounded-lg font-bold transition">Add User</button>
+                <button type="submit" className="flex-1 bg-primary hover:bg-blue-700 text-white py-2.5 rounded-lg font-bold transition active:scale-95">Add User</button>
               </div>
             </form>
           </div>
@@ -787,7 +787,7 @@ export default function Settings() {
 
             <div className="flex gap-3">
               <button type="button" disabled={isResetting} onClick={() => setShowResetModal(false)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50">Cancel</button>
-              <button type="button" disabled={isResetting || !Object.values(resetOptions).some(Boolean)} onClick={executeReset} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 disabled:opacity-50">
+              <button type="button" disabled={isResetting || !Object.values(resetOptions).some(Boolean)} onClick={executeReset} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95">
                 {isResetting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                 Reset Selected
               </button>

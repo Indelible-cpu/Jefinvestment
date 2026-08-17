@@ -56,14 +56,7 @@ export default function Inventory() {
 
   // Auto-clear the search field 1.5 s after the user stops typing
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearch(val);
-    if (autoClearRef.current) clearTimeout(autoClearRef.current);
-    if (val.trim()) {
-      autoClearRef.current = setTimeout(() => {
-        setSearch('');
-      }, 1500);
-    }
+    setSearch(e.target.value);
   }, []);
 
   const [catFilter, setCatFilter] = useState('All');
