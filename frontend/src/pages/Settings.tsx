@@ -170,18 +170,23 @@ export default function Settings() {
     return { score, text: 'Strong', color: 'bg-green-500' };
   };
 
-  const handleAddUser = (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserForm.name || !newUserForm.email || !newUserForm.password) return;
     if (checkPasswordStrength(newUserForm.password).score < 3) {
       toast.error('Password is too weak. Please use a stronger password.');
       return;
     }
-    addUser(newUserForm);
-    const addedName = newUserForm.name;
-    setNewUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
-    setShowAddUser(false);
-    showSuccess(`User "${addedName}" added successfully!`);
+    
+    try {
+      await addUser(newUserForm);
+      const addedName = newUserForm.name;
+      setNewUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
+      setShowAddUser(false);
+      showSuccess(`User "${addedName}" added successfully!`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add user. Please check the email and try again.');
+    }
   };
 
   const handleDeleteUser = (userId: string, name: string) => {

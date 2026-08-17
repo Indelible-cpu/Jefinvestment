@@ -221,7 +221,8 @@ export const useAuthStore = create<AuthState>()(
         }
 
         try {
-          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const trimmedEmail = email.trim();
+          const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
           const firebaseUser = userCredential.user;
           const token = await firebaseUser.getIdToken();
 
@@ -403,11 +404,12 @@ export const useAuthStore = create<AuthState>()(
 
       addUser: async (userData) => {
         try {
-          const res = await createUserWithEmailAndPassword(secondaryAuth, userData.email, userData.password);
+          const trimmedEmail = userData.email.trim();
+          const res = await createUserWithEmailAndPassword(secondaryAuth, trimmedEmail, userData.password);
           
           await setDoc(doc(db, 'users', res.user.uid), {
             name: userData.name,
-            email: userData.email,
+            email: trimmedEmail,
             role: userData.role,
             branchId: userData.branchId || null,
             isActive: true,
