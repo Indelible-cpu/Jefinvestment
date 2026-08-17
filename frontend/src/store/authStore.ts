@@ -12,7 +12,6 @@ import {
   getDoc, 
   setDoc, 
   collection,
-  deleteDoc,
   updateDoc,
   onSnapshot
 } from 'firebase/firestore';
