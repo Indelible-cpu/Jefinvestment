@@ -6,6 +6,7 @@ import {
   persistentMultipleTabManager
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDQx0Jq6BglTBel-IqXAA_lo8BWNMA3IjQ',
@@ -32,4 +33,7 @@ const db = initializeFirestore(app, {
 const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
 const secondaryAuth = getAuth(secondaryApp);
 
-export { app, auth, db, storage, secondaryApp, secondaryAuth };
+// Firebase Functions
+const functions = getFunctions(app);
+
+export { app, auth, db, storage, secondaryApp, secondaryAuth, functions };

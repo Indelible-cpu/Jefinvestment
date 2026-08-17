@@ -192,8 +192,15 @@ export default function Settings() {
   const handleDeleteUser = (userId: string, name: string) => {
     if (userId === user?.id) { toast.error('You cannot delete your own account.'); return; }
     toast(`Delete user "${name}"?`, {
-      description: 'This cannot be undone.',
-      action: { label: 'Delete', onClick: () => { deleteUser(userId); toast.success(`User "${name}" deleted.`); } },
+      description: 'This will permanently remove their account. The same email can be reused.',
+      action: { label: 'Delete', onClick: async () => {
+        try {
+          await deleteUser(userId);
+          toast.success(`User "${name}" permanently deleted.`);
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to delete user.');
+        }
+      }},
       cancel: { label: 'Cancel', onClick: () => {} },
     });
   };

@@ -16,7 +16,8 @@ import {
   updateDoc,
   onSnapshot
 } from 'firebase/firestore';
-import { auth, db, secondaryAuth } from '../lib/firebase';
+import { auth, db, secondaryAuth, functions } from '../lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 
 // ─── Offline Credential Cache ──────────────────────────────────────────────────
 // We store a SHA-256 hash of the password alongside the user profile so that
@@ -431,10 +432,14 @@ export const useAuthStore = create<AuthState>()(
 
       deleteUser: async (userId) => {
         try {
-          await deleteDoc(doc(db, 'users', userId));
+          // Call the Cloud Function — this deletes both Firebase Auth account
+          // AND the Firestore doc, freeing the email for reuse
+          const deleteFn = httpsCallable(functions, 'deleteAuthUser');
+          await deleteFn({ userId });
           set((state) => ({ users: state.users.filter((u) => u.id !== userId) }));
-        } catch(e) {
+        } catch(e: any) {
           console.error("Failed to delete user", e);
+          throw new Error(e?.message || 'Failed to delete user. Please try again.');
         }
       },
 
