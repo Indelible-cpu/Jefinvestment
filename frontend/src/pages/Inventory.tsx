@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit2, Trash2, X, Package, AlertTriangle, ScanLine, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '../store/settingsStore';
@@ -22,12 +22,50 @@ export default function Inventory() {
     loadProducts();
   }, []);
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const autoClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Sync ?search= param into the search field
   useEffect(() => {
     const query = searchParams.get('search');
     if (query !== null) setSearch(query);
   }, [searchParams]);
+
+  // Handle ?highlight=<id> — scroll to, pulse-highlight, then clear
+  useEffect(() => {
+    const id = searchParams.get('highlight');
+    if (!id) return;
+    setHighlightId(id);
+    // Give the table time to render before scrolling
+    const scrollTimer = setTimeout(() => {
+      const row = rowRefs.current[id];
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 300);
+    // Remove highlight and clean up URL param after 3 s
+    const clearTimer = setTimeout(() => {
+      setHighlightId(null);
+      navigate('/inventory', { replace: true });
+    }, 3500);
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
+  }, [searchParams]);
+
+  // Auto-clear the search field 1.5 s after the user stops typing
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearch(val);
+    if (autoClearRef.current) clearTimeout(autoClearRef.current);
+    if (val.trim()) {
+      autoClearRef.current = setTimeout(() => {
+        setSearch('');
+      }, 1500);
+    }
+  }, []);
+
   const [catFilter, setCatFilter] = useState('All');
   const [activeTab, setActiveTab] = useState<'All' | 'Products' | 'Services' | 'Equipment'>('All');
   const [showModal, setShowModal] = useState(false);
@@ -240,7 +278,7 @@ export default function Inventory() {
         <div className="flex gap-4 mb-4 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-            <input type="text" placeholder="Search by name or SKU..." className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-primary outline-none" value={search} onChange={e => setSearch(e.target.value)} />
+            <input type="text" placeholder="Search by name or SKU..." className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-primary outline-none" value={search} onChange={handleSearchChange} />
           </div>
           <div className="flex gap-2 flex-wrap">
             {['All', ...CATEGORIES].map(c => (
@@ -254,7 +292,7 @@ export default function Inventory() {
       {activeTab === 'Equipment' && (
         <div className="relative mb-4">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-          <input type="text" placeholder="Search equipment..." className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-amber-400 outline-none" value={search} onChange={e => setSearch(e.target.value)} />
+          <input type="text" placeholder="Search equipment..." className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-amber-400 outline-none" value={search} onChange={handleSearchChange} />
         </div>
       )}
 
@@ -289,7 +327,15 @@ export default function Inventory() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={9} className="p-12 text-center text-gray-400">No products found.</td></tr>
               ) : filtered.map(p => (
-                <tr key={p.id} className="border-b hover:bg-gray-50 transition">
+                <tr
+                  key={p.id}
+                  ref={el => { rowRefs.current[p.id] = el; }}
+                  className={`border-b hover:bg-gray-50 transition ${
+                    highlightId === p.id
+                      ? 'ring-2 ring-inset ring-amber-400 bg-amber-50 animate-pulse'
+                      : ''
+                  }`}
+                >
                   <td className="p-4 font-medium">{p.name}</td>
                   <td className="p-4 text-gray-500 font-mono text-sm">{p.sku}</td>
                   <td className="p-4 text-gray-600">{p.category}</td>

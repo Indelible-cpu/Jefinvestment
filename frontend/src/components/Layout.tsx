@@ -302,16 +302,30 @@ export default function Layout() {
                )}
              </button>
              {showNotifications && (
-               <div className="absolute top-10 right-0 w-64 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm">
+               <div className="absolute top-10 right-0 w-72 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm max-h-80 overflow-y-auto">
                  <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
-                 {lowStockCount > 0 && (
-                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-red-600" onClick={() => { navigate('/inventory'); setShowNotifications(false); }}>
-                     {lowStockCount} items low on stock
-                   </div>
+                 {lowStockItems.length > 0 && (
+                   <>
+                     <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock — tap to locate</div>
+                     {lowStockItems.map(p => (
+                       <div
+                         key={p.id}
+                         className="px-2 py-2 hover:bg-red-50 rounded cursor-pointer flex items-center justify-between gap-2 group"
+                         onClick={() => { navigate(`/inventory?highlight=${p.id}`); setShowNotifications(false); }}
+                       >
+                         <div className="flex items-center gap-2 min-w-0">
+                           <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+                           <span className="text-red-700 font-medium truncate">{p.name}</span>
+                         </div>
+                         <span className="text-xs text-red-400 shrink-0 font-semibold">{p.stock} {p.unit || ''} left</span>
+                       </div>
+                     ))}
+                   </>
                  )}
                  {overdueCreditCount > 0 && (
-                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-amber-600" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
-                     {overdueCreditCount} overdue credits
+                   <div className="p-2 hover:bg-amber-50 rounded cursor-pointer text-amber-600 flex items-center gap-2" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
+                     <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                     {overdueCreditCount} overdue credit{overdueCreditCount > 1 ? 's' : ''} — tap to review
                    </div>
                  )}
                  {notificationCount === 0 && (
@@ -352,16 +366,30 @@ export default function Layout() {
               )}
             </button>
             {showNotifications && (
-               <div className="absolute top-8 right-0 w-64 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left">
+               <div className="absolute top-8 right-0 w-72 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left max-h-80 overflow-y-auto">
                  <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
-                 {lowStockCount > 0 && (
-                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-red-600" onClick={() => { navigate('/inventory'); setShowNotifications(false); }}>
-                     {lowStockCount} items low on stock
-                   </div>
+                 {lowStockItems.length > 0 && (
+                   <>
+                     <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock — click to locate</div>
+                     {lowStockItems.map(p => (
+                       <div
+                         key={p.id}
+                         className="px-2 py-2 hover:bg-red-50 rounded cursor-pointer flex items-center justify-between gap-2"
+                         onClick={() => { navigate(`/inventory?highlight=${p.id}`); setShowNotifications(false); }}
+                       >
+                         <div className="flex items-center gap-2 min-w-0">
+                           <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+                           <span className="text-red-700 font-medium truncate">{p.name}</span>
+                         </div>
+                         <span className="text-xs text-red-400 shrink-0 font-semibold">{p.stock} {p.unit || ''} left</span>
+                       </div>
+                     ))}
+                   </>
                  )}
                  {overdueCreditCount > 0 && (
-                   <div className="p-2 hover:bg-gray-50 rounded cursor-pointer text-amber-600" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
-                     {overdueCreditCount} overdue credits
+                   <div className="p-2 hover:bg-amber-50 rounded cursor-pointer text-amber-600 flex items-center gap-2" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
+                     <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                     {overdueCreditCount} overdue credit{overdueCreditCount > 1 ? 's' : ''} — click to review
                    </div>
                  )}
                  {notificationCount === 0 && (
