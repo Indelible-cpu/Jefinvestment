@@ -64,7 +64,7 @@ export default function Inventory() {
         setSearch('');
       }, 8000);
     }
-  }, []);
+  }, [autoClearRef]);
 
   const [catFilter, setCatFilter] = useState('All');
   const [activeTab, setActiveTab] = useState<'All' | 'Products' | 'Services' | 'Equipment'>('All');
