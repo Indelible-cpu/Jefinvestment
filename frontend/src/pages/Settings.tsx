@@ -24,7 +24,7 @@ export default function Settings() {
     }
   }, [isAdmin, loadUsers]);
 
-  const [profileForm, setProfileForm] = useState({ name: user?.name || '', username: user?.username || '', profilePic: user?.profilePic || '' });
+  const [profileForm, setProfileForm] = useState({ name: user?.name || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
     companyName: settings.companyName,
     currency: settings.currency || 'MWK',
@@ -50,7 +50,7 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUserForm, setNewUserForm] = useState({ name: '', username: '', email: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' | 'MANAGER' });
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' | 'MANAGER' });
   const [showAddPw, setShowAddPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
@@ -62,7 +62,7 @@ export default function Settings() {
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateProfile(profileForm.name, profileForm.username, profileForm.profilePic);
+    await updateProfile(profileForm.name, '', profileForm.profilePic);
     showSuccess('Profile updated and synced to all devices!');
   };
 
@@ -96,7 +96,7 @@ export default function Settings() {
       // Save URL to Firestore immediately so it syncs across devices
       await useAuthStore.getState().updateProfile(
         profileForm.name,
-        profileForm.username,
+        '',
         downloadURL
       );
       setProfileForm(f => ({ ...f, profilePic: downloadURL }));
@@ -173,14 +173,14 @@ export default function Settings() {
 
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserForm.name || !newUserForm.username || !newUserForm.email || !newUserForm.password) return;
+    if (!newUserForm.name || !newUserForm.email || !newUserForm.password) return;
     if (checkPasswordStrength(newUserForm.password).score < 3) {
       toast.error('Password is too weak. Please use a stronger password.');
       return;
     }
     addUser(newUserForm);
     const addedName = newUserForm.name;
-    setNewUserForm({ name: '', username: '', email: '', password: '', role: 'CASHIER' });
+    setNewUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
     setShowAddUser(false);
     showSuccess(`User "${addedName}" added successfully!`);
   };
@@ -313,10 +313,6 @@ export default function Settings() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
                 <input type="text" value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Username (Profile)</label>
-                <input type="text" value={profileForm.username} onChange={e => setProfileForm(f => ({ ...f, username: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Email (Login)</label>
@@ -472,8 +468,8 @@ export default function Settings() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b text-sm">
-                    <th className="p-4 font-semibold text-gray-600">Name</th>
-                    <th className="p-4 font-semibold text-gray-600">Username</th>
+                    <th className="p-4 font-semibold text-gray-600">Full Name</th>
+                    <th className="p-4 font-semibold text-gray-600">Email</th>
                     <th className="p-4 font-semibold text-gray-600">Role</th>
                     <th className="p-4 font-semibold text-gray-600">Status</th>
                     <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
@@ -486,7 +482,7 @@ export default function Settings() {
                         {u.name}
                         {u.id === user?.id && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">You</span>}
                       </td>
-                      <td className="p-4 text-gray-600 font-mono text-sm">{u.username}</td>
+                      <td className="p-4 text-gray-500 text-sm">{u.email || '—'}</td>
                       <td className="p-4">
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                           {u.role}
@@ -709,10 +705,6 @@ export default function Settings() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name *</label>
                 <input type="text" required value={newUserForm.name} onChange={e => setNewUserForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Jane Doe" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Username (Profile) *</label>
-                <input type="text" required value={newUserForm.username} onChange={e => setNewUserForm(f => ({ ...f, username: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. janedoe" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Email (Login) *</label>
