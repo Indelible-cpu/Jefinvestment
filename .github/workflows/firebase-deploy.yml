@@ -29,14 +29,7 @@ jobs:
           npm install
           npm run build
           
-      # Install and build Cloud Functions
-      - name: Install & Build Cloud Functions
-        run: |
-          cd functions
-          npm install
-          npm run build
-
-      # Deploy hosting and functions to Firebase
+      # Deploy to Firebase Hosting manually using the official CLI
       - name: Deploy to Firebase
         env:
           FIREBASE_SERVICE_ACCOUNT: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JEFINVESTMENT }}'
@@ -48,5 +41,5 @@ jobs:
           # Install the Firebase CLI globally
           npm install -g firebase-tools
           
-          # Deploy hosting, functions, and firestore rules
-          firebase deploy --only hosting,functions,firestore:rules --project jefinvestment-e1fc1 --debug
+          # Deploy with debug logs enabled so we can see exactly what's wrong if it fails
+          firebase deploy --only hosting,firestore:rules --project jefinvestment-e1fc1 --debug
