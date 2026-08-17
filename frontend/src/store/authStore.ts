@@ -105,7 +105,7 @@ interface AuthState {
   updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
-  addUser: (user: { name: string; username: string; email: string; password: string; role: string; branchId?: string }) => Promise<void>;
+  addUser: (user: { name: string; username?: string; email: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   loadUsers: () => Promise<void>;
   
