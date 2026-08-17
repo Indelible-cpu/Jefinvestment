@@ -444,7 +444,7 @@ export const useAuthStore = create<AuthState>()(
               loadedUsers.push({
                 id: doc.id,
                 name: data.name || '',
-                email: data.email || '',
+                email: data.email || data.username || '',
                 role: data.role || 'CASHIER',
                 branchId: data.branchId || null,
                 isActive: data.isActive !== false,
