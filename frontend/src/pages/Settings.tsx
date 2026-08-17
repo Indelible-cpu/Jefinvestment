@@ -315,8 +315,13 @@ export default function Settings() {
                 <input type="text" value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Username (Profile)</label>
                 <input type="text" value={profileForm.username} onChange={e => setProfileForm(f => ({ ...f, username: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Email (Login)</label>
+                <input type="email" value={user?.email || ''} disabled className="w-full p-2.5 border rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed" />
+                <p className="text-xs text-gray-400 mt-1">Contact an administrator to change your login email.</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Role</label>
