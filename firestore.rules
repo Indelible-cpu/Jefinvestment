@@ -7,8 +7,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // BULLETPROOF FIX: Check if authenticated before trying to read the user's UID
     function userRole() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
         : null;
     }
@@ -41,10 +42,8 @@ service cloud.firestore {
     // Products (Inventory)
     match /products/{productId} {
       allow read: if isAuthenticated();
-      // Admins and Managers can make full changes to product data
       allow create, delete: if isAdmin() || isManager();
       allow update: if isAdmin() || isManager() ||
-        // Cashiers can ONLY decrement the stock field during a sale
         (
           isAuthenticated() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
@@ -55,9 +54,7 @@ service cloud.firestore {
     // Sales and Credits
     match /sales/{saleId} {
       allow read: if isAuthenticated();
-      // Anyone can create a sale
       allow create: if isAuthenticated();
-      // Only admins can update or delete sales (e.g. processing returns)
       allow update, delete: if isAdmin();
     }
 
@@ -85,18 +82,17 @@ service cloud.firestore {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Audit Logs — frontend restricts reads to admins; any authenticated user can write
+    // Audit Logs — added delete for admin (fixes Clear Logs on mobile)
     match /auditLogs/{logId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
+      allow delete: if isAdmin();
     }
-    
-    // Password Reset Requests
-    match /passwordResetRequests/{requestId} {
+
+    // Password Change Requests (new password approval flow)
+    match /passwordRequests/{requestId} {
       allow read, update, delete: if isAdmin();
-      // Anyone can create a request (they are logged out when they forgot their password)
-      allow create: if request.resource.data.keys().hasAll(['email', 'status', 'timestamp'])
-                    && request.resource.data.status == 'pending';
+      allow create, read, update: if isAuthenticated();
     }
     
     // Fallback: Deny everything else
