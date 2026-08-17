@@ -62,7 +62,7 @@ export default function Settings() {
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateProfile(profileForm.name, '', profileForm.profilePic);
+    await updateProfile(profileForm.name, profileForm.profilePic);
     showSuccess('Profile updated and synced to all devices!');
   };
 
@@ -96,7 +96,6 @@ export default function Settings() {
       // Save URL to Firestore immediately so it syncs across devices
       await useAuthStore.getState().updateProfile(
         profileForm.name,
-        '',
         downloadURL
       );
       setProfileForm(f => ({ ...f, profilePic: downloadURL }));
