@@ -28,4 +28,8 @@ const db = initializeFirestore(app, {
   })
 });
 
-export { app, auth, db, storage };
+// Secondary app for user creation so admin doesn't get signed out
+const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
+const secondaryAuth = getAuth(secondaryApp);
+
+export { app, auth, db, storage, secondaryApp, secondaryAuth };

@@ -14,7 +14,7 @@ export default function Layout() {
   // Start AI prewarming in background
   useEmbeddingPrewarm();
 
-  const { user, logout, loadProfile, unlockTemporarily } = useAuthStore();
+  const { user, logout, loadProfile, unlockTemporarily, passwordRequests, loadPasswordRequests } = useAuthStore();
   const { companyName, companyLogo, loadSettings, autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes } = useSettingsStore();
   const { products, loadProducts } = useProductStore();
   const { loadHeldCarts } = useCartStore();
@@ -84,8 +84,11 @@ export default function Layout() {
     
     if (user?.id) {
       loadHeldCarts(user.id);
+      if (user.role === 'ADMIN') {
+        loadPasswordRequests();
+      }
     }
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -172,7 +175,9 @@ export default function Layout() {
   const lowStockItems = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel);
   const lowStockCount = lowStockItems.length;
   const overdueCreditCount = credits?.filter(c => c.status === 'OVERDUE').length || 0;
-  const notificationCount = lowStockCount + overdueCreditCount;
+  const pendingPasswordRequests = (passwordRequests || []).filter(r => r.status === 'PENDING');
+  const passwordRequestCount = user?.role === 'ADMIN' ? pendingPasswordRequests.length : 0;
+  const notificationCount = lowStockCount + overdueCreditCount + passwordRequestCount;
 
   // Close mobile menu on route change
   useEffect(() => {

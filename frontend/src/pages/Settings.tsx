@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -12,7 +12,7 @@ import { Sparkles } from 'lucide-react';
 
 export default function Settings() {
   const { 
-    user, updateProfile, users, resetPassword, addUser, deleteUser, loadUsers
+    user, updateProfile, users, resetPassword, addUser, deleteUser, loadUsers, passwordRequests, approvePasswordRequest, rejectPasswordRequest
   } = useAuthStore();
   const settings = useSettingsStore();
   const { updateSettings } = settings;
@@ -50,7 +50,7 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUserForm, setNewUserForm] = useState({ name: '', username: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' });
+  const [newUserForm, setNewUserForm] = useState({ name: '', username: '', email: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' | 'MANAGER' });
   const [showAddPw, setShowAddPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
@@ -142,6 +142,10 @@ export default function Settings() {
 
   const handleResetPassword = async () => {
     if (!resetTarget || !newPassword.trim()) return;
+    if (checkPasswordStrength(newPassword).score < 3) {
+      toast.error('Password is too weak. Please use a stronger password.');
+      return;
+    }
     try {
       await resetPassword(resetTarget, newPassword.trim());
       setResetTarget(null);
@@ -152,12 +156,31 @@ export default function Settings() {
     }
   };
 
+  const checkPasswordStrength = (pw: string) => {
+    let score = 0;
+    if (!pw) return { score, text: '', color: 'bg-gray-200' };
+    if (pw.length > 5) score += 1;
+    if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score += 1;
+    if (/\d/.test(pw)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pw)) score += 1;
+    
+    if (pw.length < 6) return { score: 0, text: 'Too short (min 6 chars)', color: 'bg-red-500' };
+    if (score <= 1) return { score, text: 'Weak', color: 'bg-red-500' };
+    if (score === 2) return { score, text: 'Fair', color: 'bg-amber-500' };
+    if (score === 3) return { score, text: 'Good', color: 'bg-blue-500' };
+    return { score, text: 'Strong', color: 'bg-green-500' };
+  };
+
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserForm.name || !newUserForm.username || !newUserForm.password) return;
+    if (!newUserForm.name || !newUserForm.username || !newUserForm.email || !newUserForm.password) return;
+    if (checkPasswordStrength(newUserForm.password).score < 3) {
+      toast.error('Password is too weak. Please use a stronger password.');
+      return;
+    }
     addUser(newUserForm);
     const addedName = newUserForm.name;
-    setNewUserForm({ name: '', username: '', password: '', role: 'CASHIER' });
+    setNewUserForm({ name: '', username: '', email: '', password: '', role: 'CASHIER' });
     setShowAddUser(false);
     showSuccess(`User "${addedName}" added successfully!`);
   };
@@ -362,6 +385,74 @@ export default function Settings() {
             </div>
           ) : null}
         </div>
+
+        {/* Password Change Requests (Admin only) */}
+        {isAdmin && passwordRequests && passwordRequests.filter(r => r.status === 'PENDING').length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-amber-200 overflow-hidden">
+            <div className="bg-amber-50 p-4 border-b border-amber-200 flex justify-between items-center">
+              <div className="font-bold text-amber-800 flex items-center gap-2">
+                <ShieldCheck size={18} className="text-amber-600" /> Pending Password Change Requests
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b text-sm bg-gray-50">
+                    <th className="p-4 font-semibold text-gray-600">User Name</th>
+                    <th className="p-4 font-semibold text-gray-600">Reason</th>
+                    <th className="p-4 font-semibold text-gray-600">Requested</th>
+                    <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {passwordRequests.filter(r => r.status === 'PENDING').map(req => (
+                    <tr key={req.id} className="hover:bg-amber-50/50 transition">
+                      <td className="p-4 font-medium">{req.userName}</td>
+                      <td className="p-4 text-gray-600 text-sm">
+                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium border">
+                          {req.reason}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-500 text-sm">
+                        {new Date(req.requestedAt).toLocaleString()}
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await approvePasswordRequest(req.id);
+                                toast.success(`Approved password change for ${req.userName}`);
+                              } catch(e) {
+                                toast.error('Failed to approve request');
+                              }
+                            }}
+                            className="flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded font-bold transition"
+                          >
+                            <CheckCircle2 size={14} /> Approve
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await rejectPasswordRequest(req.id);
+                                toast.success(`Rejected password change for ${req.userName}`);
+                              } catch(e) {
+                                toast.error('Failed to reject request');
+                              }
+                            }}
+                            className="flex items-center gap-1 text-xs bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded font-bold transition"
+                          >
+                            <Trash2 size={14} /> Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Row 2: User Management (Admin only) */}
         {isAdmin && (
@@ -578,6 +669,18 @@ export default function Settings() {
                   {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              {newPassword && (
+                <div className="mt-2">
+                  <div className="flex gap-1 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                    {[1, 2, 3, 4].map((level) => (
+                      <div key={level} className={`h-full flex-1 ${checkPasswordStrength(newPassword).score >= level ? checkPasswordStrength(newPassword).color : 'bg-transparent'}`} />
+                    ))}
+                  </div>
+                  <p className={`text-xs mt-1 font-medium text-right ${checkPasswordStrength(newPassword).color.replace('bg-', 'text-')}`}>
+                    {checkPasswordStrength(newPassword).text}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
               <button onClick={() => setResetTarget(null)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
@@ -603,13 +706,18 @@ export default function Settings() {
                 <input type="text" required value={newUserForm.name} onChange={e => setNewUserForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Jane Doe" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Username *</label>
-                <input type="text" required value={newUserForm.username} onChange={e => setNewUserForm(f => ({ ...f, username: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. jane" />
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Username (Profile) *</label>
+                <input type="text" required value={newUserForm.username} onChange={e => setNewUserForm(f => ({ ...f, username: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. janedoe" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Email (Login) *</label>
+                <input type="email" required value={newUserForm.email} onChange={e => setNewUserForm(f => ({ ...f, email: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. jane@example.com" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Role</label>
-                <select value={newUserForm.role} onChange={e => setNewUserForm(f => ({ ...f, role: e.target.value as 'ADMIN' | 'CASHIER' }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white">
+                <select value={newUserForm.role} onChange={e => setNewUserForm(f => ({ ...f, role: e.target.value as 'ADMIN' | 'CASHIER' | 'MANAGER' }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white">
                   <option value="CASHIER">Cashier</option>
+                  <option value="MANAGER">Manager</option>
                   <option value="ADMIN">Admin</option>
                 </select>
               </div>
@@ -621,6 +729,18 @@ export default function Settings() {
                     {showAddPw ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {newUserForm.password && (
+                  <div className="mt-2">
+                    <div className="flex gap-1 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                      {[1, 2, 3, 4].map((level) => (
+                        <div key={level} className={`h-full flex-1 ${checkPasswordStrength(newUserForm.password).score >= level ? checkPasswordStrength(newUserForm.password).color : 'bg-transparent'}`} />
+                      ))}
+                    </div>
+                    <p className={`text-xs mt-1 font-medium text-right ${checkPasswordStrength(newUserForm.password).color.replace('bg-', 'text-')}`}>
+                      {checkPasswordStrength(newUserForm.password).text}
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowAddUser(false)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>

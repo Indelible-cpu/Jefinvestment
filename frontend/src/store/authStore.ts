@@ -16,7 +16,7 @@ import {
   updateDoc,
   onSnapshot
 } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { auth, db, secondaryAuth } from '../lib/firebase';
 
 // ─── Offline Credential Cache ──────────────────────────────────────────────────
 // We store a SHA-256 hash of the password alongside the user profile so that
@@ -65,11 +65,13 @@ export interface User {
   id: string;
   name: string;
   username: string;
+  email?: string;
   role: 'ADMIN' | 'CASHIER' | 'MANAGER';
   branchId?: string | null;
   branchName?: string;
   profilePic?: string;
   lastActiveAt?: number;
+  requiresPasswordChange?: boolean;
 }
 
 export interface UserAccount extends User {
@@ -80,6 +82,15 @@ export interface LoginResult {
   success: boolean;
   error?: string;
   isNetworkError?: boolean;
+}
+
+export interface PasswordChangeRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedAt: number;
 }
 
 interface AuthState {
@@ -94,7 +105,7 @@ interface AuthState {
   updateProfile: (name: string, username: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
-  addUser: (user: { username: string; password: string; role: string; branchId?: string }) => Promise<void>;
+  addUser: (user: { name: string; username: string; email: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   loadUsers: () => Promise<void>;
   
@@ -103,6 +114,13 @@ interface AuthState {
   unlockTemporarily: () => void;
   lockSystem: () => void;
   updateActivity: () => void;
+
+  passwordRequests: PasswordChangeRequest[];
+  loadPasswordRequests: () => Promise<void>;
+  submitPasswordRequest: (userId: string, userName: string, reason: string) => Promise<string>;
+  approvePasswordRequest: (requestId: string) => Promise<void>;
+  rejectPasswordRequest: (requestId: string) => Promise<void>;
+  clearPasswordChangeFlag: (userId: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -112,6 +130,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       users: [],
+      passwordRequests: [],
       isLoading: false,
 
       isTemporarilyUnlocked: false,
@@ -224,10 +243,12 @@ export const useAuthStore = create<AuthState>()(
             id: firebaseUser.uid,
             name: userData.name || userData.username,
             username: userData.username,
+            email: userData.email || email,
             role: userData.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
             branchId: userData.branchId,
             branchName: userData.branchName,
             profilePic: userData.profilePic || '',
+            requiresPasswordChange: userData.requiresPasswordChange || false,
           };
 
           // Cache credentials securely for offline re-login
@@ -389,15 +410,20 @@ export const useAuthStore = create<AuthState>()(
 
       addUser: async (userData) => {
         try {
-          const res = await createUserWithEmailAndPassword(auth, userData.username, userData.password);
+          const res = await createUserWithEmailAndPassword(secondaryAuth, userData.email, userData.password);
           
           await setDoc(doc(db, 'users', res.user.uid), {
+            name: userData.name,
             username: userData.username,
-            name: userData.username.split('@')[0],
+            email: userData.email,
             role: userData.role,
             branchId: userData.branchId || null,
             isActive: true,
+            requiresPasswordChange: true, // Force password change on first login
           });
+
+          // Sign out the secondary app immediately so it doesn't leave lingering sessions
+          await signOut(secondaryAuth);
 
           await get().loadUsers();
         } catch (error) {
@@ -425,10 +451,12 @@ export const useAuthStore = create<AuthState>()(
                 id: doc.id,
                 username: data.username || '',
                 name: data.name || '',
+                email: data.email || '',
                 role: data.role || 'CASHIER',
                 branchId: data.branchId || null,
                 isActive: data.isActive !== false,
                 lastActiveAt: data.lastActiveAt || 0,
+                requiresPasswordChange: data.requiresPasswordChange,
               });
             });
             set({ users: loadedUsers });
@@ -438,6 +466,61 @@ export const useAuthStore = create<AuthState>()(
           registerListener(unsubUsers);
         } catch (e) {
           console.warn("Failed to set up users listener", e);
+        }
+      },
+
+      loadPasswordRequests: async () => {
+        try {
+          const unsub = onSnapshot(collection(db, 'passwordRequests'), (snapshot) => {
+            const reqs: PasswordChangeRequest[] = [];
+            snapshot.forEach(doc => {
+              const data = doc.data();
+              reqs.push({
+                id: doc.id,
+                userId: data.userId,
+                userName: data.userName,
+                reason: data.reason,
+                status: data.status,
+                requestedAt: data.requestedAt,
+              });
+            });
+            // Sort newest first
+            reqs.sort((a, b) => b.requestedAt - a.requestedAt);
+            set({ passwordRequests: reqs });
+          }, (err) => {
+            console.warn("Failed to load password requests", err);
+          });
+          registerListener(unsub);
+        } catch (e) {
+          console.warn("Failed to set up password requests listener", e);
+        }
+      },
+
+      submitPasswordRequest: async (userId, userName, reason) => {
+        const reqRef = doc(collection(db, 'passwordRequests'));
+        await setDoc(reqRef, {
+          userId,
+          userName,
+          reason,
+          status: 'PENDING',
+          requestedAt: Date.now()
+        });
+        return reqRef.id;
+      },
+
+      approvePasswordRequest: async (requestId) => {
+        await updateDoc(doc(db, 'passwordRequests', requestId), { status: 'APPROVED' });
+      },
+
+      rejectPasswordRequest: async (requestId) => {
+        await updateDoc(doc(db, 'passwordRequests', requestId), { status: 'REJECTED' });
+      },
+
+      clearPasswordChangeFlag: async (userId) => {
+        await updateDoc(doc(db, 'users', userId), { requiresPasswordChange: false });
+        const state = get();
+        if (state.user && state.user.id === userId) {
+          set({ user: { ...state.user, requiresPasswordChange: false } });
         }
       },
     }),

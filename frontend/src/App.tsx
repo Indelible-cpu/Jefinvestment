@@ -18,6 +18,7 @@ const StationeryServices = lazy(() => import('./pages/StationeryServices'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const ProductFinder = lazy(() => import('./pages/ProductFinder'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-screen w-full bg-gray-50">
@@ -34,6 +35,7 @@ function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           
