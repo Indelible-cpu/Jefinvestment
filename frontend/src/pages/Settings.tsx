@@ -486,7 +486,11 @@ export default function Settings() {
                         {u.name}
                         {u.id === user?.id && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">You</span>}
                       </td>
-                      <td className="p-4 text-gray-500 text-sm">{u.email || '—'}</td>
+                      <td className="p-4 text-gray-500 text-sm">
+                        {u.id === user?.id 
+                          ? (user?.email || '—') 
+                          : (u.email?.includes('@') ? u.email : '—')}
+                      </td>
                       <td className="p-4">
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                           {u.role}

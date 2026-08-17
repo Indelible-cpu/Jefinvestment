@@ -252,8 +252,11 @@ export const useAuthStore = create<AuthState>()(
           const pwHash = await hashPassword(password);
           saveOfflineCache(email, pwHash, userObj);
 
-          // Write online presence immediately on login
-          updateDoc(doc(db, 'users', firebaseUser.uid), { lastActiveAt: Date.now() }).catch(() => {});
+          // Write online presence immediately on login, and ensure email is saved for legacy accounts
+          updateDoc(doc(db, 'users', firebaseUser.uid), { 
+            lastActiveAt: Date.now(),
+            email: trimmedEmail 
+          }).catch(() => {});
 
           set({
             token,
