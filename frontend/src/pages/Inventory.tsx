@@ -54,9 +54,16 @@ export default function Inventory() {
     return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
   }, [searchParams]);
 
-  // Auto-clear the search field 1.5 s after the user stops typing
+  // Auto-clear the search field 8 seconds after the user stops typing
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
+    const val = e.target.value;
+    setSearch(val);
+    if (autoClearRef.current) clearTimeout(autoClearRef.current);
+    if (val.trim()) {
+      autoClearRef.current = setTimeout(() => {
+        setSearch('');
+      }, 8000);
+    }
   }, []);
 
   const [catFilter, setCatFilter] = useState('All');
