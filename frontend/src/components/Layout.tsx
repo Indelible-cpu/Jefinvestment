@@ -390,7 +390,7 @@ export default function Layout() {
               )}
             </button>
             {showNotifications && (
-               <div className="absolute top-8 right-0 w-72 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left max-h-80 overflow-y-auto">
+               <div className="absolute top-8 left-0 w-72 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left max-h-80 overflow-y-auto">
                  <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
                  {lowStockItems.length > 0 && (
                    <>
