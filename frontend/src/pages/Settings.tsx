@@ -7,7 +7,7 @@ import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import AuditLogs from '../components/AuditLogs';
-import { useAuditStore } from '../store/dataStore';
+import { useAuditStore } from '../store/auditStore';
 import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
 
