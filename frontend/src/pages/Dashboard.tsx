@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [showCustomize, setShowCustomize] = useState(false);
   const [tempActions, setTempActions] = useState<string[]>(settings.quickActions);
 
-  const firstName = user?.name?.split(' ').at(-1) || 'there';
+  const firstName = user?.name?.split(' ').at(0) || 'there';
 
   const todayTotal = getTodayTotal();
   const outstandingCredit = getTotalOutstanding();
@@ -56,14 +56,19 @@ export default function Dashboard() {
     });
   });
 
-  const stats = [
-    { label: "Today's Sales", value: `${settings.currency} ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports' },
-    { label: 'Outstanding Credit', value: `${settings.currency} ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits' },
-    { label: 'Low Stock Items', value: `${lowStockCount} items`, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', link: '/inventory' },
-    { label: 'Active Employees', value: `${activeStaff} staff`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees' },
-  ];
+  const isAdmin = user?.role === 'ADMIN';
 
-  const recentSales = sales.filter(s => (s.status || 'completed') === 'completed').slice(0, 5);
+  const stats = [
+    { label: "Today's Sales", value: `${settings.currency} ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports', adminOnly: false },
+    { label: 'Outstanding Credit', value: `${settings.currency} ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits', adminOnly: true },
+    { label: 'Low Stock Items', value: `${lowStockCount} items`, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', link: '/inventory', adminOnly: false },
+    { label: 'Active Employees', value: `${activeStaff} staff`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees', adminOnly: true },
+  ].filter(stat => isAdmin || !stat.adminOnly);
+
+  const recentSales = sales
+    .filter(s => (s.status || 'completed') === 'completed')
+    .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime())
+    .slice(0, 5);
 
   return (
     <div className="p-4 md:p-6 md:pt-6 relative -mt-4 md:mt-0">
@@ -77,7 +82,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4">
+      <div className={`grid grid-cols-2 lg:grid-cols-${stats.length === 2 ? '2' : '4'} gap-3 md:gap-4 mb-4`}>
         {stats.map(stat => (
           <Link to={stat.link} key={stat.label} className={`bg-white border rounded-xl p-3 md:p-5 shadow-sm hover:shadow-md transition flex flex-col items-center text-center relative z-10`}>
             <div className={`p-2 rounded-lg ${stat.bg} ${stat.color} mb-2`}>

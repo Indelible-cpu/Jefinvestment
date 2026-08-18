@@ -34,7 +34,7 @@ service cloud.firestore {
 
     // Users
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if request.auth.uid == userId || isAdmin();
       allow update: if request.auth.uid == userId || isAdmin();
       allow create, delete: if isAdmin();
     }
@@ -60,7 +60,7 @@ service cloud.firestore {
 
     // Expenses
     match /expenses/{expenseId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin() || isManager();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
@@ -84,15 +84,16 @@ service cloud.firestore {
 
     // Audit Logs — added delete for admin (fixes Clear Logs on mobile)
     match /auditLogs/{logId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin();
       allow create: if isAuthenticated();
       allow delete: if isAdmin();
     }
 
     // Password Change Requests (new password approval flow)
     match /passwordRequests/{requestId} {
-      allow read, update, delete: if isAdmin();
-      allow create, read, update: if isAuthenticated();
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow update, delete: if isAdmin();
+      allow create: if isAuthenticated();
     }
     
     // Fallback: Deny everything else

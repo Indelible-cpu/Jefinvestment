@@ -38,16 +38,16 @@ const PAYMENT_FILTER_OPTIONS = [
 ];
 
 const PAYMENT_COLORS: Record<string, string> = {
-  CASH:          'bg-green-100 text-green-700',
-  CREDIT:        'bg-orange-100 text-orange-700',
-  MOMO_AIRTEL:   'bg-red-100 text-red-700',
-  MOMO_MPAMBA:   'bg-yellow-100 text-yellow-700',
-  BANK_NBS:      'bg-blue-100 text-blue-700',
-  BANK_NBM:      'bg-emerald-100 text-emerald-700',
+  CASH:          'bg-gray-100 text-gray-800',
+  CREDIT:        'bg-orange-100 text-orange-800',
+  MOMO_AIRTEL:   'bg-red-600 text-white',
+  MOMO_MPAMBA:   'bg-green-600 text-white',
+  BANK_NBS:      'bg-blue-600 text-white',
+  BANK_NBM:      'bg-emerald-600 text-white',
   // legacy keys
-  BANK_TRANSFER: 'bg-blue-100 text-blue-700',
-  AIRTEL_MONEY:  'bg-red-100 text-red-700',
-  TNM_MPAMBA:    'bg-yellow-100 text-yellow-700',
+  BANK_TRANSFER: 'bg-blue-600 text-white',
+  AIRTEL_MONEY:  'bg-red-600 text-white',
+  TNM_MPAMBA:    'bg-green-600 text-white',
 };
 
 const STATUS_CONFIG = {
