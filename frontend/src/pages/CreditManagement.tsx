@@ -11,6 +11,7 @@ export default function CreditManagement() {
   const [repayAmount, setRepayAmount] = useState('');
   const [repayMethod, setRepayMethod] = useState('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPaid, setShowPaid] = useState(false);
 
   useEffect(() => {
     loadCredits();
@@ -20,6 +21,10 @@ export default function CreditManagement() {
   const totalOverdue = credits.filter(c => c.status === 'OVERDUE').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0);
 
   const selectedCreditRecord = credits.find(c => c.id === selectedRecord) || null;
+
+  const displayCredits = credits
+    .filter(c => showPaid || c.status !== 'FULLY_PAID')
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   const handleRepay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +59,15 @@ export default function CreditManagement() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Credit Sales &amp; Debt Management</h1>
           <p className="text-gray-500 text-sm mt-1">Track customer debts, due dates, and record partial or full repayments.</p>
         </div>
+        <label className="flex items-center gap-2 text-sm text-gray-600 bg-white border px-3 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 transition shadow-sm">
+          <input 
+            type="checkbox" 
+            checked={showPaid} 
+            onChange={(e) => setShowPaid(e.target.checked)} 
+            className="rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          Show fully paid credits
+        </label>
       </div>
 
       {/* Stats Cards */}
@@ -105,41 +119,53 @@ export default function CreditManagement() {
             </tr>
           </thead>
           <tbody className="divide-y text-sm">
-            {credits.map(c => {
-              const balance = c.totalAmount - c.paidAmount;
-              return (
-                <tr key={c.id} className="hover:bg-gray-50 transition">
-                  <td className="p-4 font-mono font-bold text-primary">{c.invoiceNumber}</td>
-                  <td className="p-4 font-medium">{c.customerName}</td>
-                  <td className="p-4 text-gray-600">{c.customerPhone}</td>
-                  <td className="p-4 flex items-center gap-1.5 text-gray-600">
-                    <Calendar size={15} />
-                    {c.dueDate}
-                  </td>
-                  <td className="p-4 font-mono">{settings.currency} {c.totalAmount.toLocaleString()}</td>
-                  <td className="p-4 font-mono font-bold text-red-600">{settings.currency} {balance.toLocaleString()}</td>
-                  <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                      c.status === 'FULLY_PAID' ? 'bg-green-100 text-green-800' :
-                      c.status === 'OVERDUE' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {c.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    {c.status !== 'FULLY_PAID' && (
-                       <button 
-                        onClick={() => setSelectedRecord(c.id)}
-                        className="flex items-center gap-1 text-xs bg-primary text-white hover:bg-blue-700 px-3 py-1.5 rounded font-medium transition ml-auto"
-                      >
-                        <DollarSign size={14} />
-                        Record Repayment
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+            {displayCredits.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="p-8 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <CreditCard size={48} className="text-gray-300 mb-3" />
+                    <p className="text-lg font-medium text-gray-600">No credit records found</p>
+                    <p className="text-sm">Active credits will appear here.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              displayCredits.map(c => {
+                const balance = c.totalAmount - c.paidAmount;
+                return (
+                  <tr key={c.id} className="hover:bg-gray-50 transition">
+                    <td className="p-4 font-mono font-bold text-primary">{c.invoiceNumber}</td>
+                    <td className="p-4 font-medium">{c.customerName}</td>
+                    <td className="p-4 text-gray-600">{c.customerPhone}</td>
+                    <td className="p-4 flex items-center gap-1.5 text-gray-600">
+                      <Calendar size={15} />
+                      {c.dueDate}
+                    </td>
+                    <td className="p-4 font-mono">{settings.currency} {c.totalAmount.toLocaleString()}</td>
+                    <td className="p-4 font-mono font-bold text-red-600">{settings.currency} {balance.toLocaleString()}</td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                        c.status === 'FULLY_PAID' ? 'bg-green-100 text-green-800' :
+                        c.status === 'OVERDUE' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      {c.status !== 'FULLY_PAID' && (
+                         <button 
+                          onClick={() => setSelectedRecord(c.id)}
+                          className="flex items-center gap-1 text-xs bg-primary text-white hover:bg-blue-700 px-3 py-1.5 rounded font-medium transition ml-auto"
+                        >
+                          <DollarSign size={14} />
+                          Record Repayment
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

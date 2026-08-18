@@ -19,6 +19,7 @@ const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const ProductFinder = lazy(() => import('./pages/ProductFinder'));
 const ChangePassword = lazy(() => import('./pages/ChangePassword'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-screen w-full bg-gray-50">
@@ -57,6 +58,9 @@ function App() {
               <Route path="expenses" element={<Expenses />} />
               <Route path="settings" element={<Settings />} />
               <Route path="product-finder" element={<ProductFinder />} />
+              
+              {/* Catch-all 404 Route */}
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Route>
         </Routes>

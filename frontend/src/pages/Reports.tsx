@@ -137,7 +137,12 @@ export default function Reports() {
           <p className="text-gray-500 mt-1 text-sm">Daily summary, cash reconciliation, and business analytics</p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
-          <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary outline-none text-sm" />
+          <input 
+            type="date" 
+            value={reportDate} 
+            onChange={e => { setReportDate(e.target.value); setPage(1); }} 
+            className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary outline-none text-sm" 
+          />
           <button onClick={handlePrint} className="flex items-center gap-2 border px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition text-sm">
             <Printer size={18} /> Print
           </button>
