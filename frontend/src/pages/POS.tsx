@@ -692,13 +692,13 @@ const playSound = (type: 'success' | 'error') => {
                   <div className="flex gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
                     <button 
                       onClick={() => setPaymentMethod('BANK_NBS')}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'BANK_NBS' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'BANK_NBS' ? 'bg-red-600 text-white shadow-sm' : 'bg-white text-red-700 border border-red-200 hover:bg-red-50'}`}
                     >
                       NBS Bank
                     </button>
                     <button 
                       onClick={() => setPaymentMethod('BANK_NBM')}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'BANK_NBM' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50'}`}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-md transition ${paymentMethod === 'BANK_NBM' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'}`}
                     >
                       National Bank (NBM)
                     </button>

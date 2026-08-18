@@ -42,8 +42,8 @@ const PAYMENT_COLORS: Record<string, string> = {
   CREDIT:        'bg-orange-100 text-orange-800',
   MOMO_AIRTEL:   'bg-red-600 text-white',
   MOMO_MPAMBA:   'bg-green-600 text-white',
-  BANK_NBS:      'bg-blue-600 text-white',
-  BANK_NBM:      'bg-emerald-600 text-white',
+  BANK_NBS:      'bg-red-600 text-white',
+  BANK_NBM:      'bg-blue-600 text-white',
   // legacy keys
   BANK_TRANSFER: 'bg-blue-600 text-white',
   AIRTEL_MONEY:  'bg-red-600 text-white',
