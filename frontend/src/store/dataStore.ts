@@ -12,7 +12,8 @@ import {
   increment,
   getDoc,
   getDocs,
-  writeBatch
+  writeBatch,
+  arrayUnion
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { registerListener } from './authStore';
