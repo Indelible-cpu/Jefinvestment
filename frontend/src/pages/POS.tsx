@@ -356,8 +356,10 @@ const playSound = (type: 'success' | 'error') => {
   };
 
   const handleHoldCart = () => {
-    const name = prompt('Enter a name or table number for this order:');
-    if (!name) return;
+    // Automatically generate a 4-digit order number for the held cart
+    const orderNumber = Math.floor(1000 + Math.random() * 9000);
+    const name = `Order #${orderNumber}`;
+    
     cart.holdCart(user?.id || 'unknown', name);
     setPaymentMethod('CASH');
     toast.success('Cart held successfully', { description: name });

@@ -106,17 +106,29 @@ export default function Employees() {
 
   const handleClearAdvance = async (emp: Employee) => {
     if (!emp.advancePay || emp.advancePay <= 0) return;
-    if (confirm(`Reset advance pay balance (${settings.currency} ${emp.advancePay.toLocaleString()}) for ${emp.firstName} ${emp.lastName}? Use this when monthly salary has been settled.`)) {
-      await clearAdvancePay(emp.id);
-      toast.success(`Advance pay balance cleared for ${emp.firstName}.`);
-    }
+    toast(`Reset advance pay balance (${settings.currency} ${emp.advancePay.toLocaleString()}) for ${emp.firstName}?`, {
+      action: {
+        label: 'Confirm Reset',
+        onClick: async () => {
+          await clearAdvancePay(emp.id);
+          toast.success(`Advance pay balance cleared for ${emp.firstName}.`);
+        }
+      },
+      cancel: { label: 'Cancel', onClick: () => {} }
+    });
   };
 
   const handleDelete = (emp: Employee) => {
-    if (confirm(`Are you sure you want to remove employee "${emp.firstName} ${emp.lastName}"?`)) {
-      deleteEmployee(emp.id);
-      toast.success(`Employee "${emp.firstName} ${emp.lastName}" removed.`);
-    }
+    toast(`Remove employee "${emp.firstName} ${emp.lastName}"?`, {
+      action: {
+        label: 'Remove',
+        onClick: () => {
+          deleteEmployee(emp.id);
+          toast.success(`Employee "${emp.firstName} ${emp.lastName}" removed.`);
+        }
+      },
+      cancel: { label: 'Cancel', onClick: () => {} }
+    });
   };
 
   return (
