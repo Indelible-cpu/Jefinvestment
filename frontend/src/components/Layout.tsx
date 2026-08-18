@@ -31,6 +31,25 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Reference for the notifications dropdown to detect outside clicks
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
   // Swipe detection state
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
@@ -299,7 +318,7 @@ export default function Layout() {
              )}
            </div>
 
-           <div className="relative">
+           <div className="relative" ref={notificationRef}>
              <button onClick={() => setShowNotifications(!showNotifications)} className="relative cursor-pointer p-1">
                <Bell size={24} />
                {notificationCount > 0 && (
