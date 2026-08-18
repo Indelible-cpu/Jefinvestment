@@ -59,17 +59,28 @@ export default function Reports() {
   const data = useMemo(() => {
     const daySales = completedSales.filter(s => s.date === reportDate);
     const dayExpenses = expenses.filter(e => e.date === reportDate);
-    const cashSales = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
-    const transferSales = daySales.filter(s => s.paymentMethod === 'BANK_TRANSFER').reduce((sum, s) => sum + s.total, 0);
+
+    const cashSales   = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
     const creditSales = daySales.filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + s.total, 0);
+
+    // Bank sales — current keys + legacy BANK_TRANSFER key
+    const bankSales = daySales
+      .filter(s => ['BANK_NBS', 'BANK_NBM', 'BANK_TRANSFER'].includes(s.paymentMethod))
+      .reduce((sum, s) => sum + s.total, 0);
+
+    // MoMo sales — current keys + legacy AIRTEL_MONEY / TNM_MPAMBA keys
+    const momoSales = daySales
+      .filter(s => ['MOMO_AIRTEL', 'MOMO_MPAMBA', 'AIRTEL_MONEY', 'TNM_MPAMBA'].includes(s.paymentMethod))
+      .reduce((sum, s) => sum + s.total, 0);
+
+    const transferSales = bankSales + momoSales;
     const totalSales = cashSales + transferSales + creditSales;
     const realizedRevenue = cashSales + transferSales;
     const totalExpenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
     const netCash = cashSales - totalExpenses;
     const netRevenue = realizedRevenue - totalExpenses;
-    // Daily profit = gross profit from items minus expenses
     const dailyProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
-    return { date: reportDate, cashSales, transferSales, creditSales, totalSales, realizedRevenue, totalExpenses, netCash, netRevenue, dailyProfit, txCount: daySales.length, transactions: daySales };
+    return { date: reportDate, cashSales, transferSales, bankSales, momoSales, creditSales, totalSales, realizedRevenue, totalExpenses, netCash, netRevenue, dailyProfit, txCount: daySales.length, transactions: daySales };
   }, [reportDate, completedSales, expenses]);
 
   /* ── Cumulative (all-time) totals ── */
@@ -237,7 +248,8 @@ export default function Reports() {
           <div className="space-y-3">
             {[
               { label: 'Cash', value: data.cashSales, color: 'bg-blue-500' },
-              { label: 'Bank Transfer', value: data.transferSales, color: 'bg-purple-500' },
+              { label: 'Mobile Money (MoMo)', value: data.momoSales, color: 'bg-red-500' },
+              { label: 'Bank Transfer', value: data.bankSales, color: 'bg-purple-500' },
               { label: 'Credit / Pay Later', value: data.creditSales, color: 'bg-amber-500' },
             ].map(item => (
               <div key={item.label}>

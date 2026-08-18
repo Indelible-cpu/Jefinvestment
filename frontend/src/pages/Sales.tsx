@@ -13,20 +13,41 @@ import { useSettingsStore } from '../store/settingsStore';
 
 const PAGE_SIZE = 15;
 
+// Labels used to DISPLAY payment method names — covers current keys and legacy keys
 const PAYMENT_LABELS: Record<string, string> = {
-  CASH: 'Cash',
-  CREDIT: 'Credit',
+  CASH:          'Cash',
+  CREDIT:        'Credit',
+  MOMO_AIRTEL:   'Airtel Money',
+  MOMO_MPAMBA:   'TNM Mpamba',
+  BANK_NBS:      'Bank (NBS)',
+  BANK_NBM:      'Bank (NBM)',
+  // legacy keys — kept so older records still display correctly
   BANK_TRANSFER: 'Bank Transfer',
-  AIRTEL_MONEY: 'Airtel Money',
-  TNM_MPAMBA: 'TNM Mpamba',
+  AIRTEL_MONEY:  'Airtel Money',
+  TNM_MPAMBA:    'TNM Mpamba',
 };
 
+// Options shown in the payment filter dropdown (current keys only — no duplicates)
+const PAYMENT_FILTER_OPTIONS = [
+  { value: 'CASH',        label: 'Cash' },
+  { value: 'MOMO_AIRTEL', label: 'Airtel Money' },
+  { value: 'MOMO_MPAMBA', label: 'TNM Mpamba' },
+  { value: 'BANK_NBS',    label: 'Bank (NBS)' },
+  { value: 'BANK_NBM',    label: 'Bank (NBM)' },
+  { value: 'CREDIT',      label: 'Credit' },
+];
+
 const PAYMENT_COLORS: Record<string, string> = {
-  CASH: 'bg-green-100 text-green-700',
-  CREDIT: 'bg-orange-100 text-orange-700',
+  CASH:          'bg-green-100 text-green-700',
+  CREDIT:        'bg-orange-100 text-orange-700',
+  MOMO_AIRTEL:   'bg-red-100 text-red-700',
+  MOMO_MPAMBA:   'bg-yellow-100 text-yellow-700',
+  BANK_NBS:      'bg-blue-100 text-blue-700',
+  BANK_NBM:      'bg-emerald-100 text-emerald-700',
+  // legacy keys
   BANK_TRANSFER: 'bg-blue-100 text-blue-700',
-  AIRTEL_MONEY: 'bg-red-100 text-red-700',
-  TNM_MPAMBA: 'bg-yellow-100 text-yellow-700',
+  AIRTEL_MONEY:  'bg-red-100 text-red-700',
+  TNM_MPAMBA:    'bg-yellow-100 text-yellow-700',
 };
 
 const STATUS_CONFIG = {
@@ -321,7 +342,7 @@ export default function Sales() {
             className="border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="ALL">All Methods</option>
-            {Object.entries(PAYMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            {PAYMENT_FILTER_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
           </select>
 
           <select
