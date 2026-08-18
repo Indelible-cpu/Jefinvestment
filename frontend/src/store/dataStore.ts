@@ -343,7 +343,7 @@ interface CreditState {
   credits: CreditRecord[];
   loadCredits: () => Promise<void>;
   addCredit: (credit: Omit<CreditRecord, 'id' | 'status' | 'paidAmount' | 'date'>) => void;
-  recordRepayment: (id: string, amount: number) => void;
+  recordRepayment: (id: string, amount: number, method: string) => void;
   getTotalOutstanding: () => number;
 }
 
@@ -393,9 +393,14 @@ export const useCreditStore = create<CreditState>()(
       };
       await addDoc(collection(db, 'sales'), newCredit);
     },
-    recordRepayment: async (id, amount) => {
+    recordRepayment: async (id, amount, method = 'CASH') => {
       await updateDoc(doc(db, 'sales', id), {
-        creditPaid: increment(amount)
+        creditPaid: increment(amount),
+        repayments: arrayUnion({
+          amount,
+          method,
+          date: new Date().toISOString()
+        })
       });
     },
     getTotalOutstanding: () =>

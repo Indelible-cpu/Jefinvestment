@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useSettingsStore } from '../store/settingsStore';
 import { useExpenseStore } from '../store/dataStore';
 import { useAuditStore } from '../store/auditStore';
+import { useAuthStore } from '../store/authStore';
 
 const EXPENSE_CATEGORIES = [
   'Store Supplies', 'Transport', 'Electricity', 'Printing', 'Maintenance',
@@ -12,12 +13,14 @@ const EXPENSE_CATEGORIES = [
 
 const today = new Date().toISOString().slice(0, 10);
 
-const emptyForm = { category: 'Store Supplies', description: '', amount: 0, loggedBy: 'Cashier' };
-
 export default function Expenses() {
   const { expenses, addExpense, deleteExpense, loadExpenses } = useExpenseStore();
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+
+  const emptyForm = { category: 'Store Supplies', description: '', amount: 0, loggedBy: user?.name || 'Unknown' };
 
   useEffect(() => {
     loadExpenses();
@@ -38,7 +41,7 @@ export default function Expenses() {
     
     setIsSubmitting(true);
     try {
-      await addExpense({ ...form, loggedBy: 'Admin' });
+      await addExpense({ ...form });
       toast.success('Expense logged successfully');
       setForm(emptyForm);
       setShowModal(false);
@@ -143,7 +146,9 @@ export default function Expenses() {
                 <td className="p-4 text-gray-600">{e.loggedBy}</td>
                 <td className="p-4 text-right font-bold text-red-600">{e.amount.toLocaleString()}</td>
                 <td className="p-4 text-right">
-                  <button onClick={() => handleDelete(e.id, e.description)} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
+                  {isAdmin && (
+                    <button onClick={() => handleDelete(e.id, e.description)} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition"><Trash2 size={16} /></button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -207,9 +212,8 @@ export default function Expenses() {
                 <input
                   type="text"
                   value={form.loggedBy}
-                  onChange={e => setForm(f => ({ ...f, loggedBy: e.target.value }))}
-                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                  placeholder="Cashier name"
+                  disabled
+                  className="w-full p-2.5 border rounded-lg bg-gray-100 text-gray-500 outline-none cursor-not-allowed"
                 />
               </div>
             </div>

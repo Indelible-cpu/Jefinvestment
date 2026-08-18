@@ -30,7 +30,7 @@ export default function CreditManagement() {
 
     setIsSubmitting(true);
     try {
-      await recordRepayment(selectedRecord, amountNum);
+      await recordRepayment(selectedRecord, amountNum, repayMethod);
       setSelectedRecord(null);
       setRepayAmount('');
       toast.success(`Repayment of ${settings.currency} ${amountNum.toLocaleString()} recorded.`);
