@@ -150,12 +150,7 @@ export default function Settings() {
     try {
       const targetUser = users.find(u => u.id === resetTarget);
       await resetPassword(resetTarget, newPassword.trim());
-      addLog({
-        action: 'PASSWORD_RESET',
-        details: `Admin "${user?.name}" reset the password for user "${targetUser?.name || resetTarget}".`,
-        userId: user?.id || 'unknown',
-        userName: user?.name || 'Admin',
-      });
+      addLog('PASSWORD_RESET', `Admin "${user?.name}" reset the password for user "${targetUser?.name || resetTarget}".`);
       setResetTarget(null);
       setNewPassword('');
       showSuccess('Password reset successfully!');
@@ -190,12 +185,7 @@ export default function Settings() {
     try {
       await addUser(newUserForm);
       const addedName = newUserForm.name;
-      addLog({
-        action: 'USER_CREATED',
-        details: `Admin "${user?.name}" created user "${addedName}" (${newUserForm.email}) with role ${newUserForm.role}.`,
-        userId: user?.id || 'unknown',
-        userName: user?.name || 'Admin',
-      });
+      addLog('USER_CREATED', `Admin "${user?.name}" created user "${addedName}" (${newUserForm.email}) with role ${newUserForm.role}.`);
       setNewUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
       setShowAddUser(false);
       showSuccess(`User "${addedName}" added successfully!`);
@@ -210,12 +200,7 @@ export default function Settings() {
       description: 'This cannot be undone.',
       action: { label: 'Delete', onClick: () => {
         deleteUser(userId);
-        addLog({
-          action: 'USER_DELETED',
-          details: `Admin "${user?.name}" deleted user "${name}" (ID: ${userId}).`,
-          userId: user?.id || 'unknown',
-          userName: user?.name || 'Admin',
-        });
+        addLog('USER_DELETED', `Admin "${user?.name}" deleted user "${name}" (ID: ${userId}).`);
         toast.success(`User "${name}" deleted.`);
       }},
       cancel: { label: 'Cancel', onClick: () => {} },
