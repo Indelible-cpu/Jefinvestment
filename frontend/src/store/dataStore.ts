@@ -183,12 +183,15 @@ export const useSaleStore = create<SaleState>()(
         }
       });
 
-      const newSale = {
+      const newSale: Record<string, any> = {
         ...cleanedSale,
-        creditPaid: cleanedSale.isCredit ? (cleanedSale.amountPaid || 0) : undefined,
         createdAt: Date.now(),
         status: 'completed'
       };
+      
+      if (cleanedSale.isCredit) {
+        newSale.creditPaid = cleanedSale.amountPaid || 0;
+      }
 
       const batch = writeBatch(db);
       const saleRef = doc(collection(db, 'sales'));
