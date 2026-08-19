@@ -10,8 +10,19 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        maximumFileSizeToCacheInBytes: 5000000 // 5 MB — covers Firebase SDK
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        maximumFileSizeToCacheInBytes: 5000000, // 5 MB — covers Firebase SDK
+        // Cache Firebase Storage images at runtime so product images load instantly
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'firebase-storage-images',
+              expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
+            },
+          },
+        ],
       },
       manifest: {
         name: 'StoreSight',
@@ -28,10 +39,15 @@ export default defineConfig({
     })
   ],
   build: {
+    // Target modern browsers — smaller output, no legacy polyfills needed
+    target: 'es2020',
     // Raise warning threshold — large lazy-loaded chunks (TF.js, Firebase) are
-    // only downloaded on demand and cached by the PWA service worker, so the
-    // warning is noise for this app's architecture.
+    // only downloaded on demand and cached by the PWA service worker.
     chunkSizeWarningLimit: 1000,
+    // Strip console.* and debugger calls from production bundle
+    esbuildOptions: {
+      drop: ['console', 'debugger'],
+    },
     rollupOptions: {
       output: {
         manualChunks: (id) => {

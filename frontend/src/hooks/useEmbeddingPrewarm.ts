@@ -68,59 +68,57 @@ export const useEmbeddingPrewarm = () => {
     );
     if (productsWithImages.length === 0) return;
 
-    runningRef.current = true;
+    // Delay prewarm by 10s so it never competes with initial page load
+    const delayTimer = setTimeout(() => {
+      if (prewarmDone || runningRef.current) return;
+      runningRef.current = true;
 
-    (async () => {
-      try {
-        // Load model (shared singleton — won't re-download if already loaded)
-        const model = await loadMobileNet();
+      (async () => {
+        try {
+          const model = await loadMobileNet();
+          let processed = 0;
 
-        let processed = 0;
+          for (const product of productsWithImages) {
+            for (const imgUrl of (product.images ?? [])) {
+              const key = cacheKey(product.id, imgUrl);
+              if (await isCached(key)) continue;
 
-        for (const product of productsWithImages) {
-          for (const imgUrl of (product.images ?? [])) {
-            const key = cacheKey(product.id, imgUrl);
+              try {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                await new Promise<void>((resolve, reject) => {
+                  img.onload  = () => resolve();
+                  img.onerror = reject;
+                  img.src     = imgUrl;
+                });
 
-            // Skip if already cached
-            if (await isCached(key)) continue;
+                const tensor    = model.infer(img, true);
+                const data      = await tensor.data();
+                tensor.dispose();
+                await saveEmbedding(key, Array.from(data));
+                processed++;
 
-            try {
-              // Load image element
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
-              await new Promise<void>((resolve, reject) => {
-                img.onload  = () => resolve();
-                img.onerror = reject;
-                img.src     = imgUrl;
-              });
-
-              // Generate embedding
-              const tensor    = model.infer(img, true);
-              const data      = await tensor.data();
-              tensor.dispose();
-              const embedding = Array.from(data);
-
-              await saveEmbedding(key, embedding);
-              processed++;
-
-              // Small yield between each image to stay non-blocking
-              await sleep(50);
-            } catch {
-              // Silently skip broken images
+                // 100ms yield between images — wider gap to stay non-blocking
+                await sleep(100);
+              } catch {
+                // Silently skip broken images
+              }
             }
           }
-        }
 
-        if (processed > 0) {
-          console.info(`[Prewarm] ✅ Generated ${processed} new AI embeddings in the background.`);
+          if (processed > 0) {
+            console.info(`[Prewarm] ✅ Generated ${processed} new AI embeddings in the background.`);
+          }
+        } catch (err) {
+          console.warn('[Prewarm] Background pre-warm failed:', err);
+        } finally {
+          prewarmDone    = true;
+          runningRef.current = false;
         }
-      } catch (err) {
-        console.warn('[Prewarm] Background pre-warm failed:', err);
-      } finally {
-        prewarmDone    = true;
-        runningRef.current = false;
-      }
-    })();
+      })();
+    }, 10000); // 10 second idle delay
+
+    return () => clearTimeout(delayTimer);
   }, [products]);
 };
 

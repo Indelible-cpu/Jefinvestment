@@ -40,7 +40,9 @@ export const useExpenseStore = create<ExpenseState>()(
   (set, get) => ({
     expenses: [],
     loadExpenses: async () => {
-      const q = query(collection(db, 'expenses'), orderBy('createdAt', 'desc'));
+      // Limit to last 90 days for performance
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const q = query(collection(db, 'expenses'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
       const unsub = onSnapshot(q, (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -133,7 +135,9 @@ export const useSaleStore = create<SaleState>()(
   (set, get) => ({
     sales: [],
     loadSales: async () => {
-      const q = query(collection(db, 'sales'), orderBy('createdAt', 'desc'));
+      // Limit to last 90 days for performance — Reports page can query further back if needed
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+      const q = query(collection(db, 'sales'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
       const unsub_sales = onSnapshot(q, (snapshot) => {
         const mappedSales = snapshot.docs.map(doc => {
           const s = doc.data();

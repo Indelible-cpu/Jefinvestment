@@ -88,25 +88,26 @@ export default function Layout() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   useEffect(() => {
-    // Set up real-time Firestore listeners once on mount.
-    // onSnapshot() keeps all data live across ALL devices automatically —
-    // no polling needed. Any change on desktop instantly appears on mobile.
+    // Critical data first — loads instantly on mount
     loadSettings();
-    loadSales();
     loadProducts();
-    loadExpenses();
-    loadCredits();
-    loadEmployees();
-    loadStationeryServices();
+    loadSales();
     loadProfile();
-    syncAll();
-    
+
+    // Non-critical data — staggered to avoid a traffic spike on startup
+    const t1 = setTimeout(() => { loadExpenses(); loadCredits(); }, 300);
+    const t2 = setTimeout(() => { loadEmployees(); loadStationeryServices(); }, 700);
+    const t3 = setTimeout(() => syncAll(), 1200);
+
     if (user?.id) {
-      loadHeldCarts(user.id);
+      const t4 = setTimeout(() => loadHeldCarts(user.id), 400);
       if (user.role === 'ADMIN') {
-        loadPasswordRequests();
+        const t5 = setTimeout(() => loadPasswordRequests(), 800);
+        return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
       }
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
     }
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [user?.id, user?.role]);
 
   useEffect(() => {
