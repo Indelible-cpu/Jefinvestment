@@ -608,10 +608,14 @@ export default function Sales() {
           sale={detailSale}
           onClose={() => setDetailSale(null)}
           isAdmin={isAdmin}
-          onUpdateStatus={(id, status) => {
-            updateSaleStatus(id, status);
-            addLog(status.toUpperCase() + '_SALE', `Changed status of invoice ${detailSale.invoiceNumber} to ${status}`);
-            setDetailSale(null);
+          onUpdateStatus={async (id, status) => {
+            try {
+              await updateSaleStatus(id, status);
+              addLog(status.toUpperCase() + '_SALE', `Changed status of invoice ${detailSale.invoiceNumber} to ${status}`);
+              setDetailSale(null);
+            } catch (err: any) {
+              toast.error('Failed to change status: ' + (err.message || 'Permission denied or network error.'));
+            }
           }}
         />
       )}

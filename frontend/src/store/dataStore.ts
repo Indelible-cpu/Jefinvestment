@@ -286,6 +286,7 @@ export const useSaleStore = create<SaleState>()(
         await updateDoc(doc(db, 'sales', id), { status: status.toLowerCase() });
       } catch (e) {
         console.error('Failed to update sale status', e);
+        throw e;
       }
     },
 
