@@ -168,22 +168,37 @@ export default function Order() {
 
     const win = window.open('', '_blank');
     if (!win) return;
+    
+    const brandHeader = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+        <div>
+          ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" />` : ''}
+          <div style="font-weight: bold; font-size: 18px;">${settings.companyName}</div>
+          ${settings.address ? `<div style="color: #666; font-size: 12px;">${settings.address}</div>` : ''}
+          ${settings.phone ? `<div style="color: #666; font-size: 12px;">${settings.phone}</div>` : ''}
+          ${settings.email ? `<div style="color: #666; font-size: 12px;">${settings.email}</div>` : ''}
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 22px; font-weight: bold; color: #1d4ed8;">ORDER LIST</div>
+          <div style="color: #666; font-size: 12px; margin-top: 4px;">Generated: ${today}</div>
+        </div>
+      </div>
+    `;
+
     win.document.write(`
       <html><head>
         <title>Order List — ${settings.companyName}</title>
         <style>
-          body{font-family:Arial,sans-serif;padding:24px;font-size:13px;color:#111}
-          h1{font-size:20px;margin:0}p.sub{color:#666;margin:4px 0 16px;font-size:12px}
-          table{width:100%;border-collapse:collapse;margin-top:8px}
-          th{background:#f3f4f6;text-align:left;padding:8px 10px;border:1px solid #e5e7eb}
-          td{padding:8px 10px;border:1px solid #e5e7eb}
-          tr:nth-child(even) td{background:#fafafa}
-          .total-row {font-weight:bold; background:#f3f4f6;}
-          .footer{margin-top:24px;font-size:11px;color:#9ca3af;text-align:center}
+          body{font-family:Arial,sans-serif;padding:32px;font-size:13px;color:#111;max-width:800px;margin:0 auto;}
+          table{width:100%;border-collapse:collapse;margin-top:8px;}
+          th{background:#f3f4f6;text-align:left;padding:8px 10px;border:1px solid #e5e7eb;color:#374151;}
+          td{padding:8px 10px;border:1px solid #e5e7eb;}
+          tr:nth-child(even) td{background:#f8fafc;}
+          .total-row {font-weight:bold; background:#eff6ff;}
+          .footer{margin-top:24px;font-size:11px;color:#9ca3af;text-align:center;padding-top:16px;border-top:1px dashed #ccc;}
         </style>
       </head><body>
-        <h1>${settings.companyName} — Purchase Order List</h1>
-        <p class="sub">Generated: ${today}</p>
+        ${brandHeader}
         <table>
           <thead>
             <tr>
@@ -196,12 +211,15 @@ export default function Order() {
           <tbody>
             ${rows}
             <tr class="total-row">
-              <td colspan="3" style="text-align: right;">GRAND TOTAL</td>
-              <td>${settings.currency} ${grandTotal.toLocaleString()}</td>
+              <td colspan="3" style="text-align: right; color:#1d4ed8;">GRAND TOTAL</td>
+              <td style="color:#1d4ed8;">${settings.currency} ${grandTotal.toLocaleString()}</td>
             </tr>
           </tbody>
         </table>
-        <p class="footer">${settings.address} | ${settings.phone}</p>
+        <div class="footer">
+          StoreSight. One System. Total Control.<br/>
+          Powered by Indelible Technologies
+        </div>
         <script>window.onload=()=>{window.print();window.close()}<\/script>
       </body></html>
     `);
