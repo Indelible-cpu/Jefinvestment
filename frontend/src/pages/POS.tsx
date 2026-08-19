@@ -296,8 +296,15 @@ const playSound = (type: 'success' | 'error') => {
     }, 50);
   };
 
+  // Use a ref to keep the latest values without re-binding the event listener on every render
+  const shortcutsRef = useRef({ handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData });
+  useEffect(() => {
+    shortcutsRef.current = { handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData };
+  });
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const { handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData } = shortcutsRef.current;
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select';
 
@@ -309,7 +316,10 @@ const playSound = (type: 'success' | 'error') => {
         if (cart.items.length > 0 && !isSubmitting) handlePayNow();
       } else if (e.key === 'F9') {
         e.preventDefault();
-        if (cart.items.length > 0) handleHoldCart();
+        if (cart.items.length > 0) {
+          cart.holdCart();
+          toast.success('Cart put on hold');
+        }
       } else if (e.key === 'F10') {
         e.preventDefault();
         cart.clearCart();
@@ -320,7 +330,7 @@ const playSound = (type: 'success' | 'error') => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart.items.length, handlePayNow, paymentMethod, amountPaid, customerName, customerPhone, receiptData, showHeldCarts, isSubmitting]);
+  }, []);
 
   const handleBarcodeScan = (scannedSku: string) => {
     // Find the product that matches the SKU exactly
