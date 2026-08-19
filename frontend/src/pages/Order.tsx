@@ -180,7 +180,7 @@ export default function Order() {
         </div>
         <div style="text-align: right;">
           <div style="font-size: 22px; font-weight: bold; color: #1d4ed8;">ORDER LIST</div>
-          <div style="color: #666; font-size: 12px; margin-top: 4px;">Generated: ${today}</div>
+          <div style="color: #666; font-size: 12px; margin-top: 4px;">Prepared on: ${today}</div>
         </div>
       </div>
     `;
@@ -189,13 +189,13 @@ export default function Order() {
       <html><head>
         <title>Order List — ${settings.companyName}</title>
         <style>
-          body{font-family:Arial,sans-serif;padding:32px;font-size:13px;color:#111;max-width:800px;margin:0 auto;}
+          body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;padding:32px;font-size:13px;color:#111;max-width:800px;margin:0 auto;}
           table{width:100%;border-collapse:collapse;margin-top:8px;}
-          th{background:#f3f4f6;text-align:left;padding:8px 10px;border:1px solid #e5e7eb;color:#374151;}
+          th{background:#f3f4f6;text-align:left;padding:8px 10px;border:1px solid #e5e7eb;color:#374151;font-weight:600;}
           td{padding:8px 10px;border:1px solid #e5e7eb;}
           tr:nth-child(even) td{background:#f8fafc;}
           .total-row {font-weight:bold; background:#eff6ff;}
-          .footer{margin-top:24px;font-size:11px;color:#9ca3af;text-align:center;padding-top:16px;border-top:1px dashed #ccc;}
+          .footer{margin-top:24px;font-size:11px;color:#9ca3af;text-align:center;padding-top:16px;border-top:1px dashed #ccc;font-weight:400;}
         </style>
       </head><body>
         ${brandHeader}
