@@ -181,6 +181,7 @@ export const useSaleStore = create<SaleState>()(
 
       const newSale = {
         ...cleanedSale,
+        creditPaid: cleanedSale.isCredit ? (cleanedSale.amountPaid || 0) : undefined,
         createdAt: Date.now(),
         status: 'completed'
       };

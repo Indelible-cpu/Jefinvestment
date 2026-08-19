@@ -23,6 +23,7 @@ export default function POS() {
   const [customerPhone, setCustomerPhone] = useState('0');
   const [customerId, setCustomerId] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [creditInitialPayment, setCreditInitialPayment] = useState<number | ''>('');
   const [amountPaid, setAmountPaid] = useState<number | ''>('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showHeldCarts, setShowHeldCarts] = useState(false);
@@ -239,7 +240,7 @@ const playSound = (type: 'success' | 'error') => {
         taxType,
         total: finalTotal,
         paymentMethod,
-        amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
+        amountPaid: paymentMethod === 'CREDIT' ? Number(creditInitialPayment || 0) : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
         customerName: paymentMethod === 'CREDIT' ? customerName : '',
         customerPhone: paymentMethod === 'CREDIT' ? customerPhone : '',
         customerId: paymentMethod === 'CREDIT' ? customerId : '',
@@ -266,7 +267,7 @@ const playSound = (type: 'success' | 'error') => {
           taxType,
           total: finalTotal,
           paymentMethod,
-          amountPaid: paymentMethod === 'CREDIT' ? 0 : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
+          amountPaid: paymentMethod === 'CREDIT' ? Number(creditInitialPayment || 0) : (paymentMethod === 'CASH' ? Number(amountPaid) : finalTotal),
           customerName: paymentMethod === 'CREDIT' ? customerName : '',
           customerPhone: paymentMethod === 'CREDIT' ? customerPhone : '',
           customerId: paymentMethod === 'CREDIT' ? customerId : '',
@@ -290,6 +291,7 @@ const playSound = (type: 'success' | 'error') => {
       setCustomerId('');
       setDueDate('');
       setAmountPaid('');
+      setCreditInitialPayment('');
       setIsSubmitting(false);
     }, 50);
   };
@@ -763,6 +765,18 @@ const playSound = (type: 'success' | 'error') => {
                         className="w-full p-2 text-sm border rounded text-gray-600 bg-white"
                         value={dueDate}
                         onChange={e => setDueDate(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handlePayNow()}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Initial Payment Amount (Optional)</label>
+                      <input 
+                        type="number" 
+                        placeholder={`e.g. 5000`} 
+                        className="w-full p-2 text-sm border rounded bg-white"
+                        value={creditInitialPayment}
+                        onChange={e => setCreditInitialPayment(e.target.value === '' ? '' : Number(e.target.value))}
+                        onFocus={e => e.target.select()}
                         onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                       />
                     </div>
