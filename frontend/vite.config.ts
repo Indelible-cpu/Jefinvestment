@@ -38,16 +38,15 @@ export default defineConfig({
       }
     })
   ],
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   build: {
     // Target modern browsers — smaller output, no legacy polyfills needed
     target: 'es2020',
     // Raise warning threshold — large lazy-loaded chunks (TF.js, Firebase) are
     // only downloaded on demand and cached by the PWA service worker.
     chunkSizeWarningLimit: 1000,
-    // Strip console.* and debugger calls from production bundle
-    esbuildOptions: {
-      drop: ['console', 'debugger'],
-    },
     rollupOptions: {
       output: {
         manualChunks: (id) => {
