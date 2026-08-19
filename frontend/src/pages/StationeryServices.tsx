@@ -32,7 +32,16 @@ export default function StationeryServices() {
   }, []);
 
   // Only show physical products (not isService) as selectable materials
-  const inventoryProducts = products.filter(p => !p.isService);
+  const inventoryProducts = products.filter(p => {
+    if (p.isService || p.isEquipment) return false;
+    
+    // Always include if it's already selected in the current form (prevents missing labels on edit)
+    const isCurrentlySelected = form.materialsUsed.some(m => m.inventoryItemId === p.id);
+    if (isCurrentlySelected) return true;
+
+    const cat = p.category?.toLowerCase() || '';
+    return cat.includes('stationer') || cat.includes('paper') || cat.includes('ink') || cat.includes('print') || cat.includes('bind') || cat.includes('consumable');
+  });
 
   const openAdd = () => {
     setEditingId(null);
