@@ -30,12 +30,17 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Reference for the notifications dropdown to detect outside clicks
-  const notificationRef = useRef<HTMLDivElement>(null);
+  // References for the notifications dropdown to detect outside clicks
+  const mobileNotifRef = useRef<HTMLDivElement>(null);
+  const desktopNotifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedMobile = mobileNotifRef.current?.contains(target);
+      const clickedDesktop = desktopNotifRef.current?.contains(target);
+      
+      if (!clickedMobile && !clickedDesktop) {
         setShowNotifications(false);
       }
     };
@@ -321,7 +326,7 @@ export default function Layout() {
              )}
            </div>
 
-           <div className="relative" ref={notificationRef}>
+           <div className="relative" ref={mobileNotifRef}>
              <button onClick={() => setShowNotifications(!showNotifications)} className="relative cursor-pointer p-1">
                <Bell size={24} />
                {notificationCount > 0 && (
@@ -385,7 +390,7 @@ export default function Layout() {
       }`}>
         {/* Branding Area */}
         <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5 relative">
-          <div className="hidden md:block absolute top-4 right-4">
+          <div className="hidden md:block absolute top-4 right-4" ref={desktopNotifRef}>
             <button onClick={() => setShowNotifications(!showNotifications)} className="text-blue-200 hover:text-white transition relative">
               <Bell size={20} />
               {notificationCount > 0 && (
