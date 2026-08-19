@@ -165,64 +165,47 @@ export const useAuthStore = create<AuthState>()(
           (cleanEmail === 'cashier@jefinvestment.com' || cleanEmail === 'cashier') &&
           (password === 'Cashier@1234' || password === 'cashier1234#');
 
-        if (isOffline) {
-          // First: try the offline credential cache for real users
+        const performOfflineLogin = async () => {
           const cachedUser = await checkOfflineCache(email, password);
           if (cachedUser) {
-            set({
-              token: 'offline-cached-token',
-              user: cachedUser,
-              isAuthenticated: true,
-              isLoading: false,
-            });
+            set({ token: 'offline-cached-token', user: cachedUser, isAuthenticated: true, isLoading: false });
             return { success: true };
           }
-
-          // Fallback: hardcoded emergency credentials
           if (isAdminLocal) {
-            set({
-              token: 'local-admin-token',
-              user: {
-                id: 'local-admin-id',
-                name: 'Admin User',
-                role: 'ADMIN',
-                branchId: 'main-branch',
-                branchName: 'Main Branch',
-                profilePic: '',
-              },
-              isAuthenticated: true,
-              isLoading: false,
-            });
+            set({ token: 'local-admin-token', user: { id: 'local-admin-id', name: 'Admin User', role: 'ADMIN', branchId: 'main-branch', branchName: 'Main Branch', profilePic: '' }, isAuthenticated: true, isLoading: false });
             return { success: true };
           }
           if (isCashierLocal) {
-            set({
-              token: 'local-cashier-token',
-              user: {
-                id: 'local-cashier-id',
-                name: 'Cashier User',
-                role: 'CASHIER',
-                branchId: 'main-branch',
-                branchName: 'Main Branch',
-                profilePic: '',
-              },
-              isAuthenticated: true,
-              isLoading: false,
-            });
+            set({ token: 'local-cashier-token', user: { id: 'local-cashier-id', name: 'Cashier User', role: 'CASHIER', branchId: 'main-branch', branchName: 'Main Branch', profilePic: '' }, isAuthenticated: true, isLoading: false });
             return { success: true };
           }
+          return null;
+        };
 
+        if (isOffline) {
+          const offlineResult = await performOfflineLogin();
+          if (offlineResult) return offlineResult;
           set({ isLoading: false });
-          return {
-            success: false,
-            error: 'No internet connection. Your credentials were not recognised offline. Please connect to the internet for your first login on this device.',
-            isNetworkError: true
-          };
+          return { success: false, error: 'No internet connection. Your credentials were not recognised offline.', isNetworkError: true };
         }
 
         try {
           const trimmedEmail = email.trim();
-          const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
+          let userCredential;
+          
+          try {
+            userCredential = await Promise.race([
+              signInWithEmailAndPassword(auth, trimmedEmail, password),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('NETWORK_TIMEOUT')), 5000))
+            ]);
+          } catch (raceErr: any) {
+            if (raceErr.message === 'NETWORK_TIMEOUT' || raceErr.code?.includes('network')) {
+              const offlineResult = await performOfflineLogin();
+              if (offlineResult) return offlineResult;
+            }
+            throw raceErr;
+          }
+
           const firebaseUser = userCredential.user;
           const token = await firebaseUser.getIdToken();
 

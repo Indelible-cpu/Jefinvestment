@@ -205,7 +205,9 @@ export const useSaleStore = create<SaleState>()(
         });
       }
 
-      await batch.commit();
+      // Do not await the commit so offline sales complete instantly in the UI
+      // Firestore's local cache will queue it and sync when online
+      batch.commit().catch(e => console.error('Sale sync deferred or failed:', e));
     },
     restoreStationeryMaterials: async (saleId) => {
       try {
