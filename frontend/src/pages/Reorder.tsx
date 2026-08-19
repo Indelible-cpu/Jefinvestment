@@ -1,13 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useProductStore } from '../store/cartStore';
 import { useSaleStore } from '../store/dataStore';
-import { useSettingsStore } from '../store/settingsStore';
-import { ShoppingCart, TrendingUp, AlertCircle, Package } from 'lucide-react';
+import { TrendingUp, AlertCircle, Package } from 'lucide-react';
 
 export default function Reorder() {
   const { products } = useProductStore();
   const { sales } = useSaleStore();
-  const settings = useSettingsStore();
 
   const [daysToAnalyze, setDaysToAnalyze] = useState(30);
 
@@ -21,8 +19,9 @@ export default function Reorder() {
     sales.forEach(sale => {
       if (sale.status === 'completed' && sale.date >= cutoffString) {
         sale.items.forEach(item => {
-          if (!item.isService && !item.isStationeryService) {
-            const pid = item.productId || item.id;
+          const itemAny = item as any;
+          if (!itemAny.isService && !itemAny.isStationeryService) {
+            const pid = itemAny.productId || itemAny.id;
             salesMap[pid] = (salesMap[pid] || 0) + item.quantity;
           }
         });
@@ -41,7 +40,7 @@ export default function Reorder() {
         // Recommended reorder amount (if current stock is less than suggested)
         const reorderAmount = Math.max(0, suggestedStock - p.stock);
         
-        const priority = reorderAmount > 0 && p.stock <= (p.minStockLevel || 5) ? 'HIGH' :
+        const priority = reorderAmount > 0 && p.stock <= (p.reorderLevel || 5) ? 'HIGH' :
                          reorderAmount > 0 ? 'MEDIUM' : 'LOW';
 
         return {
@@ -112,7 +111,7 @@ export default function Reorder() {
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="p-4 font-medium text-gray-800">{p.name}</td>
                     <td className="p-4">
-                      <span className={`font-bold ${p.stock <= (p.minStockLevel || 5) ? 'text-red-500' : 'text-gray-700'}`}>
+                      <span className={`font-bold ${p.stock <= (p.reorderLevel || 5) ? 'text-red-500' : 'text-gray-700'}`}>
                         {p.stock}
                       </span>
                     </td>
