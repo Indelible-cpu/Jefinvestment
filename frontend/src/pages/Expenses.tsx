@@ -14,7 +14,7 @@ const EXPENSE_CATEGORIES = [
 const today = new Date().toISOString().slice(0, 10);
 
 export default function Expenses() {
-  const { expenses, addExpense, deleteExpense, loadExpenses } = useExpenseStore();
+  const { expenses, isLoading, addExpense, deleteExpense, loadExpenses } = useExpenseStore();
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -142,7 +142,17 @@ export default function Expenses() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="p-12 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-lg font-medium text-gray-600">Loading expenses...</p>
+                    <p className="text-sm">Please wait while we fetch the records.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
               <tr><td colSpan={6} className="p-12 text-center text-gray-400">No expenses recorded for this date.</td></tr>
             ) : filtered.map(e => (
               <tr key={e.id} className="border-b hover:bg-gray-50 transition">

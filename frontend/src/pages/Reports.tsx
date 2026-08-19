@@ -26,8 +26,8 @@ export default function Reports() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
   
-  const { sales } = useSaleStore();
-  const { expenses } = useExpenseStore();
+  const { sales, isLoading: isLoadingSales } = useSaleStore();
+  const { expenses, isLoading: isLoadingExpenses } = useExpenseStore();
   const settings = useSettingsStore();
 
   // Only count completed sales everywhere
@@ -389,7 +389,17 @@ export default function Reports() {
             </tr>
           </thead>
           <tbody>
-            {data.transactions.length === 0 ? (
+            {isLoadingSales || isLoadingExpenses ? (
+              <tr>
+                <td colSpan={6} className="p-12 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-lg font-medium text-gray-600">Loading reports...</p>
+                    <p className="text-sm">Please wait while we fetch the records.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : data.transactions.length === 0 ? (
               <tr><td colSpan={6} className="p-4 text-center text-gray-500">No completed transactions found for this date.</td></tr>
             ) : (
               data.transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(tx => {

@@ -201,7 +201,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
 
 // ─── Main Sales Page ───────────────────────────────────────────────────────────
 export default function Sales() {
-  const { sales, updateSaleStatus, deleteSale } = useSaleStore();
+  const { sales, isLoading, updateSaleStatus, deleteSale } = useSaleStore();
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -405,7 +405,13 @@ export default function Sales() {
 
       {/* Sales Table */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-        {paginated.length === 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-gray-600">Loading data...</h3>
+            <p className="text-sm mt-1">Please wait while we fetch your sales.</p>
+          </div>
+        ) : paginated.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400">
             <ShoppingBag size={48} className="mb-3 opacity-40" />
             <div className="font-semibold text-lg">No sales found</div>

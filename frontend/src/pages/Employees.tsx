@@ -5,7 +5,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { toast } from 'sonner';
 
 export default function Employees() {
-  const { employees, loadEmployees, addEmployee, updateEmployee, updateStatus, recordAdvancePay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
+  const { employees, isLoading, loadEmployees, addEmployee, updateEmployee, updateStatus, recordAdvancePay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
   const settings = useSettingsStore();
 
   useEffect(() => {
@@ -205,7 +205,17 @@ export default function Employees() {
             </tr>
           </thead>
           <tbody className="divide-y text-sm">
-            {employees.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={7} className="p-12 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-lg font-medium text-gray-600">Loading employees...</p>
+                    <p className="text-sm">Please wait while we fetch the records.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : employees.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-gray-500">
                   No employees added yet. Click "Add Employee" to create one.

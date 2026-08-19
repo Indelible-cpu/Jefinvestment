@@ -30,6 +30,7 @@ export interface Expense {
 
 interface ExpenseState {
   expenses: Expense[];
+  isLoading: boolean;
   loadExpenses: () => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => void;
   deleteExpense: (id: string) => void;
@@ -39,7 +40,9 @@ interface ExpenseState {
 export const useExpenseStore = create<ExpenseState>()(
   (set, get) => ({
     expenses: [],
+    isLoading: false,
     loadExpenses: async () => {
+      set({ isLoading: true });
       // Limit to last 90 days for performance
       const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
       const q = query(collection(db, 'expenses'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
@@ -55,8 +58,11 @@ export const useExpenseStore = create<ExpenseState>()(
             amount: Number(data.amount) || 0,
           };
         });
-        set({ expenses: mapped });
-      }, (err) => console.error('Failed to load expenses from Firestore', err));
+        set({ expenses: mapped, isLoading: false });
+      }, (err) => {
+        console.error('Failed to load expenses from Firestore', err);
+        set({ isLoading: false });
+      });
       registerListener(unsub);
     },
     addExpense: async (expense) => {
@@ -117,6 +123,7 @@ export interface SaleRecord {
 
 interface SaleState {
   sales: SaleRecord[];
+  isLoading: boolean;
   addSale: (sale: Omit<SaleRecord, 'id' | 'date' | 'time' | 'status' | 'syncStatus'>) => Promise<void>;
   restoreStationeryMaterials: (saleId: string) => Promise<void>;
   updateSaleStatus: (id: string, status: 'completed' | 'refunded' | 'voided') => void;
@@ -134,7 +141,9 @@ interface SaleState {
 export const useSaleStore = create<SaleState>()(
   (set, get) => ({
     sales: [],
+    isLoading: false,
     loadSales: async () => {
+      set({ isLoading: true });
       // Limit to last 90 days for performance — Reports page can query further back if needed
       const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
       const q = query(collection(db, 'sales'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
@@ -168,9 +177,10 @@ export const useSaleStore = create<SaleState>()(
             branch: s.branch,
           };
         });
-        set({ sales: mappedSales });
+        set({ sales: mappedSales, isLoading: false });
       }, (error) => {
         console.error('Failed to load sales from Firestore', error);
+        set({ isLoading: false });
       });
       registerListener(unsub_sales);
     },
@@ -353,6 +363,7 @@ export interface CreditRecord {
 
 interface CreditState {
   credits: CreditRecord[];
+  isLoading: boolean;
   loadCredits: () => Promise<void>;
   addCredit: (credit: Omit<CreditRecord, 'id' | 'status' | 'paidAmount' | 'date'>) => void;
   recordRepayment: (id: string, amount: number, method: string) => void;
@@ -362,7 +373,9 @@ interface CreditState {
 export const useCreditStore = create<CreditState>()(
   (set, get) => ({
     credits: [],
+    isLoading: false,
     loadCredits: async () => {
+      set({ isLoading: true });
       const q = query(collection(db, 'sales'), where('isCredit', '==', true));
       const unsub_credits = onSnapshot(q, (snapshot) => {
         const today = new Date().toISOString().slice(0, 10);
@@ -390,9 +403,10 @@ export const useCreditStore = create<CreditState>()(
         });
         // Sort manually by date since we can't easily compound order by with inequality in Firestore without indexes we might not have
         mapped.sort((a, b) => b.date.localeCompare(a.date));
-        set({ credits: mapped });
+        set({ credits: mapped, isLoading: false });
       }, (err) => {
         console.warn('Failed to load credits from Firestore', err);
+        set({ isLoading: false });
       });
       registerListener(unsub_credits);
     },
@@ -434,6 +448,7 @@ export interface Employee {
 
 interface EmployeeState {
   employees: Employee[];
+  isLoading: boolean;
   loadEmployees: () => Promise<void>;
   addEmployee: (emp: Omit<Employee, 'id'>) => void;
   updateStatus: (id: string, status: Employee['status']) => void;
@@ -448,7 +463,9 @@ interface EmployeeState {
 export const useEmployeeStore = create<EmployeeState>()(
   (set, get) => ({
     employees: [],
+    isLoading: false,
     loadEmployees: async () => {
+      set({ isLoading: true });
       const unsub_employees = onSnapshot(collection(db, 'employees'), (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const e = doc.data();
@@ -463,9 +480,10 @@ export const useEmployeeStore = create<EmployeeState>()(
             advancePay: Number(e.advancePay) || 0,
           };
         });
-        set({ employees: mapped });
+        set({ employees: mapped, isLoading: false });
       }, (err) => {
         console.warn('Failed to load employees from Firestore', err);
+        set({ isLoading: false });
       });
       registerListener(unsub_employees);
     },

@@ -5,7 +5,7 @@ import { useCreditStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 
 export default function CreditManagement() {
-  const { credits, loadCredits, recordRepayment } = useCreditStore();
+  const { credits, isLoading, loadCredits, recordRepayment } = useCreditStore();
   const settings = useSettingsStore();
   const [selectedRecord, setSelectedRecord] = useState<string | null>(null);
   const [repayAmount, setRepayAmount] = useState('');
@@ -119,7 +119,17 @@ export default function CreditManagement() {
             </tr>
           </thead>
           <tbody className="divide-y text-sm">
-            {displayCredits.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={8} className="p-8 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-lg font-medium text-gray-600">Loading credits...</p>
+                    <p className="text-sm">Please wait while we fetch the records.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : displayCredits.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-8 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">

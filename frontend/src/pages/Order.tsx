@@ -22,10 +22,12 @@ interface OrderRow {
 }
 
 export default function Order() {
-  const { products } = useProductStore();
-  const { sales } = useSaleStore();
+  const { products, isLoading: isLoadingProducts } = useProductStore();
+  const { sales, isLoading: isLoadingSales } = useSaleStore();
   const settings = useSettingsStore();
   const { addLog } = useAuditStore();
+
+  const isLoading = isLoadingProducts || isLoadingSales;
 
   const [daysToAnalyze, setDaysToAnalyze] = useState(30);
   const [restocking, setRestocking] = useState(false);
@@ -323,7 +325,13 @@ export default function Order() {
 
       {/* ── Table ──────────────────────────────────────────────────────────── */}
       <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-        {orderList.length === 0 ? (
+        {isLoading ? (
+          <div className="p-12 text-center text-gray-400 flex flex-col items-center">
+            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+            <h3 className="text-lg font-bold text-gray-600">Loading data...</h3>
+            <p className="text-sm mt-1">Please wait while we fetch your sales and products.</p>
+          </div>
+        ) : orderList.length === 0 ? (
           <div className="p-12 text-center text-gray-400 flex flex-col items-center">
             <Package size={48} className="mb-4 opacity-50"/>
             <h3 className="text-lg font-bold text-gray-600">Stock Levels are Healthy</h3>
