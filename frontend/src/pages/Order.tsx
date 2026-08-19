@@ -16,11 +16,12 @@ interface OrderRow {
   soldPastDays: number;
   suggestedStock: number;
   reorderAmount: number;
+  costPrice: number;
   priority: string;
   edited: boolean; // true if user manually changed qty
 }
 
-export default function Reorder() {
+export default function Order() {
   const { products } = useProductStore();
   const { sales } = useSaleStore();
   const settings = useSettingsStore();
@@ -65,6 +66,7 @@ export default function Reorder() {
           soldPastDays,
           suggestedStock,
           reorderAmount,
+          costPrice: p.costPrice || 0,
           priority,
           edited: false,
         } as OrderRow;
@@ -110,16 +112,21 @@ export default function Reorder() {
       soldPastDays: 0,
       suggestedStock: 0,
       reorderAmount: 1,
+      costPrice: p.costPrice || 0,
       priority: 'LOW',
       edited: true,
     };
     setOrderList(prev => [...prev, row]);
   };
 
+  // ── Grand Total ───────────────────────────────────────────────────────────
+  const activeOrderList = orderList.filter(r => r.reorderAmount > 0);
+  const grandTotal = activeOrderList.reduce((sum, r) => sum + (r.reorderAmount * r.costPrice), 0);
+  const totalItems = activeOrderList.length;
+
   // ── Restock: apply to Firestore ───────────────────────────────────────────
   const handleRestock = async () => {
-    const toRestock = orderList.filter(r => r.reorderAmount > 0);
-    if (toRestock.length === 0) {
+    if (activeOrderList.length === 0) {
       toast.error('No items to restock. Quantities are all zero.');
       return;
     }
@@ -127,15 +134,15 @@ export default function Reorder() {
     setRestocking(true);
     try {
       const batch = writeBatch(db);
-      toRestock.forEach(r => {
+      activeOrderList.forEach(r => {
         const ref = doc(db, 'products', r.id);
         batch.update(ref, { stock: increment(r.reorderAmount) });
       });
       await batch.commit();
 
-      const summary = toRestock.map(r => `${r.name} +${r.reorderAmount}`).join(', ');
-      addLog('RESTOCK_APPLIED', `Restocked ${toRestock.length} items: ${summary}`);
-      toast.success(`✅ Restocked ${toRestock.length} item${toRestock.length !== 1 ? 's' : ''} successfully!`);
+      const summary = activeOrderList.map(r => `${r.name} +${r.reorderAmount}`).join(', ');
+      addLog('RESTOCK_APPLIED', `Restocked ${activeOrderList.length} items: ${summary}`);
+      toast.success(`✅ Restocked ${activeOrderList.length} item${activeOrderList.length !== 1 ? 's' : ''} successfully!`);
 
       // Clear list after restock
       setOrderList([]);
@@ -150,14 +157,12 @@ export default function Reorder() {
   // ── Print ──────────────────────────────────────────────────────────────────
   const handlePrint = () => {
     const today = new Date().toLocaleDateString();
-    const rows = orderList.map(p =>
+    const rows = activeOrderList.map(p =>
       `<tr>
         <td>${p.name}</td>
-        <td>${p.currentStock}</td>
-        <td>${p.soldPastDays}</td>
-        <td>${p.suggestedStock}</td>
-        <td>+${p.reorderAmount}</td>
-        <td class="${p.priority.toLowerCase()}">${p.priority}</td>
+        <td>${p.reorderAmount}</td>
+        <td>${settings.currency} ${p.costPrice.toLocaleString()}</td>
+        <td>${settings.currency} ${(p.reorderAmount * p.costPrice).toLocaleString()}</td>
       </tr>`
     ).join('');
 
@@ -165,7 +170,7 @@ export default function Reorder() {
     if (!win) return;
     win.document.write(`
       <html><head>
-        <title>Reorder List — ${settings.companyName}</title>
+        <title>Order List — ${settings.companyName}</title>
         <style>
           body{font-family:Arial,sans-serif;padding:24px;font-size:13px;color:#111}
           h1{font-size:20px;margin:0}p.sub{color:#666;margin:4px 0 16px;font-size:12px}
@@ -173,16 +178,29 @@ export default function Reorder() {
           th{background:#f3f4f6;text-align:left;padding:8px 10px;border:1px solid #e5e7eb}
           td{padding:8px 10px;border:1px solid #e5e7eb}
           tr:nth-child(even) td{background:#fafafa}
-          .high{color:#dc2626;font-weight:bold}.medium{color:#d97706;font-weight:bold}.low{color:#16a34a;font-weight:bold}
+          .total-row {font-weight:bold; background:#f3f4f6;}
           .footer{margin-top:24px;font-size:11px;color:#9ca3af;text-align:center}
         </style>
       </head><body>
-        <h1>${settings.companyName} — Reorder List</h1>
-        <p class="sub">Generated: ${today} &nbsp;|&nbsp; Based on past ${daysToAnalyze} days of sales</p>
-        <table><thead><tr>
-          <th>Product</th><th>Current Stock</th><th>Sold (${daysToAnalyze}d)</th>
-          <th>Suggested</th><th>Reorder Qty</th><th>Priority</th>
-        </tr></thead><tbody>${rows}</tbody></table>
+        <h1>${settings.companyName} — Purchase Order List</h1>
+        <p class="sub">Generated: ${today}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Product Name</th>
+              <th>Order Qty</th>
+              <th>Unit Cost</th>
+              <th>Total Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr class="total-row">
+              <td colspan="3" style="text-align: right;">GRAND TOTAL</td>
+              <td>${settings.currency} ${grandTotal.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
         <p class="footer">${settings.address} | ${settings.phone}</p>
         <script>window.onload=()=>{window.print();window.close()}<\/script>
       </body></html>
@@ -192,17 +210,19 @@ export default function Reorder() {
 
   // ── Export CSV ─────────────────────────────────────────────────────────────
   const handleExportCSV = () => {
-    const header = ['Product Name', 'Current Stock', `Sold (${daysToAnalyze}d)`, 'Suggested', 'Reorder Qty', 'Priority'];
-    const rows = orderList.map(p =>
-      [p.name, p.currentStock, p.soldPastDays, p.suggestedStock, p.reorderAmount, p.priority]
+    const header = ['Product Name', 'Order Qty', `Unit Cost (${settings.currency})`, `Total Cost (${settings.currency})`];
+    const rows = activeOrderList.map(p =>
+      [p.name, p.reorderAmount, p.costPrice, (p.reorderAmount * p.costPrice)]
         .map(v => `"${String(v).replace(/"/g, '""')}"`)
         .join(',')
     );
+    // Add grand total row
+    rows.push(`"GRAND TOTAL","","","${grandTotal}"`);
     const blob = new Blob([[header.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reorder-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `order-list-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -210,14 +230,13 @@ export default function Reorder() {
   // ── WhatsApp ───────────────────────────────────────────────────────────────
   const handleShareWhatsApp = () => {
     const today = new Date().toLocaleDateString();
-    const lines = orderList.map((p, i) =>
-      `${i + 1}. *${p.name}*\n   Stock: ${p.currentStock} | Reorder: +${p.reorderAmount} | Priority: ${p.priority}`
+    const lines = activeOrderList.map((p, i) =>
+      `${i + 1}. *${p.name}*\n   Qty: ${p.reorderAmount} x ${settings.currency}${p.costPrice.toLocaleString()} = ${settings.currency}${(p.reorderAmount * p.costPrice).toLocaleString()}`
     ).join('\n\n');
-    const msg = `*${settings.companyName} — Reorder List*\n📅 ${today} (Past ${daysToAnalyze} days)\n\n${lines}\n\n_Generated by StoreSight POS_`;
+    const msg = `*${settings.companyName} — Purchase Order*\n📅 ${today}\n\n${lines}\n\n*GRAND TOTAL: ${settings.currency} ${grandTotal.toLocaleString()}*\n\n_Generated by StoreSight POS_`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  const totalItems = orderList.filter(r => r.reorderAmount > 0).length;
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
@@ -227,7 +246,7 @@ export default function Reorder() {
         <div className="flex items-center gap-3">
           <div className="bg-blue-100 p-3 rounded-xl text-blue-600"><TrendingUp size={24} /></div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Smart Reorder</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Smart Order List</h1>
             <p className="text-sm text-gray-500">Edit quantities, add items, then click Restock to apply</p>
           </div>
         </div>
@@ -303,9 +322,11 @@ export default function Reorder() {
                     <th className="p-4">Current Stock</th>
                     <th className="p-4">Sold ({daysToAnalyze}d)</th>
                     <th className="p-4">Suggested</th>
+                    <th className="p-4">Unit Cost</th>
                     <th className="p-4 min-w-[140px]">
-                      <span className="flex items-center gap-1"><PencilLine size={14}/> Reorder Qty</span>
+                      <span className="flex items-center gap-1"><PencilLine size={14}/> Order Qty</span>
                     </th>
+                    <th className="p-4">Total Cost</th>
                     <th className="p-4">Priority</th>
                     <th className="p-4">Remove</th>
                   </tr>
@@ -325,6 +346,7 @@ export default function Reorder() {
                       </td>
                       <td className="p-4 font-mono text-gray-600">{p.soldPastDays}</td>
                       <td className="p-4 text-gray-600">{p.suggestedStock}</td>
+                      <td className="p-4 font-mono text-gray-600">{settings.currency} {p.costPrice.toLocaleString()}</td>
                       <td className="p-4">
                         <input
                           type="number"
@@ -333,6 +355,9 @@ export default function Reorder() {
                           onChange={e => updateQty(p.id, e.target.value)}
                           className="w-24 border rounded-lg px-3 py-1.5 text-sm font-bold text-blue-800 bg-blue-50 focus:ring-2 focus:ring-blue-400 outline-none"
                         />
+                      </td>
+                      <td className="p-4 font-mono font-bold text-gray-800">
+                        {settings.currency} {(p.reorderAmount * p.costPrice).toLocaleString()}
                       </td>
                       <td className="p-4">
                         {p.priority === 'HIGH' && <span className="flex items-center gap-1 text-red-600 font-bold text-xs"><AlertCircle size={13}/> HIGH</span>}
@@ -351,6 +376,15 @@ export default function Reorder() {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot className="bg-gray-50 border-t">
+                  <tr>
+                    <td colSpan={7} className="p-4 text-right font-bold text-gray-700">GRAND TOTAL:</td>
+                    <td className="p-4 font-bold text-lg text-blue-700 font-mono whitespace-nowrap">
+                      {settings.currency} {grandTotal.toLocaleString()}
+                    </td>
+                    <td colSpan={2}></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
 

@@ -485,8 +485,8 @@ export default function Layout() {
               <Link to="/reports" className={navLinkClass('/reports')}>
                 <BarChart3 size={20} /> <span>Reports</span>
               </Link>
-              <Link to="/reorder" className={navLinkClass('/reorder')}>
-                <TrendingUp size={20} /> <span>Smart Reorder</span>
+              <Link to="/order" className={navLinkClass('/order')}>
+                <TrendingUp size={20} /> <span>Smart Order List</span>
               </Link>
             </>
           )}

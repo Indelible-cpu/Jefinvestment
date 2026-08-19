@@ -20,7 +20,7 @@ const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const ProductFinder = lazy(() => import('./pages/ProductFinder'));
 const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const Reorder = lazy(() => import('./pages/Reorder'));
+const Order = lazy(() => import('./pages/Order'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-screen w-full bg-gray-50">
@@ -57,7 +57,7 @@ function App() {
               <Route path="pos" element={<POS />} />
               <Route path="sales" element={<Sales />} />
               <Route path="expenses" element={<Expenses />} />
-              <Route path="reorder" element={<Reorder />} />
+              <Route path="order" element={<Order />} />
               <Route path="settings" element={<Settings />} />
               <Route path="product-finder" element={<ProductFinder />} />
               
