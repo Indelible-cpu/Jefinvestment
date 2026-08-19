@@ -10,6 +10,7 @@ import type { Product } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import ShopMapModal from '../components/ShopMapModal';
 import { useImageEmbedding, cosineSimilarity } from '../hooks/useImageEmbedding';
+import { useEmbeddingPrewarm } from '../hooks/useEmbeddingPrewarm';
 import { toast } from 'sonner';
 
 // Lazy-loaded heavy components (only downloaded when user opens them)
@@ -28,6 +29,8 @@ export default function ProductFinder() {
   const { products } = useProductStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
+
+  useEmbeddingPrewarm();
 
   const { getEmbedding, getCachedEmbedding, cacheEmbedding } = useImageEmbedding();
 

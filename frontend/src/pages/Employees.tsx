@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle, Trash2, Edit } from 'lucide-react';
 import { useEmployeeStore, type Employee } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { toast } from 'sonner';
 
 export default function Employees() {
-  const { employees, addEmployee, updateEmployee, updateStatus, recordAdvancePay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
+  const { employees, loadEmployees, addEmployee, updateEmployee, updateStatus, recordAdvancePay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
   const settings = useSettingsStore();
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEmpId, setEditingEmpId] = useState<string | null>(null);

@@ -1,28 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore, useExpenseStore } from '../store/dataStore';
 import { useProductStore, useCartStore } from '../store/cartStore';
-import { useStationeryStore } from '../store/stationeryStore';
 import { useSyncQueueStore } from '../store/syncQueueStore';
-import { useEmbeddingPrewarm } from '../hooks/useEmbeddingPrewarm';
 import { toast } from 'sonner';
 
 export default function Layout() {
-  // Start AI prewarming in background
-  useEmbeddingPrewarm();
 
   const { user, logout, loadProfile, unlockTemporarily, passwordRequests, loadPasswordRequests } = useAuthStore();
   const { companyName, companyLogo, loadSettings, autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes } = useSettingsStore();
-  const { products, loadProducts } = useProductStore();
+
+  // Use fine-grained selectors — subscribes only to what Layout needs,
+  // so a sale or stock change doesn't re-render the entire sidebar
+  const products = useProductStore(s => s.products);
+  const loadProducts = useProductStore(s => s.loadProducts);
   const { loadHeldCarts } = useCartStore();
   const { loadSales } = useSaleStore();
-  const { credits, loadCredits } = useCreditStore();
+  const credits = useCreditStore(s => s.credits);
+  const loadCredits = useCreditStore(s => s.loadCredits);
   const { loadExpenses } = useExpenseStore();
-  const { loadEmployees } = useEmployeeStore();
-  const { loadStationeryServices } = useStationeryStore();
   const { queue, isSyncing, syncAll } = useSyncQueueStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -84,30 +83,33 @@ export default function Layout() {
     navigate('/login', { replace: true });
   };
 
-  const now = new Date();
-  const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
+  // Computed once per render cycle — stable reference
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  }, []);
 
   useEffect(() => {
-    // Critical data first — loads instantly on mount
+    // Critical data — loads on mount
     loadSettings();
     loadProducts();
     loadSales();
     loadProfile();
 
-    // Non-critical data — staggered to avoid a traffic spike on startup
-    const t1 = setTimeout(() => { loadExpenses(); loadCredits(); }, 300);
-    const t2 = setTimeout(() => { loadEmployees(); loadStationeryServices(); }, 700);
-    const t3 = setTimeout(() => syncAll(), 1200);
+    // Secondary data — staggered so startup feels instant
+    const t1 = setTimeout(() => { loadExpenses(); loadCredits(); }, 400);
+    const t2 = setTimeout(() => syncAll(), 1000);
+    // Employees and StationeryServices are loaded lazily by their own pages
 
     if (user?.id) {
-      const t4 = setTimeout(() => loadHeldCarts(user.id), 400);
+      const t3 = setTimeout(() => loadHeldCarts(user.id), 300);
       if (user.role === 'ADMIN') {
-        const t5 = setTimeout(() => loadPasswordRequests(), 800);
-        return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
+        const t4 = setTimeout(() => loadPasswordRequests(), 600);
+        return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
       }
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     }
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [user?.id, user?.role]);
 
   useEffect(() => {
@@ -192,10 +194,10 @@ export default function Layout() {
     };
   }, [autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes]);
 
-  const lowStockItems = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel);
+  const lowStockItems = useMemo(() => products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel), [products]);
   const lowStockCount = lowStockItems.length;
-  const overdueCreditCount = credits?.filter(c => c.status === 'OVERDUE').length || 0;
-  const pendingPasswordRequests = (passwordRequests || []).filter(r => r.status === 'PENDING');
+  const overdueCreditCount = useMemo(() => credits?.filter(c => c.status === 'OVERDUE').length || 0, [credits]);
+  const pendingPasswordRequests = useMemo(() => (passwordRequests || []).filter(r => r.status === 'PENDING'), [passwordRequests]);
   const passwordRequestCount = user?.role === 'ADMIN' ? pendingPasswordRequests.length : 0;
   const notificationCount = lowStockCount + overdueCreditCount + passwordRequestCount;
 
