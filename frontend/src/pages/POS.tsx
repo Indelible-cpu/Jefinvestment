@@ -297,14 +297,14 @@ const playSound = (type: 'success' | 'error') => {
   };
 
   // Use a ref to keep the latest values without re-binding the event listener on every render
-  const shortcutsRef = useRef({ handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData });
+  const shortcutsRef = useRef({ handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData, handleHoldCart: () => {} });
   useEffect(() => {
-    shortcutsRef.current = { handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData };
+    shortcutsRef.current = { handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData, handleHoldCart };
   });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const { handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData } = shortcutsRef.current;
+      const { handlePayNow, cart, showHeldCarts, setShowHeldCarts, isSubmitting, searchInputRef, receiptData, handleHoldCart } = shortcutsRef.current;
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select';
 
@@ -317,8 +317,7 @@ const playSound = (type: 'success' | 'error') => {
       } else if (e.key === 'F9') {
         e.preventDefault();
         if (cart.items.length > 0) {
-          cart.holdCart();
-          toast.success('Cart put on hold');
+          handleHoldCart();
         }
       } else if (e.key === 'F10') {
         e.preventDefault();
