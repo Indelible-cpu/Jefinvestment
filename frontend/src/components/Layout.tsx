@@ -516,7 +516,7 @@ export default function Layout() {
             </button>
           </div>
           <div className="text-[10px] text-center text-white font-normal tracking-wide pb-4 md:pb-0 mt-2">
-            StoreSight. Powered By Indelible Technologies
+            StoreSight • Powered by Indelible Technologies
           </div>
         </div>
       </aside>
