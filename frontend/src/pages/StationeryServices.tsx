@@ -66,6 +66,13 @@ export default function StationeryServices() {
   };
 
   const updateMaterialRow = (index: number, field: 'inventoryItemId' | 'quantityPerUnit', value: string | number) => {
+    if (field === 'inventoryItemId' && value) {
+      const isDuplicate = form.materialsUsed.some((m, i) => i !== index && m.inventoryItemId === value);
+      if (isDuplicate) {
+        toast.error('This material is already added. Increase its quantity instead.');
+        return;
+      }
+    }
     setForm(f => ({
       ...f,
       materialsUsed: f.materialsUsed.map((m, i) => i === index ? { ...m, [field]: value } : m),

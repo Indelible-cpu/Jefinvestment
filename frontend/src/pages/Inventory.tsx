@@ -123,6 +123,14 @@ export default function Inventory() {
       submitForm.reorderLevel = 0;
     }
 
+    // Warn if selling below cost — let admin confirm but don't block
+    if (!submitForm.isService && !submitForm.isEquipment && submitForm.sellingPrice > 0 && submitForm.sellingPrice < submitForm.costPrice) {
+      const proceed = window.confirm(
+        `⚠️ Selling price (${submitForm.sellingPrice.toLocaleString()}) is below cost price (${submitForm.costPrice.toLocaleString()}).\n\nYou will be selling at a loss. Continue anyway?`
+      );
+      if (!proceed) { setIsSubmitting(false); return; }
+    }
+
     try {
       if (editId) {
         await updateProduct({ ...submitForm, id: editId });

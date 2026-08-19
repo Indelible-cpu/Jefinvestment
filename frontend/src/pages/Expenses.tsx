@@ -20,14 +20,22 @@ export default function Expenses() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
 
-  const emptyForm = { category: 'Store Supplies', description: '', amount: 0, loggedBy: user?.name || 'Unknown' };
+  const emptyForm = () => ({ category: 'Store Supplies', description: '', amount: 0, loggedBy: user?.name || 'Unknown' });
 
   useEffect(() => {
     loadExpenses();
   }, []);
+  
+  // Sync loggedBy whenever user loads (auth may not be ready on first render)
+  useEffect(() => {
+    if (user?.name) {
+      setForm(f => ({ ...f, loggedBy: user.name! }));
+    }
+  }, [user?.name]);
+
   const [dateFilter, setDateFilter] = useState(today);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(emptyForm());
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,12 +51,12 @@ export default function Expenses() {
     try {
       await addExpense({ ...form });
       toast.success('Expense logged successfully');
-      setForm(emptyForm);
+      setForm(emptyForm());
       setShowModal(false);
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
         toast.warning('Offline', { description: 'Expense saved locally and will sync when online.' });
-        setForm(emptyForm);
+        setForm(emptyForm());
         setShowModal(false);
       } else {
         setError(err.message || 'Failed to save expense');

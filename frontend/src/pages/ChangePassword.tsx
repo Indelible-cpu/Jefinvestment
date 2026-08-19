@@ -14,7 +14,9 @@ export default function ChangePassword() {
   const isForced = user?.requiresPasswordChange;
   const [reason, setReason] = useState(isForced ? 'New User' : '');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [status, setStatus] = useState<'IDLE' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'DONE'>('IDLE');
   const [requestId, setRequestId] = useState<string | null>(null);
 
@@ -71,6 +73,10 @@ export default function ChangePassword() {
     if (!user) return;
     if (!reason) {
       toast.error('Please specify a reason for changing your password.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match. Please re-enter your new password.');
       return;
     }
     if (checkPasswordStrength(newPassword).score < 3) {
@@ -170,9 +176,41 @@ export default function ChangePassword() {
                 )}
               </div>
 
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPw ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    className={`w-full p-2.5 pr-10 border rounded-lg focus:ring-2 focus:ring-primary outline-none transition ${confirmPassword && newPassword !== confirmPassword ? 'border-red-400 focus:ring-red-300' : confirmPassword && newPassword === confirmPassword ? 'border-green-400' : ''}`}
+                    placeholder="Re-enter new password"
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={() => setShowConfirmPw(true)}
+                    onMouseUp={() => setShowConfirmPw(false)}
+                    onMouseLeave={() => setShowConfirmPw(false)}
+                    onTouchStart={() => setShowConfirmPw(true)}
+                    onTouchEnd={() => setShowConfirmPw(false)}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 transition"
+                  >
+                    {showConfirmPw ? <Eye size={18} /> : <EyeOff size={18} />}
+                  </button>
+                </div>
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p className="text-xs text-red-500 mt-1 font-medium">Passwords do not match</p>
+                )}
+                {confirmPassword && newPassword === confirmPassword && (
+                  <p className="text-xs text-green-600 mt-1 font-medium">✓ Passwords match</p>
+                )}
+              </div>
+
               <button
                 type="submit"
-                disabled={!newPassword || checkPasswordStrength(newPassword).score < 3 || !reason}
+                disabled={!newPassword || !confirmPassword || newPassword !== confirmPassword || checkPasswordStrength(newPassword).score < 3 || !reason}
                 className="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none transition active:scale-95"
               >
                 Submit Request
