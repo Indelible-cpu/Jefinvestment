@@ -268,12 +268,12 @@ export default function ShopMapModal({ isOpen, onClose, product, mode, inline = 
                         <>
                           {/* Pulse ring */}
                           <span className="absolute inset-0 flex items-end justify-center">
-                            <span className="w-8 h-8 rounded-full bg-red-500/30 animate-ping absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-2" />
+                            <span className="w-5 h-5 rounded-full bg-red-500/30 animate-ping absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5" />
                           </span>
                           {/* Shadow dot on ground */}
-                          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1.5 w-3 h-1.5 bg-black/20 rounded-full blur-sm" />
+                          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1 w-2 h-1 bg-black/20 rounded-full blur-[1px]" />
                           {/* Pin icon */}
-                          <MapPin size={36} className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" fill="#dc2626" />
+                          <MapPin size={22} className="text-red-600 drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]" fill="#dc2626" />
                         </>
                       )}
                     </div>
