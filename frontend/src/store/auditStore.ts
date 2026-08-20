@@ -43,12 +43,12 @@ export const useAuditStore = create<AuditState>()((set) => ({
   addLog: async (action: string, details: string) => {
     const user = useAuthStore.getState().user?.name || 'System';
     try {
-      await addDoc(collection(db, 'auditLogs'), {
+      addDoc(collection(db, 'auditLogs'), {
         action,
         details,
         user,
         timestamp: Date.now()
-      });
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
     } catch (err) {
       console.warn('Failed to save audit log', err);
     }

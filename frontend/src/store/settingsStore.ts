@@ -54,7 +54,7 @@ export const useSettingsStore = create<CompanySettings>()(
       updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
         try {
-          await setDoc(doc(db, 'settings', 'global'), newSettings, { merge: true });
+          setDoc(doc(db, 'settings', 'global'), newSettings, { merge: true }).catch(e => console.warn('Offline write deferred or failed:', e));
         } catch (err: any) {
           console.error('Failed to sync settings to Firestore', err);
           throw new Error('OFFLINE_QUEUED');

@@ -62,17 +62,17 @@ export const useStationeryStore = create<StationeryState>()((set) => ({
   },
 
   addStationeryService: async (svc) => {
-    await addDoc(collection(db, 'stationeryServices'), {
+    addDoc(collection(db, 'stationeryServices'), {
       ...svc,
       createdAt: Date.now(),
-    });
+    }).catch(e => console.warn('Offline write deferred or failed:', e));
   },
 
   updateStationeryService: async (id, svc) => {
-    await updateDoc(doc(db, 'stationeryServices', id), svc);
+    updateDoc(doc(db, 'stationeryServices', id), svc).catch(e => console.warn('Offline write deferred or failed:', e));
   },
 
   deleteStationeryService: async (id) => {
-    await deleteDoc(doc(db, 'stationeryServices', id));
+    deleteDoc(doc(db, 'stationeryServices', id)).catch(e => console.warn('Offline write deferred or failed:', e));
   },
 }));

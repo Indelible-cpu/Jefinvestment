@@ -101,7 +101,7 @@ export const useProductStore = create<ProductState>()(
         createdAt: Date.now(),
       };
 
-      await addDoc(collection(db, 'products'), payload);
+      addDoc(collection(db, 'products'), payload).catch(e => console.warn('Offline write deferred or failed:', e));
     },
 
     updateProduct: async (product) => {
@@ -122,17 +122,17 @@ export const useProductStore = create<ProductState>()(
         images: product.images || [],
       };
 
-      await updateDoc(doc(db, 'products', product.id), payload);
+      updateDoc(doc(db, 'products', product.id), payload).catch(e => console.warn('Offline write deferred or failed:', e));
     },
 
     deleteProduct: async (id) => {
-      await deleteDoc(doc(db, 'products', id));
+      deleteDoc(doc(db, 'products', id)).catch(e => console.warn('Offline write deferred or failed:', e));
     },
 
     decrementStock: async (id, qty) => {
-      await updateDoc(doc(db, 'products', id), {
+      updateDoc(doc(db, 'products', id), {
         stock: increment(-qty)
-      });
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
   })
 );
@@ -234,7 +234,7 @@ export const useCartStore = create<CartState>()(
         };
 
         try {
-          await setDoc(doc(db, 'users', userId, 'heldCarts', newHeldCart.id), newHeldCart);
+          setDoc(doc(db, 'users', userId, 'heldCarts', newHeldCart.id), newHeldCart).catch(e => console.warn('Offline write deferred or failed:', e));
           clearCart();
         } catch (error) {
           console.error("Failed to hold cart in Firestore", error);
@@ -252,7 +252,7 @@ export const useCartStore = create<CartState>()(
         }));
 
         try {
-          await deleteDoc(doc(db, 'users', userId, 'heldCarts', id));
+          deleteDoc(doc(db, 'users', userId, 'heldCarts', id)).catch(e => console.warn('Offline write deferred or failed:', e));
         } catch (error) {
           console.error("Failed to remove restored cart from Firestore", error);
         }
@@ -260,7 +260,7 @@ export const useCartStore = create<CartState>()(
 
       removeHeldCart: async (userId: string, id: string) => {
         try {
-          await deleteDoc(doc(db, 'users', userId, 'heldCarts', id));
+          deleteDoc(doc(db, 'users', userId, 'heldCarts', id)).catch(e => console.warn('Offline write deferred or failed:', e));
         } catch (error) {
           console.error("Failed to remove held cart from Firestore", error);
         }

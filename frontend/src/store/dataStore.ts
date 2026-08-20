@@ -71,10 +71,10 @@ export const useExpenseStore = create<ExpenseState>()(
         date: new Date().toISOString().slice(0, 10),
         createdAt: Date.now(),
       };
-      await addDoc(collection(db, 'expenses'), newExpense);
+      addDoc(collection(db, 'expenses'), newExpense).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     deleteExpense: async (id) => {
-      await deleteDoc(doc(db, 'expenses', id));
+      deleteDoc(doc(db, 'expenses', id)).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     getTodayTotal: () => {
       const today = new Date().toISOString().slice(0, 10);
@@ -282,14 +282,14 @@ export const useSaleStore = create<SaleState>()(
                     const invRef = doc(db, 'products', mat.inventoryItemId || mat.productId);
                     const invDoc = await getDoc(invRef);
                     if (invDoc.exists()) {
-                      await updateDoc(invRef, { stock: increment((mat.quantityPerUnit || 1) * item.quantity) });
+                      updateDoc(invRef, { stock: increment((mat.quantityPerUnit || 1) * item.quantity) }).catch(e => console.warn('Offline write deferred or failed:', e));
                     }
                   }
                 } else if (!item.isService && !item.isStationeryService) {
                   const invRef = doc(db, 'products', item.id || item.productId);
                   const invDoc = await getDoc(invRef);
                   if (invDoc.exists()) {
-                    await updateDoc(invRef, { stock: increment(item.quantity) });
+                    updateDoc(invRef, { stock: increment(item.quantity) }).catch(e => console.warn('Offline write deferred or failed:', e));
                   }
                 }
               }
@@ -303,7 +303,7 @@ export const useSaleStore = create<SaleState>()(
             }
           }
         }
-        await updateDoc(doc(db, 'sales', id), { status: status.toLowerCase() });
+        updateDoc(doc(db, 'sales', id), { status: status.toLowerCase() }).catch(e => console.warn('Offline write deferred or failed:', e));
       } catch (e) {
         console.error('Failed to update sale status', e);
         throw e;
@@ -312,7 +312,7 @@ export const useSaleStore = create<SaleState>()(
 
     deleteSale: async (id) => {
       try {
-        await deleteDoc(doc(db, 'sales', id));
+        deleteDoc(doc(db, 'sales', id)).catch(e => console.warn('Offline write deferred or failed:', e));
       } catch (e) {
         console.error('Failed to delete sale', e);
       }
@@ -417,17 +417,17 @@ export const useCreditStore = create<CreditState>()(
         creditPaid: 0,
         createdAt: Date.now(),
       };
-      await addDoc(collection(db, 'sales'), newCredit);
+      addDoc(collection(db, 'sales'), newCredit).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     recordRepayment: async (id, amount, method = 'CASH') => {
-      await updateDoc(doc(db, 'sales', id), {
+      updateDoc(doc(db, 'sales', id), {
         creditPaid: increment(amount),
         repayments: arrayUnion({
           amount,
           method,
           date: new Date().toISOString()
         })
-      });
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     getTotalOutstanding: () =>
       get().credits.filter(c => c.status !== 'FULLY_PAID').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0),
@@ -488,32 +488,32 @@ export const useEmployeeStore = create<EmployeeState>()(
       registerListener(unsub_employees);
     },
     addEmployee: async (emp) => {
-      await addDoc(collection(db, 'employees'), {
+      addDoc(collection(db, 'employees'), {
         ...emp,
         advancePay: 0,
         createdAt: Date.now()
-      });
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     updateStatus: async (id, status) => {
-      await updateDoc(doc(db, 'employees', id), { status });
+      updateDoc(doc(db, 'employees', id), { status }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     updateEmployee: async (id, emp) => {
-      await updateDoc(doc(db, 'employees', id), emp);
+      updateDoc(doc(db, 'employees', id), emp).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     deleteEmployee: async (id) => {
-      await deleteDoc(doc(db, 'employees', id));
+      deleteDoc(doc(db, 'employees', id)).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     recordAdvancePay: async (id, amount, notes) => {
       const emp = get().employees.find(e => e.id === id);
       if (!emp) return;
 
       // Update employee advance pay total
-      await updateDoc(doc(db, 'employees', id), {
+      updateDoc(doc(db, 'employees', id), {
         advancePay: increment(amount)
-      });
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
 
       // Automatically record as an expense for accounting
-      await addDoc(collection(db, 'expenses'), {
+      addDoc(collection(db, 'expenses'), {
         title: `Salary Advance: ${emp.firstName} ${emp.lastName}`,
         amount: Number(amount),
         category: 'Salary / Advance Pay',
@@ -522,12 +522,12 @@ export const useEmployeeStore = create<EmployeeState>()(
         date: new Date().toISOString().slice(0, 10),
         loggedBy: 'System',
         createdAt: Date.now()
-      });
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     clearAdvancePay: async (id) => {
-      await updateDoc(doc(db, 'employees', id), {
+      updateDoc(doc(db, 'employees', id), {
         advancePay: 0
-      });
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
     getTotalAdvancePay: () => get().employees.reduce((sum, e) => sum + (e.advancePay || 0), 0),

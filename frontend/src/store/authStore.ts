@@ -329,8 +329,6 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, token: null, isAuthenticated: false, users: [] });
         try {
           localStorage.removeItem('jef-auth-storage');
-          localStorage.clear();
-          sessionStorage.clear();
         } catch (e) {
           console.warn("Error clearing storage on logout", e);
         }
@@ -515,8 +513,6 @@ onAuthStateChanged(auth, (firebaseUser) => {
       useAuthStore.setState({ user: null, token: null, isAuthenticated: false, users: [] });
       try {
         localStorage.removeItem('jef-auth-storage');
-        localStorage.clear();
-        sessionStorage.clear();
       } catch (e) {
         // ignore
       }
