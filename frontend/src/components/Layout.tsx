@@ -307,7 +307,9 @@ export default function Layout() {
                 <div className="w-2.5 h-2.5 bg-red-400 rounded-full mt-1" title="Offline"></div>
               )}
             </div>
-            <p className="text-sm text-blue-100 mt-0.5">{greeting}, {user?.name?.split(' ').at(-1) || 'Jef'} 👋</p>
+            <div className="animate-float-lr mt-0.5">
+              <p className="text-sm text-blue-100">{greeting}, {user?.name?.split(' ').at(-1) || 'Jef'} 👋</p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">

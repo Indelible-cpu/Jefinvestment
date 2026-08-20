@@ -80,6 +80,17 @@
   .no-spinners {
     -moz-appearance: textfield;
   }
+
+  /* Floating animation for greeting text */
+  @keyframes float-lr {
+    0% { transform: translateX(0); }
+    50% { transform: translateX(30px); }
+    100% { transform: translateX(0); }
+  }
+  .animate-float-lr {
+    animation: float-lr 6s ease-in-out infinite;
+    display: inline-block;
+  }
 }
 
 /* ─── Print Styles ────────────────────────────────────────────────────────── */
