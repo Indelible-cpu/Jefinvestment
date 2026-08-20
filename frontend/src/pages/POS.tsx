@@ -45,7 +45,7 @@ export default function POS() {
   const cart = useCartStore();
   const { products, isLoading: productsLoading } = useProductStore();
   const { addSale } = useSaleStore();
-  const { services: stationeryServices } = useStationeryStore();
+  const { services: stationeryServices, loadStationeryServices } = useStationeryStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
@@ -128,6 +128,11 @@ export default function POS() {
     }
     return baseTotal;
   }, [cart.getTotal(), taxRate, taxType]);
+
+  // Load stationery services when POS mounts (lazy-loaded page)
+  useEffect(() => {
+    loadStationeryServices();
+  }, []);
 
   useEffect(() => {
     if (paymentMethod === 'CASH') {
