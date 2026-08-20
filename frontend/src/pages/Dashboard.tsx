@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [showCustomize, setShowCustomize] = useState(false);
   const [tempActions, setTempActions] = useState<string[]>(settings.quickActions);
 
-  const firstName = user?.name?.split(' ').at(0) || 'there';
+  const firstName = user?.name?.split(' ').at(-1) || 'there';
 
   const todayTotal = getTodayTotal();
   const outstandingCredit = getTotalOutstanding();
