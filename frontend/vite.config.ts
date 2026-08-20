@@ -25,9 +25,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'StoreSight',
-        short_name: 'StoreSight',
-        description: 'StoreSight Custom ERP System',
+        name: 'MsikaFlo',
+        short_name: 'MsikaFlo',
+        description: 'MsikaFlo Custom ERP System',
         theme_color: '#004bb4',
         background_color: '#ffffff',
         display: 'standalone',

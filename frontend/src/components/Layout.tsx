@@ -300,7 +300,7 @@ export default function Layout() {
         <div className="flex items-start">
           <div className="flex flex-col mt-0.5">
             <div className="flex items-center gap-2">
-              <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">StoreSight</h1>
+              <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">MsikaFlo</h1>
               {isOnline ? (
                 <div className="w-2.5 h-2.5 bg-green-400 rounded-full shadow-[0_0_0_2px_rgba(74,222,128,0.2)] animate-pulse mt-1" title="Online"></div>
               ) : (
@@ -524,7 +524,7 @@ export default function Layout() {
             </button>
           </div>
           <div className="text-[10px] text-center text-white font-normal tracking-wide pb-4 md:pb-0 mt-2">
-            StoreSight • Powered by Indelible Technologies
+            MsikaFlo • Powered by Indelible Technologies
           </div>
         </div>
       </aside>

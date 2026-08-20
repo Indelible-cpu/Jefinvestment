@@ -11,7 +11,7 @@ export default function TermsOfService() {
         </button>
         <div>
           <h1 className="font-bold text-lg leading-tight">Terms of Service</h1>
-          <p className="text-blue-200 text-xs">StoreSight — Indelible Technologies</p>
+          <p className="text-blue-200 text-xs">MsikaFlo — Indelible Technologies</p>
         </div>
       </div>
       <div className="max-w-2xl mx-auto p-6 flex-1">
@@ -26,22 +26,22 @@ export default function TermsOfService() {
 
           <section>
             <h3 className="font-bold text-gray-800 mb-2">1. Acceptance of Terms</h3>
-            <p>By accessing or using StoreSight, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you may not use this system.</p>
+            <p>By accessing or using MsikaFlo, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you may not use this system.</p>
           </section>
 
           <section>
             <h3 className="font-bold text-gray-800 mb-2">2. Use of the System</h3>
-            <p>StoreSight is provided exclusively for authorized business use by StoreSight and its employees. Unauthorized access, sharing of credentials, or misuse of business data is strictly prohibited.</p>
+            <p>MsikaFlo is provided exclusively for authorized business use by MsikaFlo and its employees. Unauthorized access, sharing of credentials, or misuse of business data is strictly prohibited.</p>
           </section>
 
           <section>
             <h3 className="font-bold text-gray-800 mb-2">3. Data Ownership</h3>
-            <p>All business data entered into StoreSight (sales, inventory, expenses, etc.) remains the property of StoreSight. Indelible Technologies acts as a processor and will never share or sell your business data to third parties.</p>
+            <p>All business data entered into MsikaFlo (sales, inventory, expenses, etc.) remains the property of MsikaFlo. Indelible Technologies acts as a processor and will never share or sell your business data to third parties.</p>
           </section>
 
           <section>
             <h3 className="font-bold text-gray-800 mb-2">4. System Availability</h3>
-            <p>While we strive for maximum uptime, StoreSight operates with offline-first capabilities. Indelible Technologies is not liable for temporary disruptions caused by network outages or scheduled maintenance.</p>
+            <p>While we strive for maximum uptime, MsikaFlo operates with offline-first capabilities. Indelible Technologies is not liable for temporary disruptions caused by network outages or scheduled maintenance.</p>
           </section>
 
           <section>
@@ -55,7 +55,7 @@ export default function TermsOfService() {
           </section>
         </div>
       </div>
-      <div className="text-center text-xs text-gray-400 py-4">StoreSight · Powered by Indelible Technologies</div>
+      <div className="text-center text-xs text-gray-400 py-4">MsikaFlo · Powered by Indelible Technologies</div>
     </div>
   );
 }

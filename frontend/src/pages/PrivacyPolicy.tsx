@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
         </button>
         <div>
           <h1 className="font-bold text-lg leading-tight">Privacy Policy</h1>
-          <p className="text-blue-200 text-xs">StoreSight — Indelible Technologies</p>
+          <p className="text-blue-200 text-xs">MsikaFlo — Indelible Technologies</p>
         </div>
       </div>
       <div className="max-w-2xl mx-auto p-6 flex-1">
@@ -26,12 +26,12 @@ export default function PrivacyPolicy() {
 
           <section>
             <h3 className="font-bold text-gray-800 mb-2">1. Information We Collect</h3>
-            <p>StoreSight collects only the business information you enter, including sales records, inventory data, expense logs, employee profiles, and customer credit records. No personal browsing data or device information is shared externally.</p>
+            <p>MsikaFlo collects only the business information you enter, including sales records, inventory data, expense logs, employee profiles, and customer credit records. No personal browsing data or device information is shared externally.</p>
           </section>
 
           <section>
             <h3 className="font-bold text-gray-800 mb-2">2. How We Use Your Data</h3>
-            <p>All data is used exclusively for operating the StoreSight system — generating reports, managing inventory, processing sales, and providing system analytics for StoreSight. We do not use your data for advertising or profiling.</p>
+            <p>All data is used exclusively for operating the MsikaFlo system — generating reports, managing inventory, processing sales, and providing system analytics for MsikaFlo. We do not use your data for advertising or profiling.</p>
           </section>
 
           <section>
@@ -55,7 +55,7 @@ export default function PrivacyPolicy() {
           </section>
         </div>
       </div>
-      <div className="text-center text-xs text-gray-400 py-4">StoreSight · Powered by Indelible Technologies</div>
+      <div className="text-center text-xs text-gray-400 py-4">MsikaFlo · Powered by Indelible Technologies</div>
     </div>
   );
 }

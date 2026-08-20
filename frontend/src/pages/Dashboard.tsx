@@ -76,9 +76,22 @@ export default function Dashboard() {
       <AutoClearPrompt />
 
       {/* Greeting (Desktop Only) */}
-      <div className="hidden md:block mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, {firstName}! 👋</h1>
-        <p className="text-gray-500 mt-1 text-sm">{dateStr}</p>
+      <div className="hidden md:block mb-6 relative h-10">
+        <style>{`
+          @keyframes float-lr {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(50px); }
+            100% { transform: translateX(0); }
+          }
+          .animate-float-lr {
+            animation: float-lr 6s ease-in-out infinite;
+            display: inline-block;
+          }
+        `}</style>
+        <div className="animate-float-lr">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, {firstName}! 👋</h1>
+        </div>
+        <p className="text-gray-500 text-sm absolute -top-4 right-0">{dateStr}</p>
       </div>
 
       {/* KPI Cards */}

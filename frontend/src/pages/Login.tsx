@@ -74,9 +74,9 @@ export default function Login() {
         {/* Blue header */}
         <div className="bg-primary p-8 text-center">
           <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden shadow-lg border-2 border-white/20">
-            <img src="/pwa-192x192.png" alt="StoreSight" className="w-full h-full object-cover bg-black rounded-full shadow-lg" />
+            <img src="/pwa-192x192.png" alt="MsikaFlo" className="w-full h-full object-cover bg-black rounded-full shadow-lg" />
           </div>
-          <h1 className="text-2xl font-bold text-white">StoreSight</h1>
+          <h1 className="text-2xl font-bold text-white">MsikaFlo</h1>
           <p className="text-blue-200 mt-1 text-sm">One system. Total control.</p>
         </div>
 

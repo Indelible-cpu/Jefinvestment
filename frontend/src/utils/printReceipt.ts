@@ -44,7 +44,7 @@ export const printReceipt = (
       <body>
         ${settings.companyLogo ? `<img src="${settings.companyLogo}" class="logo" />` : ''}
         <div class="text-center mb border-bottom">
-          <h2 style="margin: 0;">${settings.companyName || 'StoreSight'}</h2>
+          <h2 style="margin: 0;">${settings.companyName || 'MsikaFlo'}</h2>
           ${settings.address ? `<p style="margin: 4px 0;">${settings.address}</p>` : ''}
           ${settings.phone ? `<p style="margin: 4px 0;">Tel: ${settings.phone}</p>` : ''}
           ${settings.taxNumber ? `<p style="margin: 4px 0;">TPIN: ${settings.taxNumber}</p>` : ''}
