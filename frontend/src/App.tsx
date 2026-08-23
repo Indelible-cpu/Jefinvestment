@@ -21,6 +21,7 @@ const ProductFinder = lazy(() => import('./pages/ProductFinder'));
 const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Order = lazy(() => import('./pages/Order'));
+const Branches = lazy(() => import('./pages/Branches'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-screen w-full bg-gray-50">
@@ -50,6 +51,7 @@ function App() {
                 <Route path="employees" element={<Employees />} />
                 <Route path="stationery-services" element={<StationeryServices />} />
                 <Route path="reports" element={<Reports />} />
+                <Route path="branches" element={<Branches />} />
               </Route>
 
               {/* Shared routes (Admin + Cashier) */}

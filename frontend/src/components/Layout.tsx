@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore } from '../store/dataStore';
@@ -483,6 +483,9 @@ export default function Layout() {
 
           {isAdmin && (
             <>
+              <Link to="/inventory" className={navLinkClass('/inventory', true)}>
+                <Package size={20} /> <span>Inventory</span>
+              </Link>
               <Link to="/credits" className={navLinkClass('/credits')}>
                 <CreditCard size={20} /> <span>Credit Sales</span>
               </Link>
@@ -497,6 +500,9 @@ export default function Layout() {
               </Link>
               <Link to="/order" className={navLinkClass('/order')}>
                 <TrendingUp size={20} /> <span>Smart Order List</span>
+              </Link>
+              <Link to="/branches" className={navLinkClass('/branches')}>
+                <GitBranch size={20} /> <span>Branches</span>
               </Link>
             </>
           )}
@@ -519,6 +525,11 @@ export default function Layout() {
               <div className="flex flex-col overflow-hidden">
                 <span className="font-bold text-sm truncate">{user?.name}</span>
                 <span className="text-xs text-blue-300 capitalize">{user?.role.toLowerCase()}</span>
+                {user?.branchName && (
+                  <span className="text-[10px] text-blue-400 flex items-center gap-1 mt-0.5 truncate">
+                    <GitBranch size={9} /> {user.branchName}
+                  </span>
+                )}
               </div>
             </div>
             <button onClick={handleLogout} className="text-blue-300 hover:text-white p-2 hover:bg-red-500/20 rounded transition" title="Sign Out">
