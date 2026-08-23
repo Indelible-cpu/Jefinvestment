@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GitBranch, Plus, Trash2, Edit2, Check, X, MapPin, Phone, User, Building2, ToggleLeft, ToggleRight } from 'lucide-react';
-import { useBranchStore, Branch } from '../store/branchStore';
+import { useBranchStore, type Branch } from '../store/branchStore';
 import { useAuthStore } from '../store/authStore';
 import { toast } from 'sonner';
 
