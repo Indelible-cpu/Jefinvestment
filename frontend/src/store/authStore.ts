@@ -172,11 +172,11 @@ export const useAuthStore = create<AuthState>()(
             return { success: true };
           }
           if (isAdminLocal) {
-            set({ token: 'local-admin-token', user: { id: 'local-admin-id', name: 'Admin User', role: 'ADMIN', branchId: 'main-branch', branchName: 'Main Branch', profilePic: '' }, isAuthenticated: true, isLoading: false });
+            set({ token: 'local-admin-token', user: { id: 'local-admin-id', name: 'Admin User', role: 'ADMIN', branchId: 'main', branchName: 'Mangochi HQ', profilePic: '' }, isAuthenticated: true, isLoading: false });
             return { success: true };
           }
           if (isCashierLocal) {
-            set({ token: 'local-cashier-token', user: { id: 'local-cashier-id', name: 'Cashier User', role: 'CASHIER', branchId: 'main-branch', branchName: 'Main Branch', profilePic: '' }, isAuthenticated: true, isLoading: false });
+            set({ token: 'local-cashier-token', user: { id: 'local-cashier-id', name: 'Cashier User', role: 'CASHIER', branchId: 'main', branchName: 'Mangochi HQ', profilePic: '' }, isAuthenticated: true, isLoading: false });
             return { success: true };
           }
           return null;
@@ -225,8 +225,8 @@ export const useAuthStore = create<AuthState>()(
             name: userData.name || email.split('@')[0],
             email: userData.email || email,
             role: userData.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
-            branchId: userData.branchId,
-            branchName: userData.branchName,
+            branchId: userData.branchId || 'main',
+            branchName: userData.branchName || 'Mangochi HQ',
             profilePic: userData.profilePic || '',
             requiresPasswordChange: userData.requiresPasswordChange || false,
           };
@@ -259,8 +259,8 @@ export const useAuthStore = create<AuthState>()(
                 id: 'local-admin-id',
                 name: 'Admin User',
                 role: 'ADMIN',
-                branchId: 'main-branch',
-                branchName: 'Main Branch',
+                branchId: 'main',
+                branchName: 'Mangochi HQ',
                 profilePic: '',
               },
               isAuthenticated: true,
@@ -276,8 +276,8 @@ export const useAuthStore = create<AuthState>()(
                 id: 'local-cashier-id',
                 name: 'Cashier User',
                 role: 'CASHIER',
-                branchId: 'main-branch',
-                branchName: 'Main Branch',
+                branchId: 'main',
+                branchName: 'Mangochi HQ',
                 profilePic: '',
               },
               isAuthenticated: true,
@@ -430,7 +430,7 @@ export const useAuthStore = create<AuthState>()(
                 name: data.name || '',
                 email: data.email || data.username || '',
                 role: data.role || 'CASHIER',
-                branchId: data.branchId || null,
+                branchId: data.branchId || 'main',
                 isActive: data.isActive !== false,
                 lastActiveAt: data.lastActiveAt || 0,
                 requiresPasswordChange: data.requiresPasswordChange,

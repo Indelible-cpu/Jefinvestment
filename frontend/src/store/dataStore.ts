@@ -16,7 +16,7 @@ import {
   arrayUnion
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { registerListener } from './authStore';
+import { registerListener, useAuthStore } from './authStore';
 
 // ─── Expense Store ─────────────────────────────────────────────────────────────
 export interface Expense {
@@ -45,7 +45,16 @@ export const useExpenseStore = create<ExpenseState>()(
       set({ isLoading: true });
       // Limit to last 90 days for performance
       const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
-      const q = query(collection(db, 'expenses'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
+      const user = useAuthStore.getState().user;
+      const branchId = user?.branchId || 'main';
+      
+      let q;
+      // Admins can see all branches by default for now unless we add an active branch toggle.
+      if (user?.role === 'ADMIN') {
+        q = query(collection(db, 'expenses'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
+      } else {
+        q = query(collection(db, 'expenses'), where('branchId', '==', branchId), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
+      }
       const unsub = onSnapshot(q, (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const data = doc.data();
@@ -66,8 +75,10 @@ export const useExpenseStore = create<ExpenseState>()(
       registerListener(unsub);
     },
     addExpense: async (expense) => {
+      const branchId = useAuthStore.getState().user?.branchId || 'main';
       const newExpense = {
         ...expense,
+        branchId,
         date: new Date().toISOString().slice(0, 10),
         createdAt: Date.now(),
       };
@@ -146,7 +157,15 @@ export const useSaleStore = create<SaleState>()(
       set({ isLoading: true });
       // Limit to last 90 days for performance — Reports page can query further back if needed
       const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
-      const q = query(collection(db, 'sales'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
+      const user = useAuthStore.getState().user;
+      const branchId = user?.branchId || 'main';
+      
+      let q;
+      if (user?.role === 'ADMIN') {
+        q = query(collection(db, 'sales'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
+      } else {
+        q = query(collection(db, 'sales'), where('branchId', '==', branchId), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
+      }
       const unsub_sales = onSnapshot(q, (snapshot) => {
         const mappedSales = snapshot.docs.map(doc => {
           const s = doc.data();
@@ -193,8 +212,10 @@ export const useSaleStore = create<SaleState>()(
         }
       });
 
+      const branchId = useAuthStore.getState().user?.branchId || 'main';
       const newSale: Record<string, any> = {
         ...cleanedSale,
+        branchId,
         createdAt: Date.now(),
         status: 'completed'
       };
@@ -376,7 +397,15 @@ export const useCreditStore = create<CreditState>()(
     isLoading: false,
     loadCredits: async () => {
       set({ isLoading: true });
-      const q = query(collection(db, 'sales'), where('isCredit', '==', true));
+      const user = useAuthStore.getState().user;
+      const branchId = user?.branchId || 'main';
+      
+      let q;
+      if (user?.role === 'ADMIN') {
+        q = query(collection(db, 'sales'), where('isCredit', '==', true));
+      } else {
+        q = query(collection(db, 'sales'), where('branchId', '==', branchId), where('isCredit', '==', true));
+      }
       const unsub_credits = onSnapshot(q, (snapshot) => {
         const today = new Date().toISOString().slice(0, 10);
         const mapped = snapshot.docs.map(doc => {
@@ -466,7 +495,17 @@ export const useEmployeeStore = create<EmployeeState>()(
     isLoading: false,
     loadEmployees: async () => {
       set({ isLoading: true });
-      const unsub_employees = onSnapshot(collection(db, 'employees'), (snapshot) => {
+      const user = useAuthStore.getState().user;
+      const branchId = user?.branchId || 'main';
+      
+      let q;
+      if (user?.role === 'ADMIN') {
+        q = collection(db, 'employees');
+      } else {
+        q = query(collection(db, 'employees'), where('branchId', '==', branchId));
+      }
+      
+      const unsub_employees = onSnapshot(q, (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const e = doc.data();
           return {
@@ -488,8 +527,10 @@ export const useEmployeeStore = create<EmployeeState>()(
       registerListener(unsub_employees);
     },
     addEmployee: async (emp) => {
+      const branchId = useAuthStore.getState().user?.branchId || 'main';
       addDoc(collection(db, 'employees'), {
         ...emp,
+        branchId,
         advancePay: 0,
         createdAt: Date.now()
       }).catch(e => console.warn('Offline write deferred or failed:', e));
