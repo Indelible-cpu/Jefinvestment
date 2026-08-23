@@ -96,6 +96,12 @@ service cloud.firestore {
       allow create: if isAuthenticated();
     }
     
+    // Branches
+    match /branches/{branchId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
     // Fallback: Deny everything else
     match /{document=**} {
       allow read, write: if false;
