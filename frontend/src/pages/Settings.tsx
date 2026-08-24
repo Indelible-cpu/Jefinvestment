@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useBranchStore } from '../store/branchStore';
 import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
@@ -18,13 +19,15 @@ export default function Settings() {
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
   const { updateSettings } = settings;
+  const { branches, loadBranches } = useBranchStore();
   const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
     if (isAdmin) {
       loadUsers();
+      loadBranches();
     }
-  }, [isAdmin, loadUsers]);
+  }, [isAdmin, loadUsers, loadBranches]);
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
@@ -52,7 +55,7 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState('');
   const [showNewPw, setShowNewPw] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' | 'MANAGER' });
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' | 'MANAGER', branchId: 'main' });
   const [showAddPw, setShowAddPw] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
@@ -186,7 +189,7 @@ export default function Settings() {
       await addUser(newUserForm);
       const addedName = newUserForm.name;
       addLog('USER_CREATED', `Admin "${user?.name}" created user "${addedName}" (${newUserForm.email}) with role ${newUserForm.role}.`);
-      setNewUserForm({ name: '', email: '', password: '', role: 'CASHIER' });
+      setNewUserForm({ name: '', email: '', password: '', role: 'CASHIER', branchId: 'main' });
       setShowAddUser(false);
       showSuccess(`User "${addedName}" added successfully!`);
     } catch (err: any) {
@@ -733,6 +736,15 @@ export default function Settings() {
                   <option value="CASHIER">Cashier</option>
                   <option value="MANAGER">Manager</option>
                   <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Branch</label>
+                <select value={newUserForm.branchId} onChange={e => setNewUserForm(f => ({ ...f, branchId: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white">
+                  <option value="main">Mangochi HQ</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
