@@ -37,7 +37,7 @@ export const useBranchStore = create<BranchState>()((set) => ({
 
   loadBranches: async () => {
     set({ isLoading: true });
-    const q = query(collection(db, 'branches'), orderBy('createdAt', 'asc'));
+    const q = collection(db, 'branches');
     const unsub = onSnapshot(q, (snapshot) => {
       const mapped: Branch[] = snapshot.docs.map((d) => {
         const data = d.data();
@@ -51,6 +51,7 @@ export const useBranchStore = create<BranchState>()((set) => ({
           createdAt: data.createdAt || 0,
         };
       });
+      mapped.sort((a, b) => a.createdAt - b.createdAt);
       set({ branches: mapped, isLoading: false });
     }, (err) => {
       console.warn('Failed to load branches', err);
