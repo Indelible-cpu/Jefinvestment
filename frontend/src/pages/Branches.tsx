@@ -29,8 +29,10 @@ export default function Branches() {
     loadBranches();
   }, []);
 
-  // Combine the permanent default HQ branch with Firestore branches
-  const allBranches = [DEFAULT_BRANCH, ...branches];
+  // Combine the permanent default HQ branch with Firestore branches (preventing duplicates if edited)
+  const firestoreMain = branches.find(b => b.id === 'main');
+  const mainBranch = firestoreMain || DEFAULT_BRANCH;
+  const allBranches = [mainBranch, ...branches.filter(b => b.id !== 'main')];
 
   const getUserCountForBranch = (branchId: string) =>
     users.filter((u) => (u.branchId || 'main') === branchId).length;

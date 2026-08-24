@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   collection,
   doc,
+  setDoc,
   onSnapshot,
   addDoc,
   deleteDoc,
@@ -68,7 +69,7 @@ export const useBranchStore = create<BranchState>()((set) => ({
   },
 
   updateBranch: async (id, data) => {
-    await updateDoc(doc(db, 'branches', id), data);
+    await setDoc(doc(db, 'branches', id), data, { merge: true });
   },
 
   deleteBranch: async (id) => {
