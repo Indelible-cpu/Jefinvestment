@@ -741,7 +741,7 @@ export default function Settings() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Branch</label>
                 <select value={newUserForm.branchId} onChange={e => setNewUserForm(f => ({ ...f, branchId: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white">
-                  <option value="main">Mangochi HQ</option>
+                  {!branches.find(b => b.id === 'main') && <option value="main">Main Branch</option>}
                   {branches.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}

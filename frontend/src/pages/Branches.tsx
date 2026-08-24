@@ -6,8 +6,8 @@ import { toast } from 'sonner';
 
 const DEFAULT_BRANCH: Branch = {
   id: 'main',
-  name: 'Mangochi HQ',
-  location: 'Mangochi, Malawi',
+  name: 'Main Branch',
+  location: 'Headquarters',
   phone: '',
   managerName: '',
   isActive: true,
