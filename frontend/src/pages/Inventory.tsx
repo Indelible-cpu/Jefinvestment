@@ -123,33 +123,50 @@ export default function Inventory() {
       submitForm.reorderLevel = 0;
     }
 
+    const executeSave = async () => {
+      try {
+        if (editId) {
+          await updateProduct({ ...submitForm, id: editId });
+          toast.success('Product updated successfully');
+        } else {
+          await addProduct({ ...submitForm, id: Date.now().toString() });
+          toast.success('Product added successfully');
+        }
+        setShowModal(false);
+      } catch (err: any) {
+        if (err.message === 'OFFLINE_QUEUED') {
+          toast.warning('Offline', { description: 'Product saved locally and will sync when online.' });
+          setShowModal(false);
+        } else {
+          toast.error('Failed to save product', { description: err.message });
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
     // Warn if selling below cost — let admin confirm but don't block
     if (!submitForm.isService && !submitForm.isEquipment && submitForm.sellingPrice > 0 && submitForm.sellingPrice < submitForm.costPrice) {
-      const proceed = window.confirm(
-        `⚠️ Selling price (${submitForm.sellingPrice.toLocaleString()}) is below cost price (${submitForm.costPrice.toLocaleString()}).\n\nYou will be selling at a loss. Continue anyway?`
-      );
-      if (!proceed) { setIsSubmitting(false); return; }
+      setIsSubmitting(false);
+      toast.warning('Selling at a loss', {
+        description: `Price (${submitForm.sellingPrice.toLocaleString()}) is below cost (${submitForm.costPrice.toLocaleString()}). Continue?`,
+        duration: 10000,
+        action: {
+          label: 'Yes, Save',
+          onClick: () => {
+            setIsSubmitting(true);
+            executeSave();
+          }
+        },
+        cancel: {
+          label: 'Cancel',
+          onClick: () => {}
+        }
+      });
+      return;
     }
 
-    try {
-      if (editId) {
-        await updateProduct({ ...submitForm, id: editId });
-        toast.success('Product updated successfully');
-      } else {
-        await addProduct({ ...submitForm, id: Date.now().toString() });
-        toast.success('Product added successfully');
-      }
-      setShowModal(false);
-    } catch (err: any) {
-      if (err.message === 'OFFLINE_QUEUED') {
-        toast.warning('Offline', { description: 'Product saved locally and will sync when online.' });
-        setShowModal(false);
-      } else {
-        toast.error('Failed to save product', { description: err.message });
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    executeSave();
   };
 
   const handleReamRestock = async () => {
