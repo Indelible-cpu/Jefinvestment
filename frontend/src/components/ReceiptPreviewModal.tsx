@@ -18,13 +18,14 @@ interface ReceiptPreviewModalProps {
   customerPhone?: string;
   customerId?: string;
   invoiceNumber: string;
+  dueDate?: string;
   onClose: () => void;
   onNewSale?: () => void;
 }
 
 export default function ReceiptPreviewModal({
   items, subtotal, discount, taxAmount, taxName, taxType, total,
-  paymentMethod, amountPaid, customerName, customerPhone, customerId, invoiceNumber, onClose, onNewSale
+  paymentMethod, amountPaid, customerName, customerPhone, customerId, invoiceNumber, dueDate, onClose, onNewSale
 }: ReceiptPreviewModalProps) {
   const [view, setView] = useState<'receipt' | 'invoice'>('receipt');
   const [sharing, setSharing] = useState(false);
@@ -137,6 +138,7 @@ export default function ReceiptPreviewModal({
                   <div><strong>Customer:</strong> {customerName}</div>
                   {customerPhone && <div><strong>Phone:</strong> {customerPhone}</div>}
                   {customerId && <div><strong>ID:</strong> {customerId}</div>}
+                  {paymentMethod === 'CREDIT' && dueDate && <div><strong>Due Date:</strong> {new Date(dueDate).toLocaleDateString('en-GB')}</div>}
                 </div>
               )}
 
@@ -223,6 +225,7 @@ export default function ReceiptPreviewModal({
                   <div style={{ fontWeight: 'bold', marginBottom: '4px', color: '#1d4ed8' }}>Bill To:</div>
                   <div style={{ fontWeight: 'bold' }}>{customerName}</div>
                   {customerPhone && <div style={{ color: '#666' }}>{customerPhone}</div>}
+                  {paymentMethod === 'CREDIT' && dueDate && <div style={{ color: '#b45309', marginTop: '4px', fontWeight: 'bold' }}>Due Date: {new Date(dueDate).toLocaleDateString('en-GB')}</div>}
                 </div>
               )}
 

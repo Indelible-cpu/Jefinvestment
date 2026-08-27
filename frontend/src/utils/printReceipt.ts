@@ -9,7 +9,8 @@ export const printReceipt = (
   amountPaid: number,
   taxAmount: number = 0,
   taxName: string = '',
-  taxType: string = 'EXCLUSIVE'
+  taxType: string = 'EXCLUSIVE',
+  dueDate: string = ''
 ) => {
   const receiptWindow = window.open('', '_blank', 'width=400,height=600');
   
@@ -50,6 +51,7 @@ export const printReceipt = (
           ${settings.taxNumber ? `<p style="margin: 4px 0;">TPIN: ${settings.taxNumber}</p>` : ''}
           <p style="margin: 4px 0;">Date: ${date}</p>
           <p style="margin: 4px 0;">Invoice: ${invoiceNumber}</p>
+          ${paymentMethod === 'CREDIT' && dueDate ? `<p style="margin: 4px 0; font-weight: bold;">Due Date: ${new Date(dueDate).toLocaleDateString('en-GB')}</p>` : ''}
         </div>
         
         <div class="border-bottom">
