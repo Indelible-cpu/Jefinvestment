@@ -190,111 +190,88 @@ export default function Employees() {
         </div>
       </div>
 
-      {/* Employee Table */}
-      <div className="bg-card rounded-lg border shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
-          <thead>
-            <tr className="bg-gray-50 border-b text-gray-600 text-sm font-semibold">
-              <th className="p-4">Name</th>
-              <th className="p-4">Phone</th>
-              <th className="p-4">Role</th>
-              <th className="p-4">Monthly Salary</th>
-              <th className="p-4">Advance Pay</th>
-              <th className="p-4">Attendance</th>
-              <th className="p-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y text-sm">
-            {isLoading ? (
-              <tr>
-                <td colSpan={7} className="p-12 text-center text-gray-500">
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="text-lg font-medium text-gray-600">Loading employees...</p>
-                    <p className="text-sm">Please wait while we fetch the records.</p>
-                  </div>
-                </td>
-              </tr>
-            ) : employees.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="p-8 text-center text-gray-500">
-                  No employees added yet. Click "Add Employee" to create one.
-                </td>
-              </tr>
-            ) : (
-              employees.map(emp => (
-                <tr key={emp.id} className="hover:bg-gray-50 transition">
-                  <td className="p-4 font-semibold">{emp.firstName} {emp.lastName}</td>
-                  <td className="p-4 text-gray-600">{emp.phone || '-'}</td>
-                  <td className="p-4">
-                    <span className="px-2.5 py-1 bg-gray-100 border text-gray-700 rounded-full text-xs font-medium">
-                      {emp.role}
-                    </span>
-                  </td>
-                  <td className="p-4 font-mono font-medium">{settings.currency} {emp.salary.toLocaleString()}</td>
-                  <td className="p-4 font-mono">
-                    {(emp.advancePay || 0) > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-bold">
-                        <Banknote size={12} />
-                        {settings.currency} {emp.advancePay?.toLocaleString()}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">None</span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+      {/* Employee Cards - mobile-first */}
+      <div className="space-y-3">
+        {isLoading ? (
+          <div className="bg-card rounded-lg border p-12 text-center text-gray-500">
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-lg font-medium text-gray-600">Loading employees...</p>
+            </div>
+          </div>
+        ) : employees.length === 0 ? (
+          <div className="bg-card rounded-lg border p-8 text-center text-gray-500">
+            No employees added yet. Click "Add Employee" to create one.
+          </div>
+        ) : (
+          employees.map(emp => (
+            <div key={emp.id} className="bg-card rounded-xl border shadow-sm p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                {/* Name & Role */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-gray-900">{emp.firstName} {emp.lastName}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                       emp.status === 'PRESENT' ? 'bg-green-100 text-green-800' :
                       emp.status === 'ABSENT' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {emp.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right space-x-1.5">
-                    <button 
-                      onClick={() => setSelectedEmpForAdvance(emp)}
-                      className="text-xs bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 px-2.5 py-1.5 rounded font-medium transition inline-flex items-center gap-1"
-                      title="Record Advance Pay"
-                    >
-                      <PlusCircle size={13} />
-                      Pay Advance
-                    </button>
-                    {(emp.advancePay || 0) > 0 && (
-                      <button 
-                        onClick={() => handleClearAdvance(emp)}
-                        className="text-xs bg-gray-100 text-gray-700 border hover:bg-gray-200 px-2 py-1.5 rounded font-medium transition inline-flex items-center gap-1"
-                        title="Clear / Settle Advance Pay Balance"
-                      >
-                        <RotateCcw size={13} />
-                        Clear
-                      </button>
+                    }`}>{emp.status}</span>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-0.5">{emp.role} {emp.phone ? `· ${emp.phone}` : ''}</div>
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap text-sm">
+                    <span className="font-mono font-medium text-gray-700">Salary: {settings.currency} {emp.salary.toLocaleString()}</span>
+                    {(emp.advancePay || 0) > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-full text-xs font-bold">
+                        <Banknote size={11} /> Advance: {settings.currency} {emp.advancePay?.toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">No advance</span>
                     )}
-                    <button 
-                      onClick={() => handleToggleStatus(emp.id, emp.status)}
-                      className="text-xs bg-gray-100 border hover:bg-gray-200 px-2.5 py-1.5 rounded font-medium transition"
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setSelectedEmpForAdvance(emp)}
+                    className="flex items-center gap-1 text-xs bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-lg font-semibold transition shadow-sm"
+                    title="Record Advance Pay"
+                  >
+                    <PlusCircle size={13} /> Pay Advance
+                  </button>
+                  {(emp.advancePay || 0) > 0 && (
+                    <button
+                      onClick={() => handleClearAdvance(emp)}
+                      className="flex items-center gap-1 text-xs bg-gray-100 text-gray-700 border hover:bg-gray-200 px-2.5 py-1.5 rounded-lg font-medium transition"
+                      title="Clear Advance Balance"
                     >
-                      Toggle
+                      <RotateCcw size={13} /> Clear
                     </button>
-                    <button 
-                      onClick={() => openEditModal(emp)}
-                      className="text-xs text-blue-600 hover:bg-blue-50 p-1.5 rounded transition inline-flex items-center"
-                      title="Edit Employee"
-                    >
-                      <Edit size={15} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(emp)}
-                      className="text-xs text-red-600 hover:bg-red-50 p-1.5 rounded transition inline-flex items-center"
-                      title="Delete Employee"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  )}
+                  <button
+                    onClick={() => handleToggleStatus(emp.id, emp.status)}
+                    className="text-xs bg-gray-100 border hover:bg-gray-200 px-2.5 py-1.5 rounded-lg font-medium transition"
+                  >
+                    Toggle
+                  </button>
+                  <button
+                    onClick={() => openEditModal(emp)}
+                    className="text-xs text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition"
+                    title="Edit Employee"
+                  >
+                    <Edit size={15} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(emp)}
+                    className="text-xs text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition"
+                    title="Delete Employee"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Add Employee Modal */}
