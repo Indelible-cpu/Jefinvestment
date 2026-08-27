@@ -5,7 +5,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { toast } from 'sonner';
 
 export default function Employees() {
-  const { employees, isLoading, loadEmployees, addEmployee, updateEmployee, updateStatus, recordAdvancePay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
+  const { employees, isLoading, loadEmployees, addEmployee, updateEmployee, updateStatus, recordAdvancePay, recordSalaryPay, clearAdvancePay, deleteEmployee, getTotalAdvancePay } = useEmployeeStore();
   const settings = useSettingsStore();
 
   useEffect(() => {
@@ -26,6 +26,11 @@ export default function Employees() {
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceNotes, setAdvanceNotes] = useState('');
   const [isSubmittingAdvance, setIsSubmittingAdvance] = useState(false);
+
+  // Salary Pay Modal state
+  const [selectedEmpForSalary, setSelectedEmpForSalary] = useState<Employee | null>(null);
+  const [salaryNotes, setSalaryNotes] = useState('');
+  const [isSubmittingSalary, setIsSubmittingSalary] = useState(false);
 
   const openAddModal = () => {
     setEditingEmpId(null);
@@ -105,6 +110,27 @@ export default function Employees() {
       toast.error('Failed to record advance pay', { description: err.message });
     } finally {
       setIsSubmittingAdvance(false);
+    }
+  };
+
+  const handleRecordSalary = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmpForSalary) return;
+
+    const netAmount = selectedEmpForSalary.salary - (selectedEmpForSalary.advancePay || 0);
+
+    setIsSubmittingSalary(true);
+    try {
+      await recordSalaryPay(selectedEmpForSalary.id, netAmount, salaryNotes);
+      toast.success(`Salary payment of ${settings.currency} ${netAmount.toLocaleString()} recorded for ${selectedEmpForSalary.firstName}!`, {
+        description: 'Logged to expenses automatically.'
+      });
+      setSelectedEmpForSalary(null);
+      setSalaryNotes('');
+    } catch (err: any) {
+      toast.error('Failed to record salary', { description: err.message });
+    } finally {
+      setIsSubmittingSalary(false);
     }
   };
 
@@ -231,6 +257,13 @@ export default function Employees() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setSelectedEmpForSalary(emp)}
+                    className="flex items-center gap-1 text-xs bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-lg font-semibold transition shadow-sm"
+                    title="Pay Full Salary"
+                  >
+                    <Banknote size={13} /> Pay Salary
+                  </button>
                   <button
                     onClick={() => setSelectedEmpForAdvance(emp)}
                     className="flex items-center gap-1 text-xs bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-lg font-semibold transition shadow-sm"
@@ -415,6 +448,69 @@ export default function Employees() {
                   className="px-4 py-2 bg-amber-700 text-white rounded-lg hover:bg-amber-800 font-medium shadow-sm transition disabled:opacity-50"
                 >
                   {isSubmittingAdvance ? 'Saving...' : 'Record Advance Pay'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Record Salary Modal */}
+      {selectedEmpForSalary && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setSelectedEmpForSalary(null)}>
+          <div className="bg-card w-full max-w-md rounded-lg shadow-lg border p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-2 text-green-700">
+              <Banknote size={24} />
+              <h2 className="text-xl font-bold text-foreground">Record Salary Payment</h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Recording final salary payment for <strong className="text-gray-900">{selectedEmpForSalary.firstName} {selectedEmpForSalary.lastName}</strong>.
+            </p>
+
+            <form onSubmit={handleRecordSalary} className="space-y-4">
+              <div className="bg-gray-50 border rounded-lg p-3 text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Base Salary:</span>
+                  <span className="font-medium">{settings.currency} {selectedEmpForSalary.salary.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-amber-700">
+                  <span>Less Advance Pay:</span>
+                  <span>- {settings.currency} {(selectedEmpForSalary.advancePay || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-base pt-2 border-t text-gray-900">
+                  <span>Net Payout:</span>
+                  <span>{settings.currency} {(selectedEmpForSalary.salary - (selectedEmpForSalary.advancePay || 0)).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-gray-700">Reason / Notes <span className="font-normal text-gray-500">(Optional)</span></label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. August 2026 Salary"
+                  className="w-full p-2 border rounded-lg text-sm bg-white"
+                  value={salaryNotes}
+                  onChange={e => setSalaryNotes(e.target.value)}
+                />
+              </div>
+
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800 leading-relaxed">
+                💡 <strong>Note:</strong> Saving this will record a cash expense for the net payout and clear any pending advance balance for this employee.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setSelectedEmpForSalary(null)}
+                  className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmittingSalary}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium shadow-sm transition disabled:opacity-50"
+                >
+                  {isSubmittingSalary ? 'Saving...' : 'Record Payment'}
                 </button>
               </div>
             </form>

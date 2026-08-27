@@ -489,6 +489,7 @@ interface EmployeeState {
   updateEmployee: (id: string, emp: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => void;
   recordAdvancePay: (id: string, amount: number, notes?: string) => Promise<void>;
+  recordSalaryPay: (id: string, netAmount: number, notes?: string) => Promise<void>;
   clearAdvancePay: (id: string) => Promise<void>;
   getActiveCount: () => number;
   getTotalAdvancePay: () => number;
@@ -577,6 +578,31 @@ export const useEmployeeStore = create<EmployeeState>()(
     clearAdvancePay: async (id) => {
       updateDoc(doc(db, 'employees', id), {
         advancePay: 0
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
+    },
+    recordSalaryPay: async (id, netAmount, notes) => {
+      const emp = get().employees.find(e => e.id === id);
+      if (!emp) return;
+
+      // Reset advance pay since salary is settled
+      updateDoc(doc(db, 'employees', id), {
+        advancePay: 0
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
+
+      // Automatically record as an expense
+      const branchId = useAuthStore.getState().user?.branchId || 'main';
+      const currentUser = useAuthStore.getState().user?.name || 'System';
+      
+      addDoc(collection(db, 'expenses'), {
+        title: `Salary Payment: ${emp.firstName} ${emp.lastName}`,
+        amount: Number(netAmount),
+        category: 'Salary / Advance Pay',
+        description: notes ? `Notes: ${notes}` : `Net salary payment to ${emp.firstName} ${emp.lastName}`,
+        paymentMethod: 'CASH',
+        date: new Date().toISOString().slice(0, 10),
+        loggedBy: currentUser,
+        branchId,
+        createdAt: Date.now()
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
