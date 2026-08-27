@@ -430,9 +430,14 @@ export const useCreditStore = create<CreditState>()(
             status,
           };
         });
+        // Exclude voided or refunded credit sales from debt management
+        const active = mapped.filter(r => {
+          const rawStatus = snapshot.docs.find(d => d.id === r.id)?.data().status;
+          return rawStatus !== 'voided' && rawStatus !== 'refunded';
+        });
         // Sort manually by date since we can't easily compound order by with inequality in Firestore without indexes we might not have
-        mapped.sort((a, b) => b.date.localeCompare(a.date));
-        set({ credits: mapped, isLoading: false });
+        active.sort((a, b) => b.date.localeCompare(a.date));
+        set({ credits: active, isLoading: false });
       }, (err) => {
         console.warn('Failed to load credits from Firestore', err);
         set({ isLoading: false });
