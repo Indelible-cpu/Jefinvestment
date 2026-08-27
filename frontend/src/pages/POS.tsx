@@ -249,6 +249,7 @@ const playSound = (type: 'success' | 'error') => {
         customerName: paymentMethod === 'CREDIT' ? customerName : '',
         customerPhone: paymentMethod === 'CREDIT' ? customerPhone : '',
         customerId: paymentMethod === 'CREDIT' ? customerId : '',
+        dueDate: paymentMethod === 'CREDIT' ? dueDate : '',
         invoiceNumber,
       });
 
