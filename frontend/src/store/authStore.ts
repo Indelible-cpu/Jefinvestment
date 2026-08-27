@@ -14,7 +14,8 @@ import {
   collection,
   deleteDoc,
   updateDoc,
-  onSnapshot
+  onSnapshot,
+  arrayUnion
 } from 'firebase/firestore';
 import { auth, db, secondaryAuth } from '../lib/firebase';
 
@@ -75,6 +76,8 @@ export interface User {
 
 export interface UserAccount extends User {
   isActive?: boolean;
+  isSuspended?: boolean;
+  warnings?: string[];
 }
 
 export interface LoginResult {
@@ -106,6 +109,8 @@ interface AuthState {
   resetPassword: (userId: string, newPassword: string) => Promise<void>;
   addUser: (user: { name: string; email: string; password: string; role: string; branchId?: string }) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
+  updateUser: (userId: string, data: Partial<Pick<UserAccount, 'name' | 'role' | 'branchId' | 'isActive' | 'isSuspended'>>) => Promise<void>;
+  warnUser: (userId: string, message: string) => Promise<void>;
   loadUsers: () => Promise<void>;
   
   isTemporarilyUnlocked: boolean;
@@ -218,6 +223,13 @@ export const useAuthStore = create<AuthState>()(
           } else {
             // Default setup for newly created users that might not have a profile doc yet
             await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+          }
+
+          // Block suspended accounts before setting any auth state
+          if (userData.isSuspended === true) {
+            await signOut(auth);
+            set({ isLoading: false });
+            return { success: false, error: 'Your account has been suspended. Please contact an administrator.' };
           }
 
           const userObj = {
@@ -419,6 +431,38 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      updateUser: async (userId, data) => {
+        try {
+          // Build the Firestore update payload, including branchName if branchId is changing
+          await updateDoc(doc(db, 'users', userId), data as Record<string, unknown>);
+          set((state) => ({
+            users: state.users.map((u) => u.id === userId ? { ...u, ...data } : u),
+          }));
+        } catch (e) {
+          console.error("Failed to update user", e);
+          throw e;
+        }
+      },
+
+      warnUser: async (userId, message) => {
+        try {
+          const timestamped = `[${new Date().toLocaleString()}] ${message}`;
+          await updateDoc(doc(db, 'users', userId), {
+            warnings: arrayUnion(timestamped),
+          });
+          set((state) => ({
+            users: state.users.map((u) =>
+              u.id === userId
+                ? { ...u, warnings: [...(u.warnings || []), timestamped] }
+                : u
+            ),
+          }));
+        } catch (e) {
+          console.error("Failed to warn user", e);
+          throw e;
+        }
+      },
+
       loadUsers: async () => {
         try {
           const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -432,6 +476,8 @@ export const useAuthStore = create<AuthState>()(
                 role: data.role || 'CASHIER',
                 branchId: data.branchId || 'main',
                 isActive: data.isActive !== false,
+                isSuspended: data.isSuspended === true,
+                warnings: Array.isArray(data.warnings) ? data.warnings : [],
                 lastActiveAt: data.lastActiveAt || 0,
                 requiresPasswordChange: data.requiresPasswordChange,
               });
@@ -445,6 +491,7 @@ export const useAuthStore = create<AuthState>()(
           console.warn("Failed to set up users listener", e);
         }
       },
+
 
       loadPasswordRequests: async () => {
         try {

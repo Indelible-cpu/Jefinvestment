@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useBranchStore } from '../store/branchStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2 } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, CheckCircle, UserX, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -14,7 +14,7 @@ import { Sparkles } from 'lucide-react';
 
 export default function Settings() {
   const { 
-    user, updateProfile, users, resetPassword, addUser, deleteUser, loadUsers, passwordRequests, approvePasswordRequest, rejectPasswordRequest
+    user, updateProfile, users, resetPassword, addUser, deleteUser, updateUser, warnUser, loadUsers, passwordRequests, approvePasswordRequest, rejectPasswordRequest
   } = useAuthStore();
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
@@ -57,6 +57,17 @@ export default function Settings() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUserForm, setNewUserForm] = useState({ name: '', email: '', password: '', role: 'CASHIER' as 'ADMIN' | 'CASHIER' | 'MANAGER', branchId: 'main' });
   const [showAddPw, setShowAddPw] = useState(false);
+
+  // Edit user state
+  const [editTarget, setEditTarget] = useState<typeof users[0] | null>(null);
+  const [editForm, setEditForm] = useState<{ name: string; role: 'ADMIN' | 'CASHIER' | 'MANAGER'; branchId: string; isActive: boolean; isSuspended: boolean }>({ name: '', role: 'CASHIER', branchId: 'main', isActive: true, isSuspended: false });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Warn user state
+  const [warnTarget, setWarnTarget] = useState<typeof users[0] | null>(null);
+  const [warnMessage, setWarnMessage] = useState('');
+  const [isSendingWarn, setIsSendingWarn] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
 
@@ -208,6 +219,83 @@ export default function Settings() {
       }},
       cancel: { label: 'Cancel', onClick: () => {} },
     });
+  };
+
+  const openEditUser = (u: typeof users[0]) => {
+    setEditTarget(u);
+    setEditForm({ name: u.name, role: u.role as 'ADMIN' | 'CASHIER' | 'MANAGER', branchId: u.branchId || 'main', isActive: u.isActive !== false, isSuspended: u.isSuspended === true });
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    setIsSavingEdit(true);
+    try {
+      // Find the branch name for audit log readability
+      const branchName = branches.find(b => b.id === editForm.branchId)?.name || editForm.branchId;
+      await updateUser(editTarget.id, {
+        name: editForm.name.trim(),
+        role: editForm.role,
+        branchId: editForm.branchId,
+        isActive: editForm.isActive,
+        isSuspended: editForm.isSuspended,
+      });
+      addLog('USER_UPDATED', `Admin "${user?.name}" updated user "${editTarget.name}" → name: "${editForm.name}", role: ${editForm.role}, branch: ${branchName}, active: ${editForm.isActive}.`);
+      toast.success(`User "${editForm.name}" updated successfully!`);
+      setEditTarget(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update user.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const openWarnUser = (u: typeof users[0]) => {
+    setWarnTarget(u);
+    setWarnMessage('');
+  };
+
+  const handleSendWarn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!warnTarget || !warnMessage.trim()) return;
+    setIsSendingWarn(true);
+    try {
+      await warnUser(warnTarget.id, warnMessage.trim());
+      addLog('USER_WARNED', `Admin "${user?.name}" issued a warning to "${warnTarget.name}": "${warnMessage.trim()}".`);
+      toast.success(`Warning sent to "${warnTarget.name}".`);
+      setWarnTarget(null);
+      setWarnMessage('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send warning.');
+    } finally {
+      setIsSendingWarn(false);
+    }
+  };
+
+  const handleSuspend = async (u: typeof users[0]) => {
+    if (u.id === user?.id) { toast.error('You cannot suspend your own account.'); return; }
+    toast(`Suspend "${u.name}"?`, {
+      description: 'They will be blocked from logging in until unsuspended.',
+      action: { label: 'Suspend', onClick: async () => {
+        await updateUser(u.id, { isSuspended: true, isActive: false });
+        addLog('USER_SUSPENDED', `Admin "${user?.name}" suspended user "${u.name}".`);
+        toast.success(`"${u.name}" has been suspended.`);
+      }},
+      cancel: { label: 'Cancel', onClick: () => {} },
+    });
+  };
+
+  const handleActivate = async (u: typeof users[0]) => {
+    await updateUser(u.id, { isSuspended: false, isActive: true });
+    addLog('USER_ACTIVATED', `Admin "${user?.name}" activated/unsuspended user "${u.name}".`);
+    toast.success(`"${u.name}" is now active.`);
+  };
+
+  const handleDeactivate = async (u: typeof users[0]) => {
+    if (u.id === user?.id) { toast.error('You cannot deactivate your own account.'); return; }
+    await updateUser(u.id, { isActive: false });
+    addLog('USER_DEACTIVATED', `Admin "${user?.name}" deactivated user "${u.name}".`);
+    toast.success(`"${u.name}" has been deactivated.`);
   };
 
   const handleExportData = () => {
@@ -475,70 +563,159 @@ export default function Settings() {
         {isAdmin && (
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
-              <div className="font-bold text-gray-700 flex items-center gap-2"><Users size={18} /> User Management & Password Reset</div>
+              <div className="font-bold text-gray-700 flex items-center gap-2"><Users size={18} /> User Management</div>
               <button onClick={() => setShowAddUser(true)} className="flex items-center gap-1.5 bg-primary text-white text-sm px-3 py-1.5 rounded-lg hover:bg-blue-700 transition font-medium">
                 <Plus size={16} /> Add User
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b text-sm">
-                    <th className="p-4 font-semibold text-gray-600">Full Name</th>
+                  <tr className="border-b bg-gray-50/50">
+                    <th className="p-4 font-semibold text-gray-600">Name</th>
                     <th className="p-4 font-semibold text-gray-600">Email</th>
                     <th className="p-4 font-semibold text-gray-600">Role</th>
+                    <th className="p-4 font-semibold text-gray-600">Branch</th>
                     <th className="p-4 font-semibold text-gray-600">Status</th>
                     <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {users.map(u => (
-                    <tr key={u.id} className="hover:bg-gray-50 transition">
-                      <td className="p-4 font-medium">
-                        {u.name}
-                        {u.id === user?.id && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">You</span>}
-                      </td>
-                      <td className="p-4 text-gray-500 text-sm">
-                        {u.id === user?.id 
-                          ? (user?.email || '—') 
-                          : (u.email?.includes('@') ? u.email : '—')}
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        {Date.now() - (u.lastActiveAt || 0) < 3 * 60 * 1000 ? (
-                          <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded-full w-max">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Online
+                  {users.map(u => {
+                    const isOnline = Date.now() - (u.lastActiveAt || 0) < 3 * 60 * 1000;
+                    const branchLabel = branches.find(b => b.id === u.branchId)?.name || (u.branchId === 'main' ? 'Main Branch' : u.branchId || '—');
+                    const warnCount = (u.warnings || []).length;
+                    return (
+                      <tr key={u.id} className="hover:bg-gray-50/70 transition">
+                        {/* Name */}
+                        <td className="p-4 font-medium">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {u.name}
+                            {u.id === user?.id && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">You</span>}
+                            {warnCount > 0 && (
+                              <span title={`${warnCount} warning(s)`} className="text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
+                                <AlertTriangle size={10} /> {warnCount}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        {/* Email */}
+                        <td className="p-4 text-gray-500">
+                          {u.id === user?.id
+                            ? (user?.email || '—')
+                            : (u.email?.includes('@') ? u.email : '—')}
+                        </td>
+                        {/* Role */}
+                        <td className="p-4">
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                            u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                            u.role === 'MANAGER' ? 'bg-indigo-100 text-indigo-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {u.role}
                           </span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-2 py-1 rounded-full w-max">
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Offline
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => { setResetTarget(u.id); setNewPassword(''); setShowNewPw(false); }}
-                            className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded font-medium transition"
-                          >
-                            <KeyRound size={14} /> Reset Password
-                          </button>
-                          {u.id !== user?.id && (
-                            <button
-                              onClick={() => handleDeleteUser(u.id, u.name)}
-                              className="flex items-center gap-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-2 py-1.5 rounded font-medium transition"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                        </td>
+                        {/* Branch */}
+                        <td className="p-4 text-gray-500">{branchLabel}</td>
+                        {/* Status */}
+                        <td className="p-4">
+                          {u.isSuspended ? (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded-full w-max">
+                              <Ban size={10} /> Suspended
+                            </span>
+                          ) : !u.isActive ? (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-1 rounded-full w-max">
+                              <UserX size={10} /> Inactive
+                            </span>
+                          ) : isOnline ? (
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded-full w-max">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Online
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-2 py-1 rounded-full w-max">
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Active
+                            </span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        {/* Actions */}
+                        <td className="p-4">
+                          <div className="flex gap-1.5 justify-end flex-wrap">
+                            {/* Edit */}
+                            <button
+                              onClick={() => openEditUser(u)}
+                              title="Edit user"
+                              className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded font-medium transition"
+                            >
+                              <Edit2 size={13} /> Edit
+                            </button>
+                            {/* Suspend / Activate / Deactivate */}
+                            {u.id !== user?.id && (
+                              u.isSuspended ? (
+                                <button
+                                  onClick={() => handleActivate(u)}
+                                  title="Unsuspend and activate"
+                                  className="flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 px-2.5 py-1.5 rounded font-medium transition"
+                                >
+                                  <UserCheck size={13} /> Activate
+                                </button>
+                              ) : u.isActive ? (
+                                <>
+                                  <button
+                                    onClick={() => handleSuspend(u)}
+                                    title="Suspend account"
+                                    className="flex items-center gap-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded font-medium transition"
+                                  >
+                                    <Ban size={13} /> Suspend
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeactivate(u)}
+                                    title="Deactivate account"
+                                    className="flex items-center gap-1 text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 px-2.5 py-1.5 rounded font-medium transition"
+                                  >
+                                    <UserX size={13} />
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => handleActivate(u)}
+                                  title="Activate account"
+                                  className="flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 px-2.5 py-1.5 rounded font-medium transition"
+                                >
+                                  <UserCheck size={13} /> Activate
+                                </button>
+                              )
+                            )}
+                            {/* Warn */}
+                            <button
+                              onClick={() => openWarnUser(u)}
+                              title="Issue warning"
+                              className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 px-2.5 py-1.5 rounded font-medium transition"
+                            >
+                              <BellRing size={13} /> Warn
+                            </button>
+                            {/* Reset Password */}
+                            <button
+                              onClick={() => { setResetTarget(u.id); setNewPassword(''); setShowNewPw(false); }}
+                              title="Reset password"
+                              className="flex items-center gap-1 text-xs bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 px-2.5 py-1.5 rounded font-medium transition"
+                            >
+                              <KeyRound size={13} />
+                            </button>
+                            {/* Delete */}
+                            {u.id !== user?.id && (
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                title="Delete user"
+                                className="flex items-center gap-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded font-medium transition"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -709,6 +886,88 @@ export default function Settings() {
                 <ShieldCheck size={18} /> Reset
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => !isSavingEdit && setEditTarget(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="bg-blue-100 p-2 rounded-full"><Edit2 size={20} className="text-blue-600" /></div>
+              <h2 className="font-bold text-gray-800 text-lg">Edit User</h2>
+            </div>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name *</label>
+                <input type="text" required value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Jane Doe" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Role</label>
+                <select value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value as 'ADMIN' | 'CASHIER' | 'MANAGER' }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white">
+                  <option value="CASHIER">Cashier</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Branch</label>
+                <select value={editForm.branchId} onChange={e => setEditForm(f => ({ ...f, branchId: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white">
+                  {!branches.find(b => b.id === 'main') && <option value="main">Main Branch</option>}
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 mt-2">
+                <span className="font-semibold text-sm text-gray-700">Account Active</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={editForm.isActive} onChange={e => setEditForm(f => ({ ...f, isActive: e.target.checked }))} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" disabled={isSavingEdit} onClick={() => setEditTarget(null)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={isSavingEdit || !editForm.name.trim()} className="flex-1 bg-primary hover:bg-blue-700 text-white py-2.5 rounded-lg font-bold transition active:scale-95 disabled:opacity-50 flex items-center justify-center">
+                  {isSavingEdit ? <Loader2 size={18} className="animate-spin" /> : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Warn User Modal */}
+      {warnTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => !isSendingWarn && setWarnTarget(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="bg-amber-100 p-2 rounded-full"><BellRing size={20} className="text-amber-600" /></div>
+              <div>
+                <h2 className="font-bold text-gray-800 text-lg">Issue Warning</h2>
+                <p className="text-sm text-gray-500">To {warnTarget.name}</p>
+              </div>
+            </div>
+            <form onSubmit={handleSendWarn} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Warning Message *</label>
+                <textarea 
+                  required 
+                  rows={4}
+                  value={warnMessage} 
+                  onChange={e => setWarnMessage(e.target.value)} 
+                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none resize-none" 
+                  placeholder="Describe the reason for this warning..." 
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" disabled={isSendingWarn} onClick={() => setWarnTarget(null)} className="flex-1 border py-2.5 rounded-lg text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={isSendingWarn || !warnMessage.trim()} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-lg font-bold transition active:scale-95 disabled:opacity-50 flex items-center justify-center">
+                  {isSendingWarn ? <Loader2 size={18} className="animate-spin" /> : 'Send Warning'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
