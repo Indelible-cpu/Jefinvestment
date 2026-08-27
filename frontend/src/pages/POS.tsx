@@ -32,7 +32,7 @@ export default function POS() {
   const [receiptData, setReceiptData] = useState<null | {
     items: CartItem[]; subtotal: number; discount: number; taxAmount: number;
     taxName: string; taxType: string; total: number; paymentMethod: string;
-    amountPaid: number; customerName?: string; customerPhone?: string; customerId?: string; invoiceNumber: string;
+    amountPaid: number; customerName?: string; customerPhone?: string; customerId?: string; invoiceNumber: string; dueDate?: string;
   }>(null);
   const [txStatus, setTxStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
