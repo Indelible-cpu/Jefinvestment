@@ -55,7 +55,6 @@ function LiveClockBadge() {
 export default function Dashboard() {
   const now = new Date();
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
-  const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const { getTodayTotal, sales } = useSaleStore();
   const { getTotalOutstanding } = useCreditStore();
