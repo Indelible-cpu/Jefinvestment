@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useBranchStore } from '../store/branchStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, CheckCircle, UserX, UserCheck } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
