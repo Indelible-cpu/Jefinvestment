@@ -54,7 +54,7 @@ export default function Inventory() {
     return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
   }, [searchParams]);
 
-  // Auto-clear the search field 8 seconds after the user stops typing
+  // Auto-clear the search field 30 seconds after the user stops typing
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearch(val);
@@ -62,7 +62,7 @@ export default function Inventory() {
     if (val.trim()) {
       autoClearRef.current = setTimeout(() => {
         setSearch('');
-      }, 8000);
+      }, 30000);
     }
   }, [autoClearRef]);
 
