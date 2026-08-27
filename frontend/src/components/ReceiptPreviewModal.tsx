@@ -170,9 +170,19 @@ export default function ReceiptPreviewModal({
                 </div>
                 <div style={{ marginTop: '8px', fontSize: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Payment</span><span>{paymentMethod.replace('MOMO_', 'MoMo ').replace('BANK_', '').replace('_', ' ')}</span></div>
-                  {paymentMethod === 'CASH' && <><div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paid</span><span>{settings.currency} {amountPaid.toLocaleString()}</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}><span>Change</span><span>{settings.currency} {change.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div></>}
-                  {paymentMethod === 'CREDIT' && <div style={{ color: '#b45309', fontWeight: 'bold', textAlign: 'center', marginTop: '4px' }}>⚠ CREDIT — BALANCE DUE</div>}
+                  {paymentMethod === 'CASH' && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paid</span><span>{settings.currency} {amountPaid.toLocaleString()}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}><span>Change</span><span>{settings.currency} {change.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
+                    </>
+                  )}
+                  {paymentMethod === 'CREDIT' && (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Paid</span><span>{settings.currency} {amountPaid.toLocaleString()}</span></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#b45309' }}><span>Balance Due</span><span>{settings.currency} {(total - amountPaid).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
+                      <div style={{ color: '#b45309', fontWeight: 'bold', textAlign: 'center', marginTop: '4px' }}>⚠ CREDIT SALE</div>
+                    </>
+                  )}
                   {paymentMethod === 'BANK_NBS' && settings.nbsDetails && <div style={{ marginTop: '4px', textAlign: 'center', fontSize: '11px', padding: '4px', border: '1px dashed #ccc' }}>NBS Bank: {settings.nbsDetails}</div>}
                   {paymentMethod === 'BANK_NBM' && settings.nbmDetails && <div style={{ marginTop: '4px', textAlign: 'center', fontSize: '11px', padding: '4px', border: '1px dashed #ccc' }}>National Bank: {settings.nbmDetails}</div>}
                   {paymentMethod === 'MOMO_AIRTEL' && settings.airtelNumber && <div style={{ marginTop: '4px', textAlign: 'center', fontSize: '11px', padding: '4px', border: '1px dashed #ccc' }}>Airtel Money: {settings.airtelNumber}</div>}

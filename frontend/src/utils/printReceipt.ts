@@ -80,7 +80,10 @@ export const printReceipt = (
           <table>
             <tr><td>Payment Method</td><td class="text-right">${paymentMethod}</td></tr>
             <tr><td>Amount Paid</td><td class="text-right">${settings.currency} ${amountPaid.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
-            <tr><td>Change</td><td class="text-right">${settings.currency} ${(amountPaid - total).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>
+            ${amountPaid < total || paymentMethod === 'CREDIT' 
+              ? `<tr><td style="font-weight:bold;">Balance Due</td><td class="text-right" style="font-weight:bold;">${settings.currency} ${(total - amountPaid).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>`
+              : `<tr><td>Change</td><td class="text-right">${settings.currency} ${(amountPaid - total).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td></tr>`
+            }
           </table>
         </div>
         
