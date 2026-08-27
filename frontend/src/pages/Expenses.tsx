@@ -89,7 +89,7 @@ export default function Expenses() {
   };
 
   return (
-    <div className="p-4 md:p-6 h-full flex flex-col">
+    <div className="p-4 md:p-6 min-h-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
         <div>
@@ -129,7 +129,7 @@ export default function Expenses() {
       </div>
 
       {/* Table - wrapped for horizontal scroll on mobile */}
-      <div className="bg-white rounded-lg border shadow flex-1 overflow-auto">
+      <div className="bg-white rounded-lg border shadow overflow-x-auto">
         <table className="w-full text-left min-w-[700px]">
           <thead>
             <tr className="bg-gray-50 border-b">
