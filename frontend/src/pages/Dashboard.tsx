@@ -4,7 +4,7 @@ import { useSaleStore, useCreditStore, useEmployeeStore } from '../store/dataSto
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AutoClearPrompt from '../components/AutoClearPrompt';
 
 const ALL_ACTIONS = [
@@ -16,6 +16,41 @@ const ALL_ACTIONS = [
   { id: 'find-receipt', label: 'Find Receipt', icon: Search, link: '/sales', color: 'text-red-500' },
   { id: 'stock-in', label: 'Stock In', icon: Download, link: '/inventory', color: 'text-blue-600' },
 ];
+
+function LiveClockBadge() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    let animationFrameId: number;
+    const updateTime = () => {
+      setNow(new Date());
+      animationFrameId = requestAnimationFrame(updateTime);
+    };
+    updateTime();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
+  const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  
+  const h = now.getHours().toString().padStart(2, '0');
+  const m = now.getMinutes().toString().padStart(2, '0');
+  const s = now.getSeconds().toString().padStart(2, '0');
+  const ms = Math.floor(now.getMilliseconds() / 10).toString().padStart(2, '0');
+
+  return (
+    <div className="absolute -top-4 right-0 bg-indigo-50 border border-indigo-100 shadow-sm rounded-xl px-4 py-2 flex flex-col items-end transition-all">
+      <div className="text-sm font-bold text-indigo-900">{dateStr}</div>
+      <div className="text-xs font-mono font-bold text-indigo-700 mt-0.5 flex items-baseline">
+        <span className="w-5 text-right">{h}</span>
+        <span className="opacity-60 mx-0.5">:</span>
+        <span className="w-5 text-center">{m}</span>
+        <span className="opacity-60 mx-0.5">:</span>
+        <span className="w-5 text-left">{s}</span>
+        <span className="text-[10px] opacity-70 w-5 text-left">.{ms}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const now = new Date();
@@ -76,11 +111,11 @@ export default function Dashboard() {
       <AutoClearPrompt />
 
       {/* Greeting (Desktop Only) */}
-      <div className="hidden md:block mb-6 relative h-10">
-        <div className="animate-float-lr">
+      <div className="hidden md:block mb-6 relative h-12">
+        <div className="animate-float-lr pt-2">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, {firstName}! 👋</h1>
         </div>
-        <p className="text-gray-500 text-sm absolute -top-4 right-0">{dateStr}</p>
+        <LiveClockBadge />
       </div>
 
       {/* KPI Cards */}
