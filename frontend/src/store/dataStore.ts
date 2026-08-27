@@ -559,6 +559,9 @@ export const useEmployeeStore = create<EmployeeState>()(
       }).catch(e => console.warn('Offline write deferred or failed:', e));
 
       // Automatically record as an expense for accounting
+      const branchId = useAuthStore.getState().user?.branchId || 'main';
+      const currentUser = useAuthStore.getState().user?.name || 'System';
+      
       addDoc(collection(db, 'expenses'), {
         title: `Salary Advance: ${emp.firstName} ${emp.lastName}`,
         amount: Number(amount),
@@ -566,7 +569,8 @@ export const useEmployeeStore = create<EmployeeState>()(
         description: notes ? `Notes: ${notes}` : `Advance payment to ${emp.firstName} ${emp.lastName}`,
         paymentMethod: 'CASH',
         date: new Date().toISOString().slice(0, 10),
-        loggedBy: 'System',
+        loggedBy: currentUser,
+        branchId,
         createdAt: Date.now()
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
