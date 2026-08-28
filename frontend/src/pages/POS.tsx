@@ -817,12 +817,22 @@ const playSound = (type: 'success' | 'error') => {
                           const total = taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal();
                           if (total <= 0) return null;
                           let opts: number[] = [];
+                          const nextMult = (val: number, m: number) => Math.ceil((val + 0.01) / m) * m;
+                          
                           if (total < 100) {
-                            opts = [Math.ceil(total/5)*5, Math.ceil(total/10)*10, Math.ceil(total/20)*20, Math.ceil(total/50)*50];
+                            opts = [nextMult(total, 5), nextMult(total, 10), nextMult(total, 20), nextMult(total, 50)];
                           } else {
-                            opts = [Math.ceil(total/1000)*1000, Math.ceil(total/5000)*5000, Math.ceil(total/10000)*10000, Math.ceil(total/20000)*20000];
+                            opts = [nextMult(total, 1000), nextMult(total, 5000), nextMult(total, 10000), nextMult(total, 20000)];
                           }
-                          return opts.filter((v, i, a) => v > total && a.indexOf(v) === i).slice(0, 3).map(opt => (
+                          
+                          // Fallback if rounding generates same values
+                          const uniqueOpts = Array.from(new Set(opts.filter(v => v > total)));
+                          while (uniqueOpts.length < 3) {
+                            const last = uniqueOpts[uniqueOpts.length - 1] || total;
+                            uniqueOpts.push(total < 100 ? last + 10 : last + 5000);
+                          }
+
+                          return uniqueOpts.slice(0, 3).map(opt => (
                             <button
                               key={opt}
                               type="button"
