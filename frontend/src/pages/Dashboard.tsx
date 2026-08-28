@@ -161,7 +161,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <PricingAdvisor />
+      {settings.pricingAdvisorEnabled !== false && <PricingAdvisor />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
