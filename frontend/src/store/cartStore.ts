@@ -31,6 +31,7 @@ export interface Product {
   mapCoordinates?: { x: number; y: number };
   displayLocationText?: string;
   images?: string[];
+  createdAt?: number;
 }
 
 interface ProductState {
@@ -70,6 +71,7 @@ export const useProductStore = create<ProductState>()(
             mapCoordinates: p.mapCoordinates,
             displayLocationText: p.displayLocationText || '',
             images: p.images || [],
+            createdAt: p.createdAt,
           };
         });
         set({ products: mapped, isLoading: false });

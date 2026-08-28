@@ -6,6 +6,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { useState, useEffect } from 'react';
 import AutoClearPrompt from '../components/AutoClearPrompt';
+import PricingAdvisor from '../components/PricingAdvisor';
 
 const ALL_ACTIONS = [
   { id: 'new-sale', label: 'New Sale (POS)', icon: ShoppingCart, link: '/pos', color: 'text-blue-500' },
@@ -159,6 +160,8 @@ export default function Dashboard() {
           <div className="text-[10px] text-gray-500 text-center leading-tight">Active<br/>Staff</div>
         </div>
       </div>
+
+      <PricingAdvisor />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
