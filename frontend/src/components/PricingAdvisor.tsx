@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { TrendingDown, TrendingUp, AlertCircle, CheckCircle, ChevronRight } from 'lucide-react';
 import { useProductStore, type Product } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
