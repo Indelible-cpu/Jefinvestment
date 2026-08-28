@@ -112,8 +112,8 @@ export default function Dashboard() {
 
       {/* Greeting (Desktop Only) */}
       <div className="hidden md:block mb-6 relative h-12">
-        <div className="absolute inset-0 flex items-center justify-center animate-float-lr">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{greeting}, {firstName}! 👋</h1>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 animate-float-lr">{greeting}, {firstName}! 👋</h1>
         </div>
         <LiveClockBadge />
       </div>
