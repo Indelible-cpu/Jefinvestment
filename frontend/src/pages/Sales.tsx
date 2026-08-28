@@ -171,7 +171,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
           </div>
 
           {/* Actions */}
-          {isAdmin && (sale.status ?? 'completed') === 'completed' && (
+          {isAdmin && (sale.status ?? 'completed') === 'completed' && !(sale as any).isRepaymentRecord && (
             <div>
               {confirmAction ? (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -225,8 +225,41 @@ export default function Sales() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Visible sales based on role
-  const visibleSales = isAdmin ? sales : sales.filter(s => s.cashier === user?.name);
+  // Visible sales based on role, expanding credit repayments into pseudo-transactions
+  const visibleSales = useMemo(() => {
+    const base = isAdmin ? sales : sales.filter(s => s.cashier === user?.name);
+    const expanded: any[] = [];
+
+    base.forEach(s => {
+      expanded.push(s);
+      if (s.paymentMethod === 'CREDIT' && (s as any).repayments) {
+        (s as any).repayments.forEach((rep: any, idx: number) => {
+           const [rDate, rTimeStr] = rep.date.split('T');
+           const rTime = rTimeStr ? rTimeStr.substring(0, 5) : s.time;
+           expanded.push({
+             ...s,
+             id: `${s.id}-rep-${idx}`,
+             invoiceNumber: `${s.invoiceNumber}-REP${idx+1}`,
+             date: rDate,
+             time: rTime,
+             total: rep.amount,
+             amountPaid: rep.amount,
+             paymentMethod: rep.method || 'CASH',
+             items: [{
+               name: `Credit Repayment (Inv: ${s.invoiceNumber})`,
+               quantity: 1,
+               unitPrice: rep.amount,
+               productId: 'REPAYMENT',
+               isService: true
+             }],
+             isRepaymentRecord: true,
+             status: 'completed',
+           });
+        });
+      }
+    });
+    return expanded;
+  }, [sales, isAdmin, user?.name]);
 
   const cashiers = useMemo(() => ['ALL', ...Array.from(new Set(visibleSales.map(s => s.cashier).filter(Boolean)))], [visibleSales]);
 
@@ -259,7 +292,11 @@ export default function Sales() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const totalRevenue = filtered.reduce((s, r) => (r.status ?? 'completed') === 'completed' ? s + r.total : s, 0);
+  const totalRevenue = filtered.reduce((s, r) => {
+    if ((r.status ?? 'completed') !== 'completed') return s;
+    if (r.paymentMethod === 'CREDIT') return s + (r.amountPaid || 0);
+    return s + r.total;
+  }, 0);
   const totalVoided = filtered.filter(s => (s.status ?? 'completed') === 'voided').length;
   const totalRefunded = filtered.filter(s => (s.status ?? 'completed') === 'refunded').length;
 
@@ -503,7 +540,7 @@ export default function Sales() {
                               >
                                 <Printer size={15} /> Reprint Receipt
                               </button>
-                              {isAdmin && (sale.status ?? 'completed') === 'completed' && (
+                              {isAdmin && (sale.status ?? 'completed') === 'completed' && !(sale as any).isRepaymentRecord && (
                                 <>
                                   <div className="border-t my-1" />
                                   <button
@@ -520,7 +557,7 @@ export default function Sales() {
                                   </button>
                                 </>
                               )}
-                              {isAdmin && (sale.status === 'voided' || sale.status === 'refunded') && (
+                              {isAdmin && (sale.status === 'voided' || sale.status === 'refunded') && !(sale as any).isRepaymentRecord && (
                                 <>
                                   <div className="border-t my-1" />
                                   <button

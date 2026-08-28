@@ -41,7 +41,22 @@ export default function Reports() {
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
       const daySales = completedSales.filter(s => s.date === dateStr);
-      const daySalesTotal = daySales.reduce((sum, s) => sum + s.total, 0);
+      
+      const directAndInitial = daySales.reduce((sum, s) => {
+        if (s.paymentMethod === 'CREDIT') return sum + (s.amountPaid || 0);
+        return sum + s.total;
+      }, 0);
+      
+      let repayments = 0;
+      completedSales.forEach(s => {
+        if (s.paymentMethod === 'CREDIT' && (s as any).repayments) {
+          (s as any).repayments.forEach((rep: any) => {
+            if (rep.date.startsWith(dateStr)) repayments += rep.amount;
+          });
+        }
+      });
+      
+      const daySalesTotal = directAndInitial + repayments;
       const dayExpenses = expenses.filter(e => e.date === dateStr).reduce((sum, e) => sum + e.amount, 0);
       const dayProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - dayExpenses;
       data.push({
@@ -60,32 +75,80 @@ export default function Reports() {
     const daySales = completedSales.filter(s => s.date === reportDate);
     const dayExpenses = expenses.filter(e => e.date === reportDate);
 
-    const cashSales   = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
-    const creditSales = daySales.filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + s.total, 0);
-
-    // Bank sales — current keys + legacy BANK_TRANSFER key
-    const bankSales = daySales
+    // 1. Direct fully paid sales for the day
+    const directCashSales = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
+    const directBankSales = daySales
       .filter(s => ['BANK_NBS', 'BANK_NBM', 'BANK_TRANSFER'].includes(s.paymentMethod))
       .reduce((sum, s) => sum + s.total, 0);
-
-    // MoMo sales — current keys + legacy AIRTEL_MONEY / TNM_MPAMBA keys
-    const momoSales = daySales
+    const directMomoSales = daySales
       .filter(s => ['MOMO_AIRTEL', 'MOMO_MPAMBA', 'AIRTEL_MONEY', 'TNM_MPAMBA'].includes(s.paymentMethod))
       .reduce((sum, s) => sum + s.total, 0);
 
+    // 2. Initial payments on CREDIT sales created today
+    const creditInitialPayments = daySales
+      .filter(s => s.paymentMethod === 'CREDIT')
+      .reduce((sum, s) => sum + (s.amountPaid || 0), 0);
+
+    // 3. Repayments made today (on any credit sale from any date)
+    let repaymentCash = 0;
+    let repaymentBank = 0;
+    let repaymentMomo = 0;
+    let creditRepaymentsTransactions: any[] = [];
+    
+    completedSales.forEach(s => {
+      if (s.paymentMethod === 'CREDIT' && (s as any).repayments) {
+        (s as any).repayments.forEach((rep: any) => {
+          if (rep.date.startsWith(reportDate)) {
+             creditRepaymentsTransactions.push({ saleId: s.id, amount: rep.amount, method: rep.method, invoice: s.invoiceNumber, customer: s.customerName });
+             if (rep.method === 'CASH') repaymentCash += rep.amount;
+             else if (rep.method.startsWith('BANK')) repaymentBank += rep.amount;
+             else if (rep.method.startsWith('MOMO') || rep.method.includes('MPAMBA') || rep.method.includes('AIRTEL')) repaymentMomo += rep.amount;
+             else repaymentCash += rep.amount; // fallback
+          }
+        });
+      }
+    });
+
+    const cashSales = directCashSales + creditInitialPayments + repaymentCash;
+    const bankSales = directBankSales + repaymentBank;
+    const momoSales = directMomoSales + repaymentMomo;
+
     const transferSales = bankSales + momoSales;
-    const totalSales = cashSales + transferSales + creditSales;
-    const realizedRevenue = cashSales + transferSales;
+    const totalSales = cashSales + transferSales; // Cash-basis: only what was received
+    const realizedRevenue = totalSales;
+    
+    const newCreditIssued = daySales.filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + (s.total - (s.amountPaid || 0)), 0);
+
     const totalExpenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
     const netCash = cashSales - totalExpenses;
     const netRevenue = realizedRevenue - totalExpenses;
     const dailyProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
-    return { date: reportDate, cashSales, transferSales, bankSales, momoSales, creditSales, totalSales, realizedRevenue, totalExpenses, netCash, netRevenue, dailyProfit, txCount: daySales.length, transactions: daySales };
+    
+    return { 
+      date: reportDate, 
+      cashSales, 
+      transferSales, 
+      bankSales, 
+      momoSales, 
+      creditSales: newCreditIssued, 
+      totalSales, 
+      realizedRevenue, 
+      totalExpenses, 
+      netCash, 
+      netRevenue, 
+      dailyProfit, 
+      txCount: daySales.length + creditRepaymentsTransactions.length, 
+      transactions: daySales,
+      repayments: creditRepaymentsTransactions
+    };
   }, [reportDate, completedSales, expenses]);
 
   /* ── Cumulative (all-time) totals ── */
   const cumulative = useMemo(() => {
-    const totalRevenue = completedSales.reduce((sum, s) => sum + s.total, 0);
+    const totalRevenue = completedSales.reduce((sum, s) => {
+      if (s.paymentMethod === 'CREDIT') return sum + (s.amountPaid || 0) + ((s as any).creditPaid || 0);
+      return sum + s.total;
+    }, 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const totalProfit = completedSales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
     return { totalRevenue, totalExpenses, totalProfit };
