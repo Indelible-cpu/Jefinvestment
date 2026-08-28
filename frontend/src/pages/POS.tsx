@@ -812,6 +812,28 @@ const playSound = (type: 'success' | 'error') => {
                         onFocus={e => e.target.select()}
                         onKeyDown={e => e.key === 'Enter' && handlePayNow()}
                       />
+                      <div className="flex gap-2 mt-2">
+                        {(() => {
+                          const total = taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal();
+                          if (total <= 0) return null;
+                          let opts: number[] = [];
+                          if (total < 100) {
+                            opts = [Math.ceil(total/5)*5, Math.ceil(total/10)*10, Math.ceil(total/20)*20, Math.ceil(total/50)*50];
+                          } else {
+                            opts = [Math.ceil(total/1000)*1000, Math.ceil(total/5000)*5000, Math.ceil(total/10000)*10000, Math.ceil(total/20000)*20000];
+                          }
+                          return opts.filter((v, i, a) => v > total && a.indexOf(v) === i).slice(0, 3).map(opt => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => setAmountPaid(opt)}
+                              className="flex-1 bg-white border border-green-300 text-green-700 text-xs font-bold py-1.5 rounded hover:bg-green-100 transition shadow-sm"
+                            >
+                              {opt.toLocaleString()}
+                            </button>
+                          ));
+                        })()}
+                      </div>
                     </div>
                     {amountPaid !== '' && Number(amountPaid) >= (taxType === 'EXCLUSIVE' ? cart.getTotal() * (1 + taxRate/100) : cart.getTotal()) && (
                       <div className="flex justify-between items-center text-sm font-bold text-green-700 bg-green-100 p-2 rounded">
