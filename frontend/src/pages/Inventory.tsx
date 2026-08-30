@@ -109,11 +109,12 @@ export default function Inventory() {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.sku.trim()) return;
-    setIsSubmitting(true);
-    
+
     // Ensure equipment doesn't save a reorder level
     const submitForm = { 
       ...form,
+      name: form.name.trim(),
+      sku: form.sku.trim(),
       costPrice: Number(form.costPrice) || 0,
       sellingPrice: Number(form.sellingPrice) || 0,
       stock: Number(form.stock) || 0,
@@ -122,6 +123,36 @@ export default function Inventory() {
     if (submitForm.isEquipment) {
       submitForm.reorderLevel = 0;
     }
+
+    const trimmedName = submitForm.name.toLowerCase();
+    const trimmedSku = submitForm.sku.toLowerCase();
+
+    // Check duplicate by name (case-insensitive)
+    const duplicateByName = products.find(
+      p => (!editId || p.id !== editId) && p.name.trim().toLowerCase() === trimmedName
+    );
+    if (duplicateByName) {
+      const typeLabel = duplicateByName.isEquipment ? 'Equipment' : duplicateByName.isService ? 'Service' : 'Product';
+      toast.error(`${typeLabel} already exists`, {
+        description: `An item named "${duplicateByName.name}" already exists in the inventory. Redundant entries cannot be saved.`,
+      });
+      return;
+    }
+
+    // Check duplicate by SKU (case-insensitive)
+    if (trimmedSku) {
+      const duplicateBySku = products.find(
+        p => (!editId || p.id !== editId) && p.sku.trim().toLowerCase() === trimmedSku
+      );
+      if (duplicateBySku) {
+        toast.error('SKU / Code already exists', {
+          description: `SKU "${submitForm.sku}" is already assigned to "${duplicateBySku.name}". Duplicate SKUs are not allowed.`,
+        });
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
 
     const executeSave = async () => {
       try {
@@ -210,9 +241,18 @@ export default function Inventory() {
   };
 
   const generateSKU = () => {
-    const randomNum = Math.floor(10000 + Math.random() * 90000);
-    const prefix = form.name ? form.name.substring(0, 3).toUpperCase() : 'SKU';
-    setForm(prev => ({ ...prev, sku: `${prefix}-${randomNum}` }));
+    const rawPrefix = form.name ? form.name.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+    const prefix = rawPrefix.length > 0 ? rawPrefix : 'SKU';
+    let generatedSku = '';
+    let exists = true;
+    let attempts = 0;
+    while (exists && attempts < 100) {
+      const randomNum = Math.floor(10000 + Math.random() * 90000);
+      generatedSku = `${prefix}-${randomNum}`;
+      exists = products.some(p => (!editId || p.id !== editId) && p.sku?.trim().toLowerCase() === generatedSku.toLowerCase());
+      attempts++;
+    }
+    setForm(prev => ({ ...prev, sku: generatedSku }));
   };
 
   return (

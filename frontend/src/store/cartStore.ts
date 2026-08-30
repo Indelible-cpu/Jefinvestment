@@ -46,7 +46,7 @@ interface ProductState {
 }
 
 export const useProductStore = create<ProductState>()(
-  (set) => ({
+  (set, get) => ({
     products: [],
     isLoading: false,
 
@@ -85,9 +85,25 @@ export const useProductStore = create<ProductState>()(
     setProducts: (products) => set({ products }),
 
     addProduct: async (product) => {
+      const currentProducts = get().products;
+      const nameLower = product.name.trim().toLowerCase();
+      const skuLower = product.sku?.trim().toLowerCase();
+
+      const existingName = currentProducts.find(p => p.name.trim().toLowerCase() === nameLower);
+      if (existingName) {
+        throw new Error(`An item named "${product.name.trim()}" already exists.`);
+      }
+
+      if (skuLower) {
+        const existingSku = currentProducts.find(p => p.sku.trim().toLowerCase() === skuLower);
+        if (existingSku) {
+          throw new Error(`SKU "${product.sku.trim()}" is already assigned to "${existingSku.name}".`);
+        }
+      }
+
       const payload = {
-        name: product.name,
-        sku: product.sku,
+        name: product.name.trim(),
+        sku: product.sku.trim(),
         category: product.category,
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
@@ -107,9 +123,25 @@ export const useProductStore = create<ProductState>()(
     },
 
     updateProduct: async (product) => {
+      const currentProducts = get().products;
+      const nameLower = product.name.trim().toLowerCase();
+      const skuLower = product.sku?.trim().toLowerCase();
+
+      const existingName = currentProducts.find(p => p.id !== product.id && p.name.trim().toLowerCase() === nameLower);
+      if (existingName) {
+        throw new Error(`An item named "${product.name.trim()}" already exists.`);
+      }
+
+      if (skuLower) {
+        const existingSku = currentProducts.find(p => p.id !== product.id && p.sku.trim().toLowerCase() === skuLower);
+        if (existingSku) {
+          throw new Error(`SKU "${product.sku.trim()}" is already assigned to "${existingSku.name}".`);
+        }
+      }
+
       const payload = {
-        name: product.name,
-        sku: product.sku,
+        name: product.name.trim(),
+        sku: product.sku.trim(),
         category: product.category,
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,

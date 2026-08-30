@@ -36,7 +36,7 @@ interface StationeryState {
   deleteStationeryService: (id: string) => Promise<void>;
 }
 
-export const useStationeryStore = create<StationeryState>()((set) => ({
+export const useStationeryStore = create<StationeryState>()((set, get) => ({
   services: [],
 
   loadStationeryServices: () => {
@@ -62,14 +62,36 @@ export const useStationeryStore = create<StationeryState>()((set) => ({
   },
 
   addStationeryService: async (svc) => {
+    const currentServices = get().services;
+    const nameLower = svc.serviceName.trim().toLowerCase();
+    const existing = currentServices.find(s => s.serviceName.trim().toLowerCase() === nameLower);
+    if (existing) {
+      throw new Error(`Stationery service "${svc.serviceName.trim()}" already exists.`);
+    }
+
     addDoc(collection(db, 'stationeryServices'), {
       ...svc,
+      serviceName: svc.serviceName.trim(),
       createdAt: Date.now(),
     }).catch(e => console.warn('Offline write deferred or failed:', e));
   },
 
   updateStationeryService: async (id, svc) => {
-    updateDoc(doc(db, 'stationeryServices', id), svc).catch(e => console.warn('Offline write deferred or failed:', e));
+    if (svc.serviceName) {
+      const currentServices = get().services;
+      const nameLower = svc.serviceName.trim().toLowerCase();
+      const existing = currentServices.find(s => s.id !== id && s.serviceName.trim().toLowerCase() === nameLower);
+      if (existing) {
+        throw new Error(`Stationery service "${svc.serviceName.trim()}" already exists.`);
+      }
+    }
+
+    const payload = {
+      ...svc,
+      ...(svc.serviceName ? { serviceName: svc.serviceName.trim() } : {})
+    };
+
+    updateDoc(doc(db, 'stationeryServices', id), payload).catch(e => console.warn('Offline write deferred or failed:', e));
   },
 
   deleteStationeryService: async (id) => {

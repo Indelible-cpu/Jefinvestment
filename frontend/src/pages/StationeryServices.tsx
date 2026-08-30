@@ -90,18 +90,35 @@ export default function StationeryServices() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.serviceName.trim()) { toast.error('Service name is required'); return; }
+    const serviceNameTrimmed = form.serviceName.trim();
+    if (!serviceNameTrimmed) { toast.error('Service name is required'); return; }
     if (form.sellingPrice <= 0) { toast.error('Selling price must be greater than 0'); return; }
     if (form.materialsUsed.some(m => !m.inventoryItemId)) { toast.error('Please select a product for each material row'); return; }
 
+    const serviceNameLower = serviceNameTrimmed.toLowerCase();
+    const duplicateService = services.find(
+      s => (!editingId || s.id !== editingId) && s.serviceName.trim().toLowerCase() === serviceNameLower
+    );
+    if (duplicateService) {
+      toast.error('Stationery service already exists', {
+        description: `A stationery service named "${duplicateService.serviceName}" already exists. Redundant services cannot be saved.`,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const submitForm = {
+        ...form,
+        serviceName: serviceNameTrimmed,
+      };
+
       if (editingId) {
-        await updateStationeryService(editingId, form);
+        await updateStationeryService(editingId, submitForm);
         toast.success('Service updated successfully');
       } else {
-        await addStationeryService(form);
-        toast.success(`"${form.serviceName}" added successfully`);
+        await addStationeryService(submitForm);
+        toast.success(`"${serviceNameTrimmed}" added successfully`);
       }
       setShowModal(false);
     } catch (err: any) {
