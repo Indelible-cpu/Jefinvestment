@@ -11,6 +11,7 @@ import AuditLogs from '../components/AuditLogs';
 import { useAuditStore } from '../store/auditStore';
 import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
+import { checkForAppUpdates } from '../utils/pwaUpdate';
 
 export default function Settings() {
   const { 
@@ -764,6 +765,15 @@ export default function Settings() {
                   <h4 className="font-bold text-gray-700 mb-1">Clear AI Cache</h4>
                   <p className="text-xs text-gray-500 mb-4">Clear pre-computed AI image embeddings. Forces a full recompute on next page load.</p>
                   <button onClick={async () => { await clearEmbeddingCache(); toast.success('AI Image Cache cleared!'); }} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 transition mt-auto">Clear AI Cache</button>
+                </div>
+
+                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center bg-blue-50/30">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                    <RefreshCw className="text-blue-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-700 mb-1">System Updates</h4>
+                  <p className="text-xs text-gray-500 mb-4">Check for the latest software updates and new features.</p>
+                  <button onClick={() => checkForAppUpdates(true)} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-auto">Check for Updates</button>
                 </div>
 
                 <div className="border border-red-100 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-red-50/30">

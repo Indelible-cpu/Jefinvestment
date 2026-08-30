@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.tsx'
+import { initPWAUpdate } from './utils/pwaUpdate'
+
+// Register PWA service worker and notify when system updates are available
+initPWAUpdate();
 
 const queryClient = new QueryClient()
 
