@@ -634,13 +634,20 @@ export default function Inventory() {
 
       {/* Delete Confirm */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmDelete(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg mb-2 text-gray-800">Delete Product?</h3>
-            <p className="text-gray-600 mb-6">This action cannot be undone. The product will be permanently removed.</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 font-medium">Cancel</button>
-              <button onClick={() => handleDelete(confirmDelete)} className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700">Delete</button>
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setConfirmDelete(null)}>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full text-gray-900 dark:text-gray-100" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-900/80 flex items-center justify-center shrink-0">
+                <Trash2 size={22} className="text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">Delete Product?</h3>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => handleDelete(confirmDelete)} className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm shadow-sm transition active:scale-95">Delete</button>
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-zinc-700 rounded-xl font-semibold text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition">Cancel</button>
             </div>
           </div>
         </div>
@@ -648,10 +655,10 @@ export default function Inventory() {
 
       {/* Ream Restock Modal */}
       {reamRestockProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setReamRestockProduct(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-lg mb-1">Restock in Reams</h3>
-            <p className="text-sm text-gray-500 mb-4">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setReamRestockProduct(null)}>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full text-gray-900 dark:text-gray-100" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-1 text-gray-900 dark:text-gray-100">Restock in Reams</h3>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4">
               <strong>{reamRestockProduct.name}</strong> — Current stock: <strong>{reamRestockProduct.stock.toLocaleString()} sheets</strong><br />
               1 ream = {SHEETS_PER_REAM} sheets
             </p>

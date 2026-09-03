@@ -618,18 +618,21 @@ export default function Sales() {
 
       {/* Delete Confirm Dialog */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div
+          className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setDeleteConfirmId(null); }}
+        >
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-gray-900 dark:text-gray-100 relative z-10" onMouseDown={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <Trash2 size={20} className="text-red-600" />
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-900/80 flex items-center justify-center shrink-0">
+                <Trash2 size={22} className="text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <div className="font-bold text-gray-900">Delete Sale Record?</div>
-                <div className="text-sm text-gray-500">This permanently removes the record. Cannot be undone.</div>
+                <div className="font-bold text-lg text-gray-900 dark:text-gray-100">Delete Sale Record?</div>
+                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">This permanently removes the record. Cannot be undone.</div>
               </div>
             </div>
-            <div className="flex gap-3 mt-2">
+            <div className="flex gap-3 mt-4">
               <button
                 onClick={async () => {
                   await deleteSale(deleteConfirmId);
@@ -637,13 +640,13 @@ export default function Sales() {
                   toast.success('Sale record deleted.');
                   setDeleteConfirmId(null);
                 }}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition"
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm shadow-sm transition active:scale-95"
               >
                 Yes, Delete
               </button>
               <button
                 onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 px-4 py-2.5 border rounded-xl font-semibold text-sm text-gray-700 hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-zinc-700 rounded-xl font-semibold text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition"
               >
                 Cancel
               </button>
