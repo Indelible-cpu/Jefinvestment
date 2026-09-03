@@ -61,18 +61,18 @@ export default function POS() {
     if (!cat) return '';
     const lower = cat.trim().toLowerCase();
     if (lower === 'general' || lower === 'stationery service') return '';
-    if (lower === 'stationery' || lower === 'stationery items') return 'Stationery';
+    if (lower === 'stationery' || lower === 'stationery items') return 'Stationery Items';
     if (lower === 'accessories' || lower === 'accessory') return 'Accessories';
     if (lower === 'services' || lower === 'service') return 'Services';
     return cat.trim();
   };
 
   const productCategories = Array.from(new Set(products.map(p => normalizeCategory(p.category)).filter(Boolean)));
-  const canonicalOrder = ['All', 'Accessories', 'Services', 'Stationery'];
+  const canonicalOrder = ['All', 'Accessories', 'Services', 'Stationery Items'];
   const categories = [
     'All',
-    ...canonicalOrder.filter(c => c !== 'All' && (productCategories.includes(c) || productCategories.includes('Stationery Items'))),
-    ...productCategories.filter(c => !canonicalOrder.includes(c) && c !== 'Stationery Items')
+    ...canonicalOrder.filter(c => c !== 'All' && productCategories.includes(c)),
+    ...productCategories.filter(c => !canonicalOrder.includes(c))
   ];
 
   const filteredProducts = products.filter(p => {
@@ -81,7 +81,7 @@ export default function POS() {
     if (!pCat) return false;
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = catFilter === 'All' || pCat === catFilter || (catFilter === 'Stationery' && (pCat === 'Stationery' || pCat === 'Stationery Items'));
+    const matchCat = catFilter === 'All' || pCat === catFilter;
     return matchSearch && matchCat;
   });
 
