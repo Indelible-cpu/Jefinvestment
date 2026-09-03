@@ -53,4 +53,16 @@ const db = initializeFirestore(app, {
 const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
 const secondaryAuth = getAuth(secondaryApp);
 
+// Initialize Firebase App Check with reCAPTCHA Enterprise for SecondaryApp
+if (typeof window !== 'undefined' && recaptchaSiteKey) {
+  try {
+    initializeAppCheck(secondaryApp, {
+      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true
+    });
+  } catch (err) {
+    console.warn('App Check initialization for SecondaryApp failed:', err);
+  }
+}
+
 export { app, auth, db, storage, secondaryApp, secondaryAuth };
