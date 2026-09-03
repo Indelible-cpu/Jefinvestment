@@ -18,6 +18,13 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // If user is already authenticated, don't let them sit on the login page
+    const state = useAuthStore.getState();
+    if (state.isAuthenticated && state.user) {
+      navigate(state.user.role === 'CASHIER' ? '/pos' : '/', { replace: true });
+      return;
+    }
+
     const savedEmail = localStorage.getItem('jef_remembered_email');
     if (savedEmail) {
       setEmail(savedEmail);
@@ -27,7 +34,7 @@ export default function Login() {
       setPassword('');
       setRememberMe(false);
     }
-  }, []);
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
