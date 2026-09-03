@@ -35,7 +35,6 @@ function LiveClockBadge() {
   const h = now.getHours().toString().padStart(2, '0');
   const m = now.getMinutes().toString().padStart(2, '0');
   const s = now.getSeconds().toString().padStart(2, '0');
-  const ms = Math.floor(now.getMilliseconds() / 10).toString().padStart(2, '0');
 
   return (
     <div className="absolute -top-4 right-0 bg-indigo-50 border border-indigo-100 shadow-sm rounded-xl px-4 py-2 flex flex-col items-end transition-all">
@@ -46,7 +45,6 @@ function LiveClockBadge() {
         <span className="w-5 text-center">{m}</span>
         <span className="opacity-60 mx-0.5">:</span>
         <span className="w-5 text-left">{s}</span>
-        <span className="text-[10px] opacity-70 w-5 text-left">.{ms}</span>
       </div>
     </div>
   );
