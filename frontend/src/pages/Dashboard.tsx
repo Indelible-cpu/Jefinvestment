@@ -61,13 +61,13 @@ export default function Dashboard() {
   // By accessing the raw arrays, we force the Dashboard to re-render when they update
   const outstandingCredit = useCreditStore(s => {
     // depend on credits array to trigger re-renders
-    const _ = s.credits; 
+    if (s.credits) { /* explicit dependency */ }
     return s.getTotalOutstanding();
   });
   
   const activeStaff = useEmployeeStore(s => {
     // depend on employees array to trigger re-renders
-    const _ = s.employees;
+    if (s.employees) { /* explicit dependency */ }
     return s.getActiveCount();
   });
   
