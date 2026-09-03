@@ -315,15 +315,6 @@ export default function Layout() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-           {/* Quick Theme Toggle (Mobile) */}
-           <button
-             onClick={toggleTheme}
-             className="text-blue-100 hover:text-white p-1 transition rounded-full hover:bg-white/10"
-             title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} mode`}
-           >
-             {resolvedTheme === 'dark' ? <Sun size={22} className="text-amber-300" /> : <Moon size={22} />}
-           </button>
-
            {/* Sync Status Badge */}
            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-black/20 rounded-full text-sm font-medium backdrop-blur-sm">
              {queue.length > 0 ? (
@@ -403,15 +394,7 @@ export default function Layout() {
       }`}>
         {/* Branding Area */}
         <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5 relative">
-          <div className="hidden md:flex items-center gap-2 absolute top-4 right-4">
-            <button 
-              onClick={toggleTheme} 
-              className="text-blue-200 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10" 
-              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} mode`}
-            >
-              {resolvedTheme === 'dark' ? <Sun size={18} className="text-amber-300" /> : <Moon size={18} />}
-            </button>
-            <div ref={desktopNotifRef} className="relative">
+          <div className="hidden md:block absolute top-4 right-4" ref={desktopNotifRef}>
               <button onClick={() => setShowNotifications(!showNotifications)} className="text-blue-200 hover:text-white transition relative p-1.5 rounded-lg hover:bg-white/10">
                 <Bell size={18} />
                 {notificationCount > 0 && (
@@ -451,7 +434,6 @@ export default function Layout() {
                  </div>
               )}
             </div>
-          </div>
           {companyLogo ? (
             <img src={companyLogo} alt={companyName} className="h-16 w-16 object-cover rounded-full overflow-hidden mb-3 shadow-md" />
           ) : (
@@ -524,9 +506,18 @@ export default function Layout() {
 
         {/* User Profile & Footer Actions */}
         <div className="p-4 border-t border-blue-700/50 bg-blue-900/30 pb-safe md:pb-4 mt-auto">
-          <Link to="/settings" className="flex items-center gap-3 p-3 rounded-lg hover:bg-blue-800 text-blue-100 transition font-medium mb-4">
-            <SettingsIcon size={20} /> <span>Settings</span>
-          </Link>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <Link to="/settings" className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-blue-800 text-blue-100 transition font-medium flex-1">
+              <SettingsIcon size={20} /> <span>Settings</span>
+            </Link>
+            <button
+              onClick={toggleTheme}
+              className="p-2.5 text-blue-200 hover:text-white hover:bg-blue-800 rounded-lg transition shrink-0 flex items-center justify-center"
+              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} mode`}
+            >
+              {resolvedTheme === 'dark' ? <Sun size={20} className="text-amber-300" /> : <Moon size={20} />}
+            </button>
+          </div>
           <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg mb-2">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="hidden md:flex w-8 h-8 bg-white rounded-full items-center justify-center text-[#004bb4] overflow-hidden shadow-sm shrink-0">

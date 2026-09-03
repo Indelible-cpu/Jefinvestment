@@ -240,6 +240,30 @@ export default function Inventory() {
     }));
   };
 
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter' && e.target instanceof HTMLElement && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) {
+      const formElement = e.currentTarget;
+      // Get all visible, focusable text/number inputs and selects in DOM order
+      const inputs = Array.from(
+        formElement.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+          'input:not([type="checkbox"]):not([type="button"]):not([type="submit"]):not([type="hidden"]):not([disabled]), select:not([disabled])'
+        )
+      ).filter(el => el.offsetParent !== null);
+
+      const currentIndex = inputs.indexOf(e.target as any);
+
+      if (currentIndex === inputs.length - 1) {
+        // Last input field reached -> trigger save!
+        e.preventDefault();
+        handleSave();
+      } else if (currentIndex !== -1) {
+        // Move to the next input field
+        e.preventDefault();
+        inputs[currentIndex + 1]?.focus();
+      }
+    }
+  };
+
   const generateSKU = () => {
     const rawPrefix = form.name ? form.name.substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
     const prefix = rawPrefix.length > 0 ? rawPrefix : 'SKU';
@@ -457,7 +481,7 @@ export default function Inventory() {
       {/* Add/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <form className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); handleSave(); }}>
+          <form className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); handleSave(); }} onKeyDown={handleFormKeyDown}>
             <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-xl font-bold text-gray-800">{editId ? 'Edit Product' : 'Add New Product'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:bg-gray-100 p-1.5 rounded-full"><X size={20} /></button>
@@ -639,6 +663,12 @@ export default function Inventory() {
                 placeholder="e.g. 3"
                 value={reamQty}
                 onChange={e => setReamQty(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && reamQty && Number(reamQty) > 0 && !isSubmitting) {
+                    e.preventDefault();
+                    handleReamRestock();
+                  }
+                }}
                 autoFocus
               />
               {reamQty && Number(reamQty) > 0 && (
