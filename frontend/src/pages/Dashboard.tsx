@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSaleStore, useCreditStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
@@ -135,9 +135,9 @@ export default function Dashboard() {
       {/* Secondary Stats Row */}
       <div className="bg-white rounded-xl border shadow-sm p-4 mb-6 flex justify-between divide-x divide-gray-100 relative z-10">
         <div className="flex flex-col items-center flex-1">
-          <div className="bg-red-50 text-red-500 p-2 rounded-lg mb-1"><AlertTriangle size={18} /></div>
-          <div className="font-bold text-lg leading-tight">{lowStockCount}</div>
-          <div className="text-[10px] text-gray-500 text-center leading-tight">Low Stock<br/>Items</div>
+          <div className="bg-blue-50 text-blue-600 p-2 rounded-lg mb-1"><ShoppingBag size={18} /></div>
+          <div className="font-bold text-lg leading-tight">{todaysSales.length}</div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Today's<br/>Orders</div>
         </div>
 
         <div className="flex flex-col items-center flex-1">
