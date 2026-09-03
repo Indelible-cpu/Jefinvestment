@@ -105,8 +105,6 @@ export default function Dashboard() {
 
   const isAdmin = user?.role === 'ADMIN';
 
-  const usersCount = useAuthStore(s => s.users.length);
-
   const stats = [
     { label: "Today's Sales", value: `${settings.currency} ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports', adminOnly: false },
     { label: 'Outstanding Credit', value: `${settings.currency} ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits', adminOnly: true },
@@ -141,13 +139,6 @@ export default function Dashboard() {
             </div>
             <div className="text-[10.5px] sm:text-xs md:text-sm text-gray-500 font-medium mb-0.5 sm:mb-1">{stat.label}</div>
             <div className={`text-sm md:text-2xl font-bold ${stat.color} mb-0.5 sm:mb-1`}>{stat.value}</div>
-            
-            {stat.secondaryLabel !== undefined && (
-              <div className="text-[9px] sm:text-xs text-gray-500 bg-gray-50 rounded px-1.5 py-0.5 mt-1 border border-gray-100 flex items-center gap-1">
-                {stat.secondaryLabel} <span className="font-bold text-gray-700">{stat.secondaryValue}</span>
-              </div>
-            )}
-            
             <div className="text-[9px] sm:text-[10px] md:text-xs text-gray-400 mt-1.5">View details &gt;</div>
           </Link>
         ))}
