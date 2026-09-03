@@ -822,7 +822,7 @@ export default function Settings() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
                     <Download className="text-blue-600" size={24} />
@@ -853,15 +853,6 @@ export default function Settings() {
                   <button onClick={async () => { await clearEmbeddingCache(); toast.success('AI Image Cache cleared!'); }} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 transition mt-auto">Clear AI Cache</button>
                 </div>
 
-                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center bg-blue-50/30">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                    <RefreshCw className="text-blue-600" size={24} />
-                  </div>
-                  <h4 className="font-bold text-gray-700 mb-1">System Updates</h4>
-                  <p className="text-xs text-gray-500 mb-4">Check for the latest software updates and new features.</p>
-                  <button onClick={() => checkForAppUpdates(true)} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-auto">Check for Updates</button>
-                </div>
-
                 <div className="border border-red-100 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-red-50/30">
                   <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
                     <AlertTriangle className="text-red-600" size={24} />
@@ -874,6 +865,25 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+        {/* System Updates — visible to ALL users */}
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
+          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+            <RefreshCw size={18} /> System Updates
+          </div>
+          <div className="p-6 flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+              <RefreshCw className="text-blue-600" size={26} />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <h4 className="font-bold text-gray-700 mb-1">Check for Updates</h4>
+              <p className="text-sm text-gray-500">Check for the latest software updates and new features. Your app will reload if a new version is available.</p>
+            </div>
+            <button onClick={() => checkForAppUpdates(true)} className="shrink-0 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition active:scale-95">
+              Check for Updates
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Security & Access Section */}

@@ -5,7 +5,6 @@ import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { useState, useEffect } from 'react';
-import AutoClearPrompt from '../components/AutoClearPrompt';
 
 const ALL_ACTIONS = [
   { id: 'new-sale', label: 'New Sale (POS)', icon: ShoppingCart, link: '/pos', color: 'text-blue-500' },
@@ -117,8 +116,6 @@ export default function Dashboard() {
 
   return (
     <div className="p-1.5 sm:p-3 md:p-6 md:pt-6 relative -mt-4 md:mt-0">
-      {/* Auto-clear maintenance prompt for admins */}
-      <AutoClearPrompt />
 
       {/* Greeting (Desktop Only) */}
       <div className="hidden md:block mb-4 md:mb-6 relative h-12">
