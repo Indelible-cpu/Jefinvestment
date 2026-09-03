@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { useSaleStore, useCreditStore, useExpenseStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore, useCartStore } from '../store/cartStore';
 import { useSyncQueueStore } from '../store/syncQueueStore';
 import { useThemeStore } from '../store/themeStore';
@@ -23,6 +23,7 @@ export default function Layout() {
   const credits = useCreditStore(s => s.credits);
   const loadCredits = useCreditStore(s => s.loadCredits);
   const { loadExpenses } = useExpenseStore();
+  const { loadEmployees } = useEmployeeStore();
   const { queue, isSyncing, syncAll } = useSyncQueueStore();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -104,9 +105,9 @@ export default function Layout() {
     loadProfile();
 
     // Secondary data — staggered so startup feels instant
-    const t1 = setTimeout(() => { loadExpenses(); loadCredits(); }, 400);
+    const t1 = setTimeout(() => { loadExpenses(); loadCredits(); loadEmployees(); }, 400);
     const t2 = setTimeout(() => syncAll(), 1000);
-    // Employees and StationeryServices are loaded lazily by their own pages
+    // StationeryServices are loaded lazily by their own pages
 
     if (user?.id) {
       const t3 = setTimeout(() => loadHeldCarts(user.id), 300);

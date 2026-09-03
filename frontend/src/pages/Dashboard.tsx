@@ -57,8 +57,20 @@ export default function Dashboard() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   const { getTodayTotal, sales } = useSaleStore();
-  const { getTotalOutstanding } = useCreditStore();
-  const { getActiveCount } = useEmployeeStore();
+  
+  // By accessing the raw arrays, we force the Dashboard to re-render when they update
+  const outstandingCredit = useCreditStore(s => {
+    // depend on credits array to trigger re-renders
+    const _ = s.credits; 
+    return s.getTotalOutstanding();
+  });
+  
+  const activeStaff = useEmployeeStore(s => {
+    // depend on employees array to trigger re-renders
+    const _ = s.employees;
+    return s.getActiveCount();
+  });
+  
   const { products } = useProductStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -68,8 +80,6 @@ export default function Dashboard() {
   const firstName = user?.name?.split(' ').at(-1) || 'there';
 
   const todayTotal = getTodayTotal();
-  const outstandingCredit = getTotalOutstanding();
-  const activeStaff = getActiveCount();
   const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
 
   const today = new Date().toISOString().slice(0, 10);

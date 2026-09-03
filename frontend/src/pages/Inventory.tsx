@@ -634,8 +634,8 @@ export default function Inventory() {
 
       {/* Delete Confirm */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setConfirmDelete(null)}>
-          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full text-gray-900 dark:text-gray-100" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all" onClick={() => setConfirmDelete(null)}>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 max-w-sm w-full text-gray-900 dark:text-gray-100 transition-all" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-900/80 flex items-center justify-center shrink-0">
                 <Trash2 size={22} className="text-red-600 dark:text-red-400" />
@@ -655,8 +655,8 @@ export default function Inventory() {
 
       {/* Ream Restock Modal */}
       {reamRestockProduct && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setReamRestockProduct(null)}>
-          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full text-gray-900 dark:text-gray-100" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all" onClick={() => setReamRestockProduct(null)}>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 max-w-sm w-full text-gray-900 dark:text-gray-100 transition-all" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-lg mb-1 text-gray-900 dark:text-gray-100">Restock in Reams</h3>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4">
               <strong>{reamRestockProduct.name}</strong> — Current stock: <strong>{reamRestockProduct.stock.toLocaleString()} sheets</strong><br />
