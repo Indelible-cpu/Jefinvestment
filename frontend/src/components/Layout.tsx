@@ -112,7 +112,7 @@ export default function Layout() {
     if (user?.id) {
       const t3 = setTimeout(() => loadHeldCarts(user.id), 300);
       if (user.role === 'ADMIN') {
-        const t4 = setTimeout(() => loadPasswordRequests(), 600);
+        const t4 = setTimeout(() => { loadPasswordRequests(); useAuthStore.getState().loadUsers(); }, 600);
         return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
       }
       return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
