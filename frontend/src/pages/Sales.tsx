@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
-  Search, Filter, ChevronLeft, ChevronRight, Eye, Printer, MoreVertical,
-  Ban, RefreshCcw, Download, CheckCircle2, Clock, X,
+  Search, Filter, ChevronLeft, ChevronRight, Eye, MoreVertical,
+  Ban, RefreshCcw, Download, CheckCircle2, Clock, X, FileText,
   ShoppingBag, Banknote, WifiOff, Wifi, ArrowUpDown, CalendarRange, Trash2,
 } from 'lucide-react';
 import { useSaleStore, type SaleRecord } from '../store/dataStore';
@@ -23,8 +23,8 @@ const PAYMENT_LABELS: Record<string, string> = {
   BANK_NBM:      'Bank (NBM)',
   // legacy keys — kept so older records still display correctly
   BANK_TRANSFER: 'Bank Transfer',
-  AIRTEL_MONEY:  'Airtel Money',
-  TNM_MPAMBA:    'TNM Mpamba',
+  POS_TERMINAL:  'Card / POS',
+  SPLIT:         'Split',
 };
 
 // Options shown in the payment filter dropdown (current keys only — no duplicates)
@@ -38,30 +38,31 @@ const PAYMENT_FILTER_OPTIONS = [
 ];
 
 const PAYMENT_COLORS: Record<string, string> = {
-  CASH:          'bg-gray-100 text-gray-800',
-  CREDIT:        'bg-orange-100 text-orange-800',
-  MOMO_AIRTEL:   'bg-red-600 text-white',
-  MOMO_MPAMBA:   'bg-green-600 text-white',
-  BANK_NBS:      'bg-red-600 text-white',
-  BANK_NBM:      'bg-blue-600 text-white',
+  CASH:          'bg-green-100 text-green-700 border border-green-200',
+  CREDIT:        'bg-amber-100 text-amber-800 border border-amber-300',
+  MOMO_AIRTEL:   'bg-red-100 text-red-700 border border-red-200',
+  MOMO_MPAMBA:   'bg-emerald-100 text-emerald-700 border border-emerald-200',
+  BANK_NBS:      'bg-blue-100 text-blue-700 border border-blue-200',
+  BANK_NBM:      'bg-indigo-100 text-indigo-700 border border-indigo-200',
   // legacy keys
-  BANK_TRANSFER: 'bg-blue-600 text-white',
-  AIRTEL_MONEY:  'bg-red-600 text-white',
-  TNM_MPAMBA:    'bg-green-600 text-white',
+  BANK_TRANSFER: 'bg-blue-100 text-blue-700 border border-blue-200',
+  POS_TERMINAL:  'bg-purple-100 text-purple-700 border border-purple-200',
+  SPLIT:         'bg-purple-100 text-purple-700 border border-purple-200',
 };
 
 const STATUS_CONFIG = {
-  completed: { label: 'Completed', icon: CheckCircle2, cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  completed: { label: 'Completed', icon: CheckCircle2, cls: 'bg-green-50 text-green-700 border border-green-200' },
   refunded: { label: 'Refunded', icon: RefreshCcw, cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
   voided: { label: 'Voided', icon: Ban, cls: 'bg-red-50 text-red-600 border border-red-200' },
 };
 
 // ─── Sale Detail Modal ─────────────────────────────────────────────────────────
-function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
+function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt }: {
   sale: SaleRecord;
   onClose: () => void;
   isAdmin: boolean;
   onUpdateStatus: (id: string, status: 'refunded' | 'voided') => void;
+  onViewReceipt: () => void;
 }) {
   const settings = useSettingsStore();
   const [confirmAction, setConfirmAction] = useState<'refunded' | 'voided' | null>(null);
@@ -97,7 +98,13 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
             <h2 className="text-2xl font-bold font-mono">{sale.invoiceNumber}</h2>
             <div className="text-blue-200 text-sm mt-1">{sale.date} at {sale.time} &bull; {sale.cashier}</div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onViewReceipt}
+              className="flex items-center gap-1.5 px-3 py-1 bg-white/15 hover:bg-white/25 text-white rounded-full text-xs font-semibold transition border border-white/20"
+            >
+              <FileText size={13} /> View Receipt / Invoice
+            </button>
             <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${StatusCfg.cls} bg-white dark:bg-zinc-800`}>
               <StatusCfg.icon size={12} /> {StatusCfg.label}
             </span>
@@ -525,20 +532,20 @@ export default function Sales() {
                           </button>
                           {openMenuId === sale.id && (
                             <div
-                              className="absolute right-0 mt-1 w-48 bg-white border rounded-xl shadow-xl z-20 py-1"
+                              className="absolute right-0 mt-1 w-52 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-20 py-1"
                               onMouseLeave={() => setOpenMenuId(null)}
                             >
                               <button
                                 onClick={() => { setDetailSale(sale); setOpenMenuId(null); }}
-                                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition"
                               >
                                 <Eye size={15} /> View Details
                               </button>
                               <button
                                 onClick={() => { setReprintSale(sale); setOpenMenuId(null); }}
-                                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-zinc-700/50 transition"
                               >
-                                <Printer size={15} /> Reprint Receipt
+                                <FileText size={15} /> View Receipt / Invoice
                               </button>
                               {isAdmin && (sale.status ?? 'completed') === 'completed' && !(sale as any).isRepaymentRecord && (
                                 <>
@@ -651,6 +658,11 @@ export default function Sales() {
           sale={detailSale}
           onClose={() => setDetailSale(null)}
           isAdmin={isAdmin}
+          onViewReceipt={() => {
+            const s = detailSale;
+            setDetailSale(null);
+            setReprintSale(s);
+          }}
           onUpdateStatus={async (id, status) => {
             try {
               await updateSaleStatus(id, status);
