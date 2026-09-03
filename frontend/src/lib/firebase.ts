@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import {
   initializeFirestore,
@@ -18,6 +19,15 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Initialize Firebase App Check with reCAPTCHA v3
+if (typeof window !== 'undefined' && import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true
+  });
+}
+
 const auth = getAuth(app);
 const storage = getStorage(app);
 
