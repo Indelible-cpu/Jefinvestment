@@ -385,12 +385,26 @@ export const useSaleStore = create<SaleState>()(
         const q = query(collection(db, 'sales'), where('date', '<', cutoffDateStr));
         const snapshot = await getDocs(q);
         if (snapshot.empty) return;
+        
+        // Filter out unpaid credit sales so they are not deleted
+        const docsToDelete = snapshot.docs.filter(doc => {
+          const data = doc.data();
+          // If it's a credit sale, only delete it if it's fully paid (creditPaid >= total)
+          if (data.isCredit) {
+            const paid = Number(data.creditPaid) || 0;
+            const total = Number(data.total) || 0;
+            return paid >= total; // Delete only if fully paid
+          }
+          return true; // Not a credit sale, safe to delete
+        });
+
+        if (docsToDelete.length === 0) return;
+
         // Firestore batch can hold max 500 operations, chunk if needed
         const batchSize = 400;
-        const docs = snapshot.docs;
-        for (let i = 0; i < docs.length; i += batchSize) {
+        for (let i = 0; i < docsToDelete.length; i += batchSize) {
           const batch = writeBatch(db);
-          docs.slice(i, i + batchSize).forEach(d => batch.delete(d.ref));
+          docsToDelete.slice(i, i + batchSize).forEach(d => batch.delete(d.ref));
           await batch.commit();
         }
       } catch (e) {
