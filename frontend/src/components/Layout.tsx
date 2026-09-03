@@ -298,7 +298,7 @@ export default function Layout() {
     >
       <div className="md:hidden absolute top-0 left-0 right-0 h-24 bg-[#004bb4] text-white flex items-start justify-between px-4 pt-4 z-20">
         <div className="flex items-start">
-          <div className="flex flex-col mt-0.5">
+          <div className="flex flex-col mt-0.5 max-w-[calc(100vw-120px)]">
             <div className="flex items-center gap-2">
               <h1 className="font-bold text-xl leading-tight truncate max-w-[200px]">MsikaFlo</h1>
               {isOnline ? (
@@ -308,7 +308,7 @@ export default function Layout() {
               )}
             </div>
             <div className="animate-float-lr mt-0.5">
-              <p className="text-sm text-blue-100">{greeting}, {user?.name?.split(' ').at(-1) || 'Jef'} 👋</p>
+              <p className="text-sm text-blue-100 whitespace-nowrap">{greeting}, {user?.name?.split(' ').at(-1) || 'Jef'} 👋</p>
             </div>
           </div>
         </div>
