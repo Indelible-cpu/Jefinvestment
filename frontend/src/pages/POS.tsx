@@ -61,18 +61,18 @@ export default function POS() {
     if (!cat) return '';
     const lower = cat.trim().toLowerCase();
     if (lower === 'general' || lower === 'stationery service') return '';
-    if (lower === 'stationery' || lower === 'stationery items') return 'Stationery Items';
+    if (lower === 'stationery' || lower === 'stationery items') return 'Stationery';
     if (lower === 'accessories' || lower === 'accessory') return 'Accessories';
     if (lower === 'services' || lower === 'service') return 'Services';
     return cat.trim();
   };
 
   const productCategories = Array.from(new Set(products.map(p => normalizeCategory(p.category)).filter(Boolean)));
-  const canonicalOrder = ['All', 'Accessories', 'Services', 'Stationery Items'];
+  const canonicalOrder = ['All', 'Accessories', 'Services', 'Stationery'];
   const categories = [
     'All',
-    ...canonicalOrder.filter(c => c !== 'All' && productCategories.includes(c)),
-    ...productCategories.filter(c => !canonicalOrder.includes(c))
+    ...canonicalOrder.filter(c => c !== 'All' && (productCategories.includes(c) || productCategories.includes('Stationery Items'))),
+    ...productCategories.filter(c => !canonicalOrder.includes(c) && c !== 'Stationery Items')
   ];
 
   const filteredProducts = products.filter(p => {
@@ -81,7 +81,7 @@ export default function POS() {
     if (!pCat) return false;
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = catFilter === 'All' || pCat === catFilter;
+    const matchCat = catFilter === 'All' || pCat === catFilter || (catFilter === 'Stationery' && (pCat === 'Stationery' || pCat === 'Stationery Items'));
     return matchSearch && matchCat;
   });
 
@@ -487,19 +487,21 @@ const playSound = (type: 'success' | 'error') => {
           )}
 
           {/* Category Tabs & Quick Action Rows */}
-          <div className="flex flex-col gap-2 mb-3">
-            {/* Row 1: Product Categories (All, Accessories, Services, Stationery Items) */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 sm:flex-wrap">
+          {/* Mobile View: 2 structured non-scrollable rows */}
+          <div className="flex flex-col gap-2 mb-3 md:hidden">
+            {/* Row 1: Product Categories (All, Accessories, Services, Stationery) - 4 equal non-scrollable columns */}
+            <div className="grid grid-cols-4 gap-1.5 w-full">
               {categories.map(c => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setCatFilter(c)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition flex-shrink-0 ${
+                  className={`w-full py-1.5 px-0.5 text-center truncate rounded-xl text-[11px] sm:text-xs font-semibold transition ${
                     catFilter === c
                       ? 'bg-primary text-white shadow-xs'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200/60'
                   }`}
+                  title={c}
                 >
                   {c}
                 </button>
@@ -507,18 +509,18 @@ const playSound = (type: 'success' | 'error') => {
             </div>
 
             {/* Row 2: Stationery Services & Other Sales */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5 w-full">
               {stationeryServices.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => setCatFilter('Stationery Services')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border shadow-xs ${
+                  className={`w-full py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 border shadow-xs truncate ${
                     catFilter === 'Stationery Services'
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
                   }`}
                 >
-                  <Printer size={13} /> Stationery Services
+                  <Printer size={13} className="shrink-0" /> <span className="truncate">Stationery Services</span>
                 </button>
               ) : (
                 <div />
@@ -527,12 +529,51 @@ const playSound = (type: 'success' | 'error') => {
               <button
                 type="button"
                 onClick={() => setShowOtherModal(true)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                className="w-full py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white shadow-xs truncate"
                 title="Record an unlisted custom sale item"
               >
-                <PlusCircle size={13} /> + Other Sale
+                <PlusCircle size={13} className="shrink-0" /> <span className="truncate">+ Other Sale</span>
               </button>
             </div>
+          </div>
+
+          {/* Desktop View: Single continuous row as before */}
+          <div className="hidden md:flex gap-2 flex-wrap mb-3 items-center">
+            {categories.map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCatFilter(c)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                  catFilter === c
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200/60'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+            {stationeryServices.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setCatFilter('Stationery Services')}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition flex items-center gap-1.5 border shadow-xs ${
+                  catFilter === 'Stationery Services'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
+                }`}
+              >
+                <Printer size={12} /> Stationery Services
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowOtherModal(true)}
+              className="px-3.5 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-xs ml-auto"
+              title="Record an unlisted custom sale item"
+            >
+              <PlusCircle size={13} /> + Other Sale
+            </button>
           </div>
           
           <div className="flex-1 overflow-auto grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 auto-rows-max">
