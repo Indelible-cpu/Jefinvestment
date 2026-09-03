@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import {
   Search, Filter, ChevronLeft, ChevronRight, Eye, MoreVertical,
-  Ban, RefreshCcw, Download, CheckCircle2, Clock, X, FileText,
+  Ban, RefreshCcw, Download, CheckCircle2, Clock, X, FileText, Undo2,
   ShoppingBag, Banknote, WifiOff, Wifi, ArrowUpDown, CalendarRange, Trash2,
 } from 'lucide-react';
 import { useSaleStore, type SaleRecord } from '../store/dataStore';
@@ -61,7 +61,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
   sale: SaleRecord;
   onClose: () => void;
   isAdmin: boolean;
-  onUpdateStatus: (id: string, status: 'refunded' | 'voided') => void;
+  onUpdateStatus: (id: string, status: 'completed' | 'refunded' | 'voided') => void;
   onViewReceipt: () => void;
 }) {
   const settings = useSettingsStore();
@@ -177,24 +177,45 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
             {sale.syncStatus === 'synced' ? <><Wifi size={13} className="text-green-500" /> Synced to cloud</> : <><WifiOff size={13} className="text-amber-500" /> Pending sync</>}
           </div>
 
-          {/* Actions */}
+          {/* Actions for completed sales */}
           {isAdmin && (sale.status ?? 'completed') === 'completed' && !(sale as any).isRepaymentRecord && (
             <div>
               {confirmAction ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <p className="font-semibold text-red-700 mb-3">Are you sure you want to <strong className="capitalize">{confirmAction}</strong> this sale? This action cannot be undone.</p>
+                <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4">
+                  <p className="font-semibold text-red-700 dark:text-red-300 mb-3">Are you sure you want to <strong className="capitalize">{confirmAction}</strong> this sale? This action will restore items back to inventory.</p>
                   <div className="flex gap-3">
-                    <button onClick={handleConfirm} className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition">Yes, {confirmAction}</button>
-                    <button onClick={() => setConfirmAction(null)} className="px-4 py-2 border rounded-lg font-semibold text-sm hover:bg-gray-100 transition">Cancel</button>
+                    <button onClick={handleConfirm} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold text-sm transition shadow-sm">Yes, {confirmAction}</button>
+                    <button onClick={() => setConfirmAction(null)} className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg font-semibold text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 transition">Cancel</button>
                   </div>
                 </div>
               ) : (
                 <div className="flex gap-3">
-                  <button onClick={() => setConfirmAction('refunded')} className="flex items-center gap-2 px-4 py-2 border border-amber-300 text-amber-700 bg-amber-50 rounded-lg text-sm font-semibold hover:bg-amber-100 transition">
+                  <button onClick={() => setConfirmAction('refunded')} className="flex items-center gap-2 px-4 py-2 border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-xl text-sm font-semibold hover:bg-amber-100 dark:hover:bg-amber-950/70 transition shadow-xs">
                     <RefreshCcw size={15} /> Process Refund
                   </button>
-                  <button onClick={() => setConfirmAction('voided')} className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-700 bg-red-50 rounded-lg text-sm font-semibold hover:bg-red-100 transition">
+                  <button onClick={() => setConfirmAction('voided')} className="flex items-center gap-2 px-4 py-2 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-xl text-sm font-semibold hover:bg-red-100 dark:hover:bg-red-950/70 transition shadow-xs">
                     <Ban size={15} /> Void Sale
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions for voided or refunded sales — UNDO / RESTORE */}
+          {isAdmin && (sale.status === 'voided' || sale.status === 'refunded') && !(sale as any).isRepaymentRecord && (
+            <div>
+              {confirmAction ? (
+                <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 rounded-xl p-4">
+                  <p className="font-semibold text-green-800 dark:text-green-300 mb-3">Restore this sale back to <strong>Completed</strong>? Stock will be re-deducted from inventory.</p>
+                  <div className="flex gap-3">
+                    <button onClick={() => { onUpdateStatus(sale.id, 'completed'); toast.success(`Sale ${sale.invoiceNumber} restored to completed.`); setConfirmAction(null); onClose(); }} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition shadow-sm">Yes, Restore Sale</button>
+                    <button onClick={() => setConfirmAction(null)} className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg font-semibold text-sm hover:bg-gray-100 dark:hover:bg-zinc-800 transition">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmAction('completed' as any)} className="flex items-center gap-2 px-4 py-2 border border-green-300 dark:border-green-800 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 rounded-xl text-sm font-semibold hover:bg-green-100 dark:hover:bg-green-950/70 transition shadow-xs">
+                    <Undo2 size={15} /> Restore Sale (Undo {sale.status === 'voided' ? 'Void' : 'Refund'})
                   </button>
                 </div>
               )}
@@ -532,7 +553,7 @@ export default function Sales() {
                           </button>
                           {openMenuId === sale.id && (
                             <div
-                              className="absolute right-0 mt-1 w-52 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-20 py-1"
+                              className="absolute right-0 mt-1 w-48 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-20 py-1"
                               onMouseLeave={() => setOpenMenuId(null)}
                             >
                               <button
@@ -540,12 +561,6 @@ export default function Sales() {
                                 className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-700/50 transition"
                               >
                                 <Eye size={15} /> View Details
-                              </button>
-                              <button
-                                onClick={() => { setReprintSale(sale); setOpenMenuId(null); }}
-                                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-zinc-700/50 transition"
-                              >
-                                <FileText size={15} /> View Receipt / Invoice
                               </button>
                               {isAdmin && (sale.status ?? 'completed') === 'completed' && !(sale as any).isRepaymentRecord && (
                                 <>
@@ -566,10 +581,25 @@ export default function Sales() {
                               )}
                               {isAdmin && (sale.status === 'voided' || sale.status === 'refunded') && !(sale as any).isRepaymentRecord && (
                                 <>
-                                  <div className="border-t my-1" />
+                                  <div className="border-t border-gray-100 dark:border-zinc-700 my-1" />
+                                  <button
+                                    onClick={async () => {
+                                      setOpenMenuId(null);
+                                      try {
+                                        await updateSaleStatus(sale.id, 'completed');
+                                        addLog('RESTORE_SALE', `Restored sale invoice ${sale.invoiceNumber} to completed`);
+                                        toast.success(`Sale ${sale.invoiceNumber} restored to completed.`);
+                                      } catch (err: any) {
+                                        toast.error('Failed to restore sale: ' + (err.message || 'Error'));
+                                      }
+                                    }}
+                                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-zinc-700/50 font-medium transition"
+                                  >
+                                    <Undo2 size={15} /> Restore / Undo Sale
+                                  </button>
                                   <button
                                     onClick={() => { setDeleteConfirmId(sale.id); setOpenMenuId(null); }}
-                                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 font-semibold transition"
+                                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-zinc-700/50 font-medium transition"
                                   >
                                     <Trash2 size={15} /> Delete Record
                                   </button>

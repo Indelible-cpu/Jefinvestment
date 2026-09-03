@@ -304,9 +304,10 @@ export const useSaleStore = create<SaleState>()(
         if (saleDoc.exists()) {
           const saleData = saleDoc.data() as any;
           const newStatus = status.toLowerCase();
+          const oldStatus = (saleData.status || 'completed').toLowerCase();
           
-          // If changing to refunded or voided from completed
-          if ((newStatus === 'refunded' || newStatus === 'voided') && saleData.status !== newStatus) {
+          // Case 1: Changing from completed to refunded or voided -> RESTORE stock
+          if ((newStatus === 'refunded' || newStatus === 'voided') && oldStatus === 'completed') {
             if (Array.isArray(saleData.items)) {
               for (const item of saleData.items) {
                 if (item.materialsConsumed && Array.isArray(item.materialsConsumed)) {
@@ -317,7 +318,7 @@ export const useSaleStore = create<SaleState>()(
                       updateDoc(invRef, { stock: increment((mat.quantityPerUnit || 1) * item.quantity) }).catch(e => console.warn('Offline write deferred or failed:', e));
                     }
                   }
-                } else if (!item.isService && !item.isStationeryService) {
+                } else if (!item.isService && !item.isOther && !item.isStationeryService && item.productId && !item.productId.startsWith('other_')) {
                   const invRef = doc(db, 'products', item.id || item.productId);
                   const invDoc = await getDoc(invRef);
                   if (invDoc.exists()) {
@@ -330,6 +331,35 @@ export const useSaleStore = create<SaleState>()(
               const batch = writeBatch(db);
               for (const mat of saleData.materialsConsumed) {
                 batch.update(doc(db, 'products', mat.productId), { stock: increment(mat.quantityUsed) });
+              }
+              await batch.commit();
+            }
+          }
+          // Case 2: Changing from refunded or voided back to completed (UNDO) -> RE-DEDUCT stock
+          else if (newStatus === 'completed' && (oldStatus === 'refunded' || oldStatus === 'voided')) {
+            if (Array.isArray(saleData.items)) {
+              for (const item of saleData.items) {
+                if (item.materialsConsumed && Array.isArray(item.materialsConsumed)) {
+                  for (const mat of item.materialsConsumed) {
+                    const invRef = doc(db, 'products', mat.inventoryItemId || mat.productId);
+                    const invDoc = await getDoc(invRef);
+                    if (invDoc.exists()) {
+                      updateDoc(invRef, { stock: increment(-((mat.quantityPerUnit || 1) * item.quantity)) }).catch(e => console.warn('Offline write deferred or failed:', e));
+                    }
+                  }
+                } else if (!item.isService && !item.isOther && !item.isStationeryService && item.productId && !item.productId.startsWith('other_')) {
+                  const invRef = doc(db, 'products', item.id || item.productId);
+                  const invDoc = await getDoc(invRef);
+                  if (invDoc.exists()) {
+                    updateDoc(invRef, { stock: increment(-item.quantity) }).catch(e => console.warn('Offline write deferred or failed:', e));
+                  }
+                }
+              }
+            }
+            if (saleData.isStationeryService && Array.isArray(saleData.materialsConsumed)) {
+              const batch = writeBatch(db);
+              for (const mat of saleData.materialsConsumed) {
+                batch.update(doc(db, 'products', mat.productId), { stock: increment(-mat.quantityUsed) });
               }
               await batch.commit();
             }
