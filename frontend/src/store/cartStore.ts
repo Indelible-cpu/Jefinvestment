@@ -181,6 +181,8 @@ export interface CartItem {
   quantity: number;
   discount: number;
   isService: boolean;
+  isOther?: boolean;
+  category?: string;
   costPrice?: number;
   materialsConsumed?: { inventoryItemId: string; quantityPerUnit: number; name: string }[];
 }

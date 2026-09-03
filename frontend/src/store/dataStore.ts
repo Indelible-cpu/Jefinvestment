@@ -231,7 +231,7 @@ export const useSaleStore = create<SaleState>()(
       // Decrement inventory automatically inside the same batch for atomic checkouts
       if (Array.isArray(sale.items)) {
         sale.items.forEach((item: any) => {
-          if (!item.isService && item.productId) {
+          if (!item.isService && !item.isOther && item.productId && !item.productId.startsWith('other_') && !item.productId.startsWith('stationery_')) {
             const invRef = doc(db, 'products', item.productId);
             batch.update(invRef, { stock: increment(-item.quantity) });
           } else if (item.materialsConsumed && Array.isArray(item.materialsConsumed)) {

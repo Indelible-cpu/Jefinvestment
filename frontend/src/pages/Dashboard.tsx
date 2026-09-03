@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, ShoppingBag } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSaleStore, useCreditStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
@@ -78,12 +78,15 @@ export default function Dashboard() {
   
   let serviceIncome = 0;
   let productsIncome = 0;
+  let otherIncome = 0;
   
   todaysSales.forEach(sale => {
-    sale.items.forEach(item => {
-      const product = products.find(p => p.name === item.name);
+    sale.items.forEach((item: any) => {
       const itemTotal = item.quantity * item.unitPrice;
-      if (product?.isService) {
+      const product = products.find(p => p.name === item.name || p.id === item.productId);
+      if (item.isOther || item.category === 'Other' || item.productId?.startsWith('other_') || item.sku === 'OTHER') {
+        otherIncome += itemTotal;
+      } else if (item.isService || product?.isService) {
         serviceIncome += itemTotal;
       } else {
         productsIncome += itemTotal;
@@ -135,9 +138,11 @@ export default function Dashboard() {
       {/* Secondary Stats Row */}
       <div className="bg-white rounded-xl border shadow-sm p-4 mb-6 flex justify-between divide-x divide-gray-100 relative z-10">
         <div className="flex flex-col items-center flex-1">
-          <div className="bg-blue-50 text-blue-600 p-2 rounded-lg mb-1"><ShoppingBag size={18} /></div>
-          <div className="font-bold text-lg leading-tight">{todaysSales.length}</div>
-          <div className="text-[10px] text-gray-500 text-center leading-tight">Today's<br/>Orders</div>
+          <div className="bg-amber-50 text-amber-600 p-2 rounded-lg mb-1"><Layers size={18} /></div>
+          <div className="font-bold text-lg leading-tight">
+            {otherIncome > 0 ? (otherIncome >= 1000 ? `${(otherIncome / 1000).toFixed(1)}k` : otherIncome) : '0'}
+          </div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Others<br/>Income</div>
         </div>
 
         <div className="flex flex-col items-center flex-1">

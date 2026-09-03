@@ -5,7 +5,7 @@ import { useSaleStore } from '../store/dataStore';
 import { useStationeryStore, type StationeryService } from '../store/stationeryStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
-import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine, Printer } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine, Printer, PlusCircle, Layers } from 'lucide-react';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { generateInvoiceNumber } from '../utils/invoiceNumber';
@@ -28,6 +28,13 @@ export default function POS() {
   const [errorMsg, setErrorMsg] = useState('');
   const [showHeldCarts, setShowHeldCarts] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+
+  // Custom / Other Item Modal State
+  const [showOtherModal, setShowOtherModal] = useState(false);
+  const [otherName, setOtherName] = useState('');
+  const [otherPrice, setOtherPrice] = useState('');
+  const [otherQty, setOtherQty] = useState('1');
+  const [otherCostPrice, setOtherCostPrice] = useState('');
 
   const [receiptData, setReceiptData] = useState<null | {
     items: CartItem[]; subtotal: number; discount: number; taxAmount: number;
@@ -119,6 +126,40 @@ export default function POS() {
     playSound('success');
     toast.success(`Added ${svc.serviceName} to cart`);
     setSearchTerm('');
+  };
+
+  const handleAddOtherToCart = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const name = otherName.trim() || 'Other Sale';
+    const price = Number(otherPrice);
+    const qty = Number(otherQty) || 1;
+
+    if (!price || price <= 0) {
+      playSound('error');
+      toast.error('Please enter a valid price greater than 0.');
+      return;
+    }
+
+    cart.addItem({
+      id: `other_${Date.now()}`,
+      name,
+      sku: 'OTHER',
+      unitPrice: price,
+      costPrice: Number(otherCostPrice) || 0,
+      quantity: qty,
+      discount: 0,
+      isService: false,
+      isOther: true,
+      category: 'Other'
+    });
+
+    playSound('success');
+    toast.success(`Added "${name}" (${settings.currency} ${(price * qty).toLocaleString()}) to cart`);
+    setShowOtherModal(false);
+    setOtherName('');
+    setOtherPrice('');
+    setOtherQty('1');
+    setOtherCostPrice('');
   };
 
   const finalTotal = useMemo(() => {
@@ -264,6 +305,8 @@ const playSound = (type: 'success' | 'error') => {
             costPrice: i.costPrice || 0,
             productId: i.id,
             isService: i.isService || false,
+            isOther: i.isOther || false,
+            category: i.category || (i.isOther ? 'Other' : undefined),
             ...(i.materialsConsumed && i.materialsConsumed.length > 0 ? { materialsConsumed: i.materialsConsumed } : {})
           })),
           subtotal,
@@ -436,7 +479,7 @@ const playSound = (type: 'success' | 'error') => {
           )}
 
           {/* Category Tabs */}
-          <div className="flex gap-2 flex-wrap mb-3">
+          <div className="flex gap-2 flex-wrap mb-3 items-center">
             {categories.map(c => (
               <button key={c} onClick={() => setCatFilter(c)} className={`px-3 py-1 rounded-full text-xs font-semibold transition ${catFilter === c ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                 {c}
@@ -452,6 +495,14 @@ const playSound = (type: 'success' | 'error') => {
                 <Printer size={11} /> Stationery Services
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setShowOtherModal(true)}
+              className="px-3.5 py-1 rounded-full text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-xs ml-auto sm:ml-0"
+              title="Record an unlisted custom sale item"
+            >
+              <PlusCircle size={13} /> + Other Sale
+            </button>
           </div>
           
           <div className="flex-1 overflow-auto grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 auto-rows-max">
@@ -974,6 +1025,105 @@ const playSound = (type: 'success' | 'error') => {
                 Dismiss
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom / Other Item Modal */}
+      {showOtherModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4" onClick={() => setShowOtherModal(false)}>
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl border p-6 overflow-hidden animate-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-3 border-b mb-4">
+              <div className="flex items-center gap-2 text-amber-800">
+                <Layers size={22} className="text-amber-600" />
+                <div>
+                  <h3 className="font-bold text-lg text-foreground leading-tight">Add Custom / Other Sale</h3>
+                  <p className="text-xs text-gray-500">Record a sale for an item or service not listed in inventory.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOtherModal(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddOtherToCart} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-gray-700">Item Description / Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Delivery fee, Custom box, Miscellaneous item"
+                  className="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none text-sm bg-background"
+                  value={otherName}
+                  onChange={e => setOtherName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-gray-700">Selling Price ({settings.currency}) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    placeholder="e.g. 5000"
+                    className="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-mono text-sm bg-background"
+                    value={otherPrice}
+                    onChange={e => setOtherPrice(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-gray-700">Quantity</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    className="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-mono text-sm bg-background"
+                    value={otherQty}
+                    onChange={e => setOtherQty(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-gray-700">
+                  Cost Price ({settings.currency}) <span className="text-gray-400 font-normal">(Optional for profit tracking)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 3500"
+                  className="w-full p-2.5 border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-mono text-sm bg-background"
+                  value={otherCostPrice}
+                  onChange={e => setOtherCostPrice(e.target.value)}
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+                💡 <strong>Note:</strong> This item will be categorized under <strong>"Other"</strong> revenue and will not affect product inventory stock levels.
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowOtherModal(false)}
+                  className="px-4 py-2 border rounded-xl text-xs font-semibold text-gray-700 hover:bg-muted transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold shadow-md transition flex items-center gap-1.5"
+                >
+                  <PlusCircle size={15} /> Add to Cart
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
