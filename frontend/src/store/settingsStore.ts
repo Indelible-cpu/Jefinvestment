@@ -26,7 +26,6 @@ export interface CompanySettings {
   idleLockMinutes?: number;
   lastDataClearDate?: number;
   shopMapImage?: string;
-  pricingAdvisorEnabled?: boolean;
   updateSettings: (settings: Partial<CompanySettings>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
@@ -52,7 +51,6 @@ export const useSettingsStore = create<CompanySettings>()(
       workTimeStart: '07:30',
       workTimeEnd: '17:30',
       idleLockMinutes: 10,
-      pricingAdvisorEnabled: true,
       updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
         try {

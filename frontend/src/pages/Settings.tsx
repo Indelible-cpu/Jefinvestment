@@ -932,33 +932,6 @@ export default function Settings() {
             
             <button type="submit" className="w-full md:w-auto bg-primary text-white font-bold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Security Settings</button>
           </form>
-
-          {/* Pricing Advisor Toggle — outside the form to prevent accidental form submission */}
-          <div className="border-t mx-6 pt-6 pb-6">
-            <div
-              className="flex items-center justify-between cursor-pointer"
-              onClick={() => updateSettings({ pricingAdvisorEnabled: !(settings.pricingAdvisorEnabled !== false) })}
-            >
-              <div>
-                <div className="font-semibold text-gray-800">Smart Pricing Advisor</div>
-                <p className="text-xs text-gray-500 mt-0.5">Show AI-powered pricing recommendations on the Dashboard based on stock age and sales velocity.</p>
-              </div>
-              <div
-                style={{
-                  width: 44, height: 24, borderRadius: 12, position: 'relative',
-                  backgroundColor: settings.pricingAdvisorEnabled !== false ? 'var(--color-primary, #2563eb)' : '#d1d5db',
-                  transition: 'background-color 0.2s',
-                  flexShrink: 0,
-                }}
-              >
-                <div style={{
-                  position: 'absolute', top: 2, left: settings.pricingAdvisorEnabled !== false ? 22 : 2,
-                  width: 20, height: 20, borderRadius: 10, backgroundColor: 'white',
-                  transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-                }} />
-              </div>
-            </div>
-          </div>
         </div>
       )}
       
