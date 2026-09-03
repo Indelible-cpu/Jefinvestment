@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import {
   initializeFirestore,
@@ -20,12 +20,23 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase App Check with reCAPTCHA v3
-if (typeof window !== 'undefined' && import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
-    isTokenAutoRefreshEnabled: true
-  });
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6Ld1VKctAAAAAKumuGcc_7c7M7kn_EE9evkv7Duo';
+
+// Initialize Firebase App Check with reCAPTCHA Enterprise
+if (typeof window !== 'undefined' && recaptchaSiteKey) {
+  if (import.meta.env.DEV) {
+    // In local development, enable debug token to prevent local requests from failing
+    // @ts-ignore
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true
+    });
+  } catch (err) {
+    console.warn('App Check initialization failed:', err);
+  }
 }
 
 const auth = getAuth(app);

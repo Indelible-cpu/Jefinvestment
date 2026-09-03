@@ -26,6 +26,7 @@ jobs:
           echo "VITE_FIREBASE_MESSAGING_SENDER_ID=1088168942774" >> .env
           echo "VITE_FIREBASE_APP_ID=1:1088168942774:web:dc5461bed599c344f3da17" >> .env
           echo "VITE_FIREBASE_MEASUREMENT_ID=G-9J35QQ7V6C" >> .env
+          echo "VITE_RECAPTCHA_SITE_KEY=6Ld1VKctAAAAAKumuGcc_7c7M7kn_EE9evkv7Duo" >> .env
           npm install
           npm run build
           
