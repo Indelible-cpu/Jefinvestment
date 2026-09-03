@@ -26,3 +26,4 @@ createRoot(document.getElementById('root')!).render(
 // Triggering after setting secret in Github
 // Deploy with GitHub secret API URL
 // Fresh deploy to jefinvestment.pages.dev
+// Deploy global theme toggle & POS updates
