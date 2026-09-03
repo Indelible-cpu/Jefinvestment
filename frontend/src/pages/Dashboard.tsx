@@ -179,8 +179,10 @@ export default function Dashboard() {
         </div>
         <div className="flex flex-col items-center flex-1">
           <div className="bg-blue-50 text-blue-500 p-2 rounded-lg mb-1"><Users size={18} /></div>
-          <div className="font-bold text-lg leading-tight">{activeStaff}</div>
-          <div className="text-[10px] text-gray-500 text-center leading-tight">Active<br/>Staff</div>
+          <div className="font-bold text-lg leading-tight">
+            {useAuthStore(s => Math.max(1, s.users.filter(u => u.lastActiveAt && u.lastActiveAt > Date.now() - 15 * 60 * 1000).length))}
+          </div>
+          <div className="text-[10px] text-gray-500 text-center leading-tight">Active<br/>System Users</div>
         </div>
       </div>
 
