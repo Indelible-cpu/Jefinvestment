@@ -446,8 +446,8 @@ const playSound = (type: 'success' | 'error') => {
   };
 
   return (
-    <div className="flex h-full flex-col p-3 md:p-4 bg-background">
-      <h1 className="text-xl md:text-3xl font-bold mb-3 md:mb-4 text-primary">Point of Sale</h1>
+    <div className="flex h-full flex-col p-1.5 sm:p-3 md:p-4 bg-background">
+      <h1 className="text-xl md:text-3xl font-bold mb-2 md:mb-4 text-primary px-1 sm:px-0">Point of Sale</h1>
       
       {errorMsg && (
         <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg flex items-center gap-2">
@@ -456,9 +456,9 @@ const playSound = (type: 'success' | 'error') => {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row flex-1 gap-6 overflow-y-auto lg:overflow-hidden pb-20 md:pb-0">
+      <div className="flex flex-col lg:flex-row flex-1 gap-4 lg:gap-6 overflow-y-auto lg:overflow-hidden pb-20 md:pb-0">
         {/* Product Selection Area */}
-        <div ref={productSectionRef} className="flex-1 bg-card rounded-lg shadow border p-4 flex flex-col min-h-[500px] lg:min-h-0">
+        <div ref={productSectionRef} className="flex-1 bg-card rounded-lg shadow-xs sm:shadow border p-2 sm:p-4 flex flex-col min-h-[500px] lg:min-h-0">
           <div className="relative mb-3 flex items-center">
             <Search className="absolute left-3 top-3 text-gray-400" size={20} />
             <input
@@ -487,16 +487,16 @@ const playSound = (type: 'success' | 'error') => {
           )}
 
           {/* Category Tabs & Quick Action Rows */}
-          {/* Mobile View: 2 structured non-scrollable rows */}
-          <div className="flex flex-col gap-2 mb-3 md:hidden">
-            {/* Row 1: Product Categories (All, Accessories, Services, Stationery) - 4 equal non-scrollable columns */}
-            <div className="grid grid-cols-4 gap-1.5 w-full">
+          {/* Mobile View: 2 structured non-scrollable rows without truncation */}
+          <div className="flex flex-col gap-1.5 mb-3 md:hidden">
+            {/* Row 1: Product Categories (All, Accessories, Services, Stationery Items) - 4 equal non-scrollable columns */}
+            <div className="grid grid-cols-4 gap-1 w-full">
               {categories.map(c => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setCatFilter(c)}
-                  className={`w-full py-1.5 px-0.5 text-center truncate rounded-xl text-[11px] sm:text-xs font-semibold transition ${
+                  className={`w-full py-2 px-1 text-center rounded-xl text-[10px] xs:text-[11px] sm:text-xs font-semibold leading-tight transition flex items-center justify-center min-h-[38px] ${
                     catFilter === c
                       ? 'bg-primary text-white shadow-xs'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200/60'
@@ -514,13 +514,13 @@ const playSound = (type: 'success' | 'error') => {
                 <button
                   type="button"
                   onClick={() => setCatFilter('Stationery Services')}
-                  className={`w-full py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 border shadow-xs truncate ${
+                  className={`w-full py-2 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1.5 border shadow-xs min-h-[38px] leading-tight ${
                     catFilter === 'Stationery Services'
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
                   }`}
                 >
-                  <Printer size={13} className="shrink-0" /> <span className="truncate">Stationery Services</span>
+                  <Printer size={13} className="shrink-0" /> <span>Stationery Services</span>
                 </button>
               ) : (
                 <div />
@@ -529,10 +529,10 @@ const playSound = (type: 'success' | 'error') => {
               <button
                 type="button"
                 onClick={() => setShowOtherModal(true)}
-                className="w-full py-1.5 px-1 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white shadow-xs truncate"
+                className="w-full py-2 px-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-xs min-h-[38px] leading-tight"
                 title="Record an unlisted custom sale item"
               >
-                <PlusCircle size={13} className="shrink-0" /> <span className="truncate">+ Other Sale</span>
+                <PlusCircle size={13} className="shrink-0" /> <span>+ Other Sale</span>
               </button>
             </div>
           </div>
