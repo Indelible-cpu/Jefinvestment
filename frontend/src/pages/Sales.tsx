@@ -89,7 +89,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
       className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden" onMouseDown={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-zinc-800" onMouseDown={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-5 flex justify-between items-start">
           <div>
@@ -98,34 +98,34 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
             <div className="text-blue-200 text-sm mt-1">{sale.date} at {sale.time} &bull; {sale.cashier}</div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${StatusCfg.cls} bg-white`}>
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${StatusCfg.cls} bg-white dark:bg-zinc-800`}>
               <StatusCfg.icon size={12} /> {StatusCfg.label}
             </span>
             <button onClick={onClose} className="p-1.5 rounded-full hover:bg-white/20 transition"><X size={18} /></button>
           </div>
         </div>
 
-        <div className="p-6 max-h-[70vh] overflow-y-auto space-y-5">
+        <div className="p-4 sm:p-6 max-h-[70vh] overflow-y-auto space-y-5">
           {/* Items Table */}
           <div>
-            <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><ShoppingBag size={16} /> Items Sold</h3>
-            <div className="border rounded-xl overflow-hidden">
+            <h3 className="font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2"><ShoppingBag size={16} /> Items Sold</h3>
+            <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 dark:bg-zinc-800 border-b border-gray-200 dark:border-zinc-700">
                   <tr>
-                    <th className="text-left p-3 text-gray-500 font-semibold">Item</th>
-                    <th className="text-center p-3 text-gray-500 font-semibold">Qty</th>
-                    <th className="text-right p-3 text-gray-500 font-semibold">Unit Price</th>
-                    <th className="text-right p-3 text-gray-500 font-semibold">Total</th>
+                    <th className="text-left p-3 text-gray-600 dark:text-gray-300 font-semibold">Item</th>
+                    <th className="text-center p-3 text-gray-600 dark:text-gray-300 font-semibold">Qty</th>
+                    <th className="text-right p-3 text-gray-600 dark:text-gray-300 font-semibold">Unit Price</th>
+                    <th className="text-right p-3 text-gray-600 dark:text-gray-300 font-semibold">Total</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                   {sale.items.map((item, i) => (
-                    <tr key={i} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="p-3 font-medium">{item.name}</td>
-                      <td className="p-3 text-center">{item.quantity}</td>
-                      <td className="p-3 text-right">{settings.currency} {item.unitPrice.toLocaleString()}</td>
-                      <td className="p-3 text-right font-semibold">{settings.currency} {(item.quantity * item.unitPrice).toLocaleString()}</td>
+                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                      <td className="p-3 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
+                      <td className="p-3 text-center text-gray-700 dark:text-gray-300">{item.quantity}</td>
+                      <td className="p-3 text-right text-gray-700 dark:text-gray-300">{settings.currency} {item.unitPrice.toLocaleString()}</td>
+                      <td className="p-3 text-right font-semibold text-gray-900 dark:text-gray-100">{settings.currency} {(item.quantity * item.unitPrice).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -134,22 +134,22 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
           </div>
 
           {/* Payment Breakdown & Profit */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
-              <h3 className="font-bold text-gray-700 mb-3">Payment Breakdown</h3>
-              <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>{settings.currency} {sale.subtotal.toLocaleString()}</span></div>
-              {sale.discount > 0 && <div className="flex justify-between text-red-500"><span>Discount</span><span>-{settings.currency} {sale.discount.toLocaleString()}</span></div>}
-              {sale.taxAmount > 0 && <div className="flex justify-between text-gray-600"><span>{sale.taxName || 'Tax'} ({sale.taxType === 'INCLUSIVE' ? 'incl.' : 'excl.'})</span><span>{settings.currency} {sale.taxAmount.toFixed(2)}</span></div>}
-              <div className="flex justify-between font-bold text-gray-900 pt-2 border-t text-base"><span>Total</span><span>{settings.currency} {sale.total.toLocaleString()}</span></div>
-              <div className="flex justify-between text-green-700 pt-1"><span>Amount Paid</span><span>{settings.currency} {sale.amountPaid.toLocaleString()}</span></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700 rounded-xl p-4 space-y-2 text-sm">
+              <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-3">Payment Breakdown</h3>
+              <div className="flex justify-between text-gray-600 dark:text-gray-300"><span>Subtotal</span><span>{settings.currency} {sale.subtotal.toLocaleString()}</span></div>
+              {sale.discount > 0 && <div className="flex justify-between text-red-500 font-semibold"><span>Discount</span><span>-{settings.currency} {sale.discount.toLocaleString()}</span></div>}
+              {sale.taxAmount > 0 && <div className="flex justify-between text-gray-600 dark:text-gray-300"><span>{sale.taxName || 'Tax'} ({sale.taxType === 'INCLUSIVE' ? 'incl.' : 'excl.'})</span><span>{settings.currency} {sale.taxAmount.toFixed(2)}</span></div>}
+              <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100 pt-2 border-t border-gray-200 dark:border-zinc-700 text-base"><span>Total</span><span>{settings.currency} {sale.total.toLocaleString()}</span></div>
+              <div className="flex justify-between text-green-600 dark:text-green-400 font-semibold pt-1"><span>Amount Paid</span><span>{settings.currency} {sale.amountPaid.toLocaleString()}</span></div>
               {sale.paymentMethod === 'CASH' && sale.amountPaid > sale.total && (
-                <div className="flex justify-between text-blue-600"><span>Change</span><span>{settings.currency} {(sale.amountPaid - sale.total).toLocaleString()}</span></div>
+                <div className="flex justify-between text-blue-600 dark:text-blue-400 font-semibold"><span>Change</span><span>{settings.currency} {(sale.amountPaid - sale.total).toLocaleString()}</span></div>
               )}
             </div>
             {isAdmin && (
-              <div className="bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-xl p-4 flex flex-col justify-center">
-                <div className="text-xs text-emerald-600 font-semibold uppercase tracking-wider mb-1">Estimated Profit</div>
-                <div className={`text-3xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-red-500'}`}>
+              <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/40 dark:to-green-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex flex-col justify-center">
+                <div className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider mb-1">Estimated Profit</div>
+                <div className={`text-3xl font-extrabold ${profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-500'}`}>
                   {settings.currency} {profit.toLocaleString()}
                 </div>
                 {profit <= 0 && <div className="text-xs text-red-500 mt-1">Cost prices not set — profit may be inaccurate.</div>}
@@ -159,14 +159,14 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus }: {
 
           {/* Customer info if credit */}
           {sale.customerName && (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm">
-              <div className="font-bold text-orange-700 mb-1">Credit Sale Customer</div>
+            <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 text-gray-900 dark:text-gray-100 rounded-xl p-4 text-sm">
+              <div className="font-bold text-orange-700 dark:text-orange-400 mb-1">Credit Sale Customer</div>
               <div>{sale.customerName} &bull; {sale.customerPhone}</div>
             </div>
           )}
 
           {/* Sync status */}
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             {sale.syncStatus === 'synced' ? <><Wifi size={13} className="text-green-500" /> Synced to cloud</> : <><WifiOff size={13} className="text-amber-500" /> Pending sync</>}
           </div>
 
