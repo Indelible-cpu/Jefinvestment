@@ -96,10 +96,23 @@ Staff directory and payroll tracking.
   - `firstName` (string): First name.
   - `lastName` (string): Last name.
   - `phone` (string): Contact phone.
+  - `email` (string, optional): Email address.
   - `role` (string): Job title.
   - `salary` (number): Monthly salary.
-  - `status` (string): `'PRESENT'` | `'ABSENT'` | `'LEAVE'`
+  - `status` (string): `'PRESENT'` | `'ABSENT'` | `'LEAVE'`.
   - `advancePay` (number): Total advance payments issued.
+  - `photoUrl` (string, optional): Firebase Storage URL for employee portrait image.
+  - `idCardUrl` (string, optional): Firebase Storage URL for employee National ID card / passport scan.
+  - `idNumber` (string, optional): National ID / NIN / Passport number.
+  - `nextOfKinName` (string, optional): Name of primary emergency / next of kin contact.
+  - `nextOfKinRelationship` (string, optional): Relationship (Spouse, Parent, Sibling, Child, etc.).
+  - `nextOfKinPhone` (string, optional): Contact phone number of next of kin.
+  - `nextOfKinAddress` (string, optional): Address or notes for next of kin.
+  - `address` (string, optional): Employee residential address.
+  - `dateOfBirth` (string, optional): Date of birth (YYYY-MM-DD).
+  - `dateJoined` (string, optional): Date joined (YYYY-MM-DD).
+  - `branchId` (string, optional): Branch identifier.
+  - `createdAt` (number): Creation timestamp.
 
 ---
 

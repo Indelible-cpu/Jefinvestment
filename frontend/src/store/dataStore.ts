@@ -474,17 +474,30 @@ export interface Employee {
   firstName: string;
   lastName: string;
   phone: string;
+  email?: string;
   role: string;
   salary: number;
   status: 'PRESENT' | 'ABSENT' | 'LEAVE';
   advancePay?: number;
+  branchId?: string;
+  photoUrl?: string;
+  idCardUrl?: string;
+  idNumber?: string;
+  nextOfKinName?: string;
+  nextOfKinRelationship?: string;
+  nextOfKinPhone?: string;
+  nextOfKinAddress?: string;
+  address?: string;
+  dateOfBirth?: string;
+  dateJoined?: string;
+  createdAt?: number;
 }
 
 interface EmployeeState {
   employees: Employee[];
   isLoading: boolean;
   loadEmployees: () => Promise<void>;
-  addEmployee: (emp: Omit<Employee, 'id'>) => void;
+  addEmployee: (emp: Omit<Employee, 'id'>) => Promise<string | void>;
   updateStatus: (id: string, status: Employee['status']) => void;
   updateEmployee: (id: string, emp: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => void;
@@ -512,17 +525,30 @@ export const useEmployeeStore = create<EmployeeState>()(
       }
       
       const unsub_employees = onSnapshot(q, (snapshot) => {
-        const mapped = snapshot.docs.map(doc => {
+        const mapped: Employee[] = snapshot.docs.map(doc => {
           const e = doc.data();
           return {
             id: doc.id,
-            firstName: e.firstName,
-            lastName: e.lastName,
+            firstName: e.firstName || '',
+            lastName: e.lastName || '',
             phone: e.phone || '',
-            role: e.role,
+            email: e.email || '',
+            role: e.role || 'Staff',
             salary: Number(e.salary) || 0,
             status: e.status || 'PRESENT',
             advancePay: Number(e.advancePay) || 0,
+            branchId: e.branchId || 'main',
+            photoUrl: e.photoUrl || '',
+            idCardUrl: e.idCardUrl || '',
+            idNumber: e.idNumber || '',
+            nextOfKinName: e.nextOfKinName || '',
+            nextOfKinRelationship: e.nextOfKinRelationship || '',
+            nextOfKinPhone: e.nextOfKinPhone || '',
+            nextOfKinAddress: e.nextOfKinAddress || '',
+            address: e.address || '',
+            dateOfBirth: e.dateOfBirth || '',
+            dateJoined: e.dateJoined || '',
+            createdAt: e.createdAt || Date.now(),
           };
         });
         set({ employees: mapped, isLoading: false });
@@ -534,12 +560,16 @@ export const useEmployeeStore = create<EmployeeState>()(
     },
     addEmployee: async (emp) => {
       const branchId = useAuthStore.getState().user?.branchId || 'main';
-      addDoc(collection(db, 'employees'), {
+      const docRef = await addDoc(collection(db, 'employees'), {
         ...emp,
         branchId,
-        advancePay: 0,
+        advancePay: emp.advancePay || 0,
         createdAt: Date.now()
-      }).catch(e => console.warn('Offline write deferred or failed:', e));
+      }).catch(e => {
+        console.warn('Offline write deferred or failed:', e);
+        return null;
+      });
+      return docRef ? docRef.id : undefined;
     },
     updateStatus: async (id, status) => {
       updateDoc(doc(db, 'employees', id), { status }).catch(e => console.warn('Offline write deferred or failed:', e));
