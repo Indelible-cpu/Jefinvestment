@@ -111,7 +111,7 @@ export default function Dashboard() {
     { label: "Today's Sales", value: `${settings.currency} ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports', adminOnly: false },
     { label: 'Outstanding Credit', value: `${settings.currency} ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits', adminOnly: true },
     { label: 'Low Stock Items', value: `${lowStockCount} items`, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', link: '/inventory', adminOnly: false },
-    { label: 'Active Employees', value: `${activeStaff} staff`, secondaryLabel: 'Active System users', secondaryValue: usersCount, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees', adminOnly: true },
+    { label: 'Active Employees', value: `${activeStaff} staff`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', link: '/employees', adminOnly: true },
   ].filter(stat => isAdmin || !stat.adminOnly);
 
   const recentSales = sales
