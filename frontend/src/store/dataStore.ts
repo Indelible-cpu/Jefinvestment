@@ -204,14 +204,25 @@ export const useSaleStore = create<SaleState>()(
       registerListener(unsub_sales);
     },
     addSale: async (sale) => {
-      // Clean any undefined values from payload (Firestore throws error on undefined fields)
-      const cleanedSale: Record<string, any> = {};
-      Object.entries(sale).forEach(([key, value]) => {
-        if (value !== undefined) {
-          cleanedSale[key] = value;
+      // Recursively remove any undefined values from payload (Firestore strictly throws on undefined fields)
+      const sanitizeFirestoreData = (data: any): any => {
+        if (data === null || data === undefined) return null;
+        if (Array.isArray(data)) {
+          return data.map(sanitizeFirestoreData).filter(item => item !== undefined);
         }
-      });
+        if (typeof data === 'object' && !(data instanceof Date)) {
+          const cleanObj: Record<string, any> = {};
+          Object.entries(data).forEach(([key, val]) => {
+            if (val !== undefined) {
+              cleanObj[key] = sanitizeFirestoreData(val);
+            }
+          });
+          return cleanObj;
+        }
+        return data;
+      };
 
+      const cleanedSale = sanitizeFirestoreData(sale);
       const branchId = useAuthStore.getState().user?.branchId || 'main';
       const newSale: Record<string, any> = {
         ...cleanedSale,

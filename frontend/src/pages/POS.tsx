@@ -306,17 +306,26 @@ const playSound = (type: 'success' | 'error') => {
         await addSale({
           invoiceNumber,
           cashier: useAuthStore.getState().user?.name || 'Staff',
-          items: cart.items.map(i => ({
-            name: i.name,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            costPrice: i.costPrice || 0,
-            productId: i.id,
-            isService: i.isService || false,
-            isOther: i.isOther || false,
-            category: i.category || (i.isOther ? 'Other' : undefined),
-            ...(i.materialsConsumed && i.materialsConsumed.length > 0 ? { materialsConsumed: i.materialsConsumed } : {})
-          })),
+          items: cart.items.map(i => {
+            const itemObj: Record<string, any> = {
+              name: i.name,
+              quantity: i.quantity,
+              unitPrice: i.unitPrice,
+              costPrice: i.costPrice || 0,
+              productId: i.id,
+              isService: !!i.isService,
+              isOther: !!i.isOther,
+            };
+            if (i.category) {
+              itemObj.category = i.category;
+            } else if (i.isOther) {
+              itemObj.category = 'Other';
+            }
+            if (i.materialsConsumed && i.materialsConsumed.length > 0) {
+              itemObj.materialsConsumed = i.materialsConsumed;
+            }
+            return itemObj as any;
+          }),
           subtotal,
           discount,
           taxAmount,
