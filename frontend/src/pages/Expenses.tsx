@@ -89,33 +89,33 @@ export default function Expenses() {
   };
 
   return (
-    <div className="p-4 md:p-6 min-h-full">
+    <div className="p-1.5 sm:p-3 md:p-6 min-h-full pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
-            <Receipt size={28} /> Expense Management
+          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center gap-2">
+            <Receipt size={26} className="sm:w-7 sm:h-7" /> Expense Management
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">Log and track all petty cash and business expenses</p>
+          <p className="text-gray-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">Log and track all petty cash and business expenses</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md self-start">
-          <Plus size={20} /> Log Expense
+        <button onClick={() => setShowModal(true)} className="bg-primary text-white px-3.5 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1.5 transition shadow-sm sm:shadow-md self-start text-xs sm:text-sm">
+          <Plus size={18} /> Log Expense
         </button>
       </div>
 
       {/* Summary Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-5 rounded-lg border shadow-sm">
-          <div className="text-sm text-gray-500 mb-1">Today's Total Expenses</div>
-          <div className="text-3xl font-bold text-red-600">{settings.currency} {totalToday.toLocaleString()}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 mb-4 sm:mb-6">
+        <div className="bg-white p-3.5 sm:p-5 rounded-xl border shadow-xs sm:shadow-sm">
+          <div className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1">Today's Total Expenses</div>
+          <div className="text-2xl sm:text-3xl font-bold text-red-600">{settings.currency} {totalToday.toLocaleString()}</div>
         </div>
-        <div className="bg-white p-5 rounded-lg border shadow-sm">
-          <div className="text-sm text-gray-500 mb-1">Number of Entries (Today)</div>
-          <div className="text-3xl font-bold">{filtered.length}</div>
+        <div className="bg-white p-3.5 sm:p-5 rounded-xl border shadow-xs sm:shadow-sm">
+          <div className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1">Number of Entries (Today)</div>
+          <div className="text-2xl sm:text-3xl font-bold">{filtered.length}</div>
         </div>
-        <div className="bg-white p-5 rounded-lg border shadow-sm">
-          <div className="text-sm text-gray-500 mb-1">Largest Single Expense</div>
-          <div className="text-3xl font-bold">
+        <div className="bg-white p-3.5 sm:p-5 rounded-xl border shadow-xs sm:shadow-sm">
+          <div className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1">Largest Single Expense</div>
+          <div className="text-2xl sm:text-3xl font-bold">
             {settings.currency} {filtered.length > 0 ? Math.max(...filtered.map(e => e.amount)).toLocaleString() : '0'}
           </div>
         </div>

@@ -383,7 +383,7 @@ export default function Employees() {
   };
 
   return (
-    <div className="p-4 md:p-8 bg-background min-h-full">
+    <div className="p-1.5 sm:p-3 md:p-8 bg-background min-h-full pb-24">
       {/* Hidden File Inputs */}
       <input
         type="file"
@@ -401,18 +401,18 @@ export default function Employees() {
       />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Employee &amp; HR Management</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Employee &amp; HR Management</h1>
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
             Staff directory, photo verification, ID records, Next of Kin, attendance &amp; payroll.
           </p>
         </div>
         <button
           onClick={openAddModal}
-          className="bg-primary text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-blue-700 flex items-center gap-2 transition shadow-md self-start"
+          className="bg-primary text-white px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-semibold hover:bg-blue-700 flex items-center gap-2 transition shadow-sm sm:shadow-md self-start text-xs sm:text-sm"
         >
-          <UserPlus size={19} /> Add Employee
+          <UserPlus size={18} /> Add Employee
         </button>
       </div>
 

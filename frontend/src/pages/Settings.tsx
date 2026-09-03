@@ -383,15 +383,15 @@ export default function Settings() {
 
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-          <SettingsIcon size={32} /> Settings
+    <div className="p-1.5 sm:p-3 md:p-6 max-w-5xl mx-auto pb-24">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
+          <SettingsIcon size={26} className="sm:w-8 sm:h-8" /> Settings
         </h1>
-        <p className="text-gray-500 mt-1">Manage your profile, users, and company configuration.</p>
+        <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Manage your profile, users, and company configuration.</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Row 1: Profile + Branding */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Personal Profile */}

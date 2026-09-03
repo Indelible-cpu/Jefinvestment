@@ -86,27 +86,27 @@ export default function Branches() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto">
+    <div className="p-1.5 sm:p-3 md:p-6 max-w-5xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <GitBranch size={24} className="text-blue-600" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <GitBranch size={22} className="text-blue-600 sm:w-6 sm:h-6" />
             Branch Management
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Create and manage all business locations</p>
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Create and manage all business locations</p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl font-semibold hover:bg-blue-700 active:scale-95 transition shadow-sm"
+          className="flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-semibold hover:bg-blue-700 active:scale-95 transition shadow-sm text-xs sm:text-sm self-start sm:self-auto"
         >
-          <Plus size={18} /> Add New Branch
+          <Plus size={16} /> Add New Branch
         </button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-        <div className="bg-white rounded-xl border p-4 shadow-sm">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div className="bg-white rounded-xl border p-3 sm:p-4 shadow-xs sm:shadow-sm">
           <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Branches</p>
           <p className="text-3xl font-black text-gray-900 mt-1">{allBranches.length}</p>
         </div>

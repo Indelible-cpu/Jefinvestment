@@ -108,12 +108,12 @@ export default function Dashboard() {
     .slice(0, 5);
 
   return (
-    <div className="p-4 md:p-6 md:pt-6 relative -mt-4 md:mt-0">
+    <div className="p-1.5 sm:p-3 md:p-6 md:pt-6 relative -mt-4 md:mt-0">
       {/* Auto-clear maintenance prompt for admins */}
       <AutoClearPrompt />
 
       {/* Greeting (Desktop Only) */}
-      <div className="hidden md:block mb-6 relative h-12">
+      <div className="hidden md:block mb-4 md:mb-6 relative h-12">
         <div className="absolute inset-0 flex items-center justify-center">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 animate-float-lr">{greeting}, {firstName}! 👋</h1>
         </div>
@@ -121,21 +121,21 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className={`grid grid-cols-2 lg:grid-cols-${stats.length === 2 ? '2' : '4'} gap-3 md:gap-4 mb-4`}>
+      <div className={`grid grid-cols-2 lg:grid-cols-${stats.length === 2 ? '2' : '4'} gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4`}>
         {stats.map(stat => (
-          <Link to={stat.link} key={stat.label} className={`bg-white border rounded-xl p-3 md:p-5 shadow-sm hover:shadow-md transition flex flex-col items-center text-center relative z-10`}>
-            <div className={`p-2 rounded-lg ${stat.bg} ${stat.color} mb-2`}>
-              <stat.icon size={20} />
+          <Link to={stat.link} key={stat.label} className={`bg-white border rounded-xl p-2.5 sm:p-3 md:p-5 shadow-xs sm:shadow-sm hover:shadow-md transition flex flex-col items-center text-center relative z-10`}>
+            <div className={`p-1.5 sm:p-2 rounded-lg ${stat.bg} ${stat.color} mb-1.5 sm:mb-2`}>
+              <stat.icon size={18} className="sm:w-5 sm:h-5" />
             </div>
-            <div className="text-[11px] md:text-sm text-gray-500 font-medium mb-1">{stat.label}</div>
-            <div className={`text-sm md:text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
-            <div className="text-[10px] md:text-xs text-gray-400 mt-1">View details &gt;</div>
+            <div className="text-[10.5px] sm:text-xs md:text-sm text-gray-500 font-medium mb-0.5 sm:mb-1">{stat.label}</div>
+            <div className={`text-sm md:text-2xl font-bold ${stat.color} mb-0.5 sm:mb-1`}>{stat.value}</div>
+            <div className="text-[9px] sm:text-[10px] md:text-xs text-gray-400 mt-0.5">View details &gt;</div>
           </Link>
         ))}
       </div>
 
       {/* Secondary Stats Row */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6 flex justify-between divide-x divide-gray-100 relative z-10">
+      <div className="bg-white rounded-xl border shadow-xs sm:shadow-sm p-2.5 sm:p-4 mb-4 sm:mb-6 flex justify-between divide-x divide-gray-100 relative z-10">
         <div className="flex flex-col items-center flex-1">
           <div className="bg-amber-50 text-amber-600 p-2 rounded-lg mb-1"><Layers size={18} /></div>
           <div className="font-bold text-lg leading-tight">

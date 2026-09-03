@@ -190,38 +190,38 @@ export default function Reports() {
   const cur = settings.currency;
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="p-1.5 sm:p-3 md:p-6 pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
-            <BarChart3 size={28} /> Business Reports
+          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center gap-2">
+            <BarChart3 size={24} className="sm:w-7 sm:h-7" /> Business Reports
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">Daily summary, cash reconciliation, and business analytics</p>
+          <p className="text-gray-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">Daily summary, cash reconciliation, and business analytics</p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           <input 
             type="date" 
             value={reportDate} 
             onChange={e => { setReportDate(e.target.value); setPage(1); }} 
-            className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary outline-none text-sm" 
+            className="border rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm" 
           />
-          <button onClick={handlePrint} className="flex items-center gap-2 border px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition text-sm">
-            <Printer size={18} /> Print
+          <button onClick={handlePrint} className="flex items-center gap-1.5 border px-3 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition text-xs sm:text-sm shadow-xs">
+            <Printer size={16} /> Print
           </button>
         </div>
       </div>
 
       {/* Realized Revenue Reconciliation Box */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-6 mb-6 shadow-lg">
-        <div className="text-blue-200 font-medium mb-2 flex items-center gap-2">
-          <DollarSign size={18} /> Net Realized Revenue
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 shadow-md">
+        <div className="text-blue-200 font-medium mb-1.5 sm:mb-2 flex items-center gap-1.5 text-xs sm:text-sm">
+          <DollarSign size={16} /> Net Realized Revenue
         </div>
-        <div className="text-5xl font-extrabold mb-1">{cur} {data.netRevenue.toLocaleString()}</div>
-        <div className="text-blue-200 text-sm mt-2">Realized Revenue ({cur} {data.realizedRevenue.toLocaleString()}) – Expenses ({cur} {data.totalExpenses.toLocaleString()})</div>
+        <div className="text-3xl sm:text-5xl font-extrabold mb-1">{cur} {data.netRevenue.toLocaleString()}</div>
+        <div className="text-blue-200 text-xs sm:text-sm mt-1.5 sm:mt-2">Realized Revenue ({cur} {data.realizedRevenue.toLocaleString()}) – Expenses ({cur} {data.totalExpenses.toLocaleString()})</div>
         {data.netRevenue < 0 && (
-          <div className="mt-3 flex items-center gap-2 bg-red-400/30 px-3 py-2 rounded-lg text-sm font-semibold">
-            <AlertCircle size={16} /> Warning: Expenses exceed realized revenue today!
+          <div className="mt-2.5 flex items-center gap-2 bg-red-400/30 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold">
+            <AlertCircle size={15} /> Warning: Expenses exceed realized revenue today!
           </div>
         )}
       </div>

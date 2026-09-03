@@ -339,25 +339,25 @@ export default function ProductFinder() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full bg-white">
+    <div className="flex flex-col md:flex-row h-full bg-white pb-20 md:pb-0">
       {/* ── LEFT PANEL: Search & Results ── */}
-      <div className="w-full md:w-5/12 lg:w-1/3 flex flex-col p-4 md:p-6 border-r border-gray-200 overflow-y-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="w-full md:w-5/12 lg:w-1/3 flex flex-col p-2 sm:p-4 md:p-6 border-r border-gray-200 overflow-y-auto space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
             <SearchIcon className="text-primary" />
             Product Finder
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
             Search by name, alias, barcode — or scan a product with your camera.
           </p>
         </div>
         {isAdmin && (
           <button
             onClick={handleOpenGlobalMap}
-            className="px-4 py-2.5 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-200 hover:bg-blue-100 transition flex items-center gap-2"
+            className="px-3.5 py-2 bg-blue-50 text-blue-700 font-bold rounded-xl border border-blue-200 hover:bg-blue-100 transition flex items-center gap-1.5 self-start text-xs sm:text-sm"
           >
-            <MapIcon size={18} />
+            <MapIcon size={16} />
             Manage Shop Map
           </button>
         )}

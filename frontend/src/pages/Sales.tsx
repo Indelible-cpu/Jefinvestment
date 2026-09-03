@@ -324,45 +324,45 @@ export default function Sales() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-1.5 sm:p-3 md:p-6 pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900">Sales Transactions</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{isAdmin ? 'All sales across the system' : 'Your personal sales history'}</p>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900">Sales Transactions</h1>
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5">{isAdmin ? 'All sales across the system' : 'Your personal sales history'}</p>
         </div>
         {isAdmin && (
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition self-start"
+            className="flex items-center gap-2 px-3.5 py-2 bg-white border rounded-xl text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-xs sm:shadow-sm transition self-start"
           >
-            <Download size={16} /> Export CSV
+            <Download size={15} /> Export CSV
           </button>
         )}
       </div>
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
         {[
-          { label: 'Total Transactions', value: filtered.length.toLocaleString(), icon: ShoppingBag, color: 'bg-blue-500' },
-          { label: 'Revenue (Completed)', value: `${settings.currency} ${totalRevenue.toLocaleString()}`, icon: Banknote, color: 'bg-emerald-500' },
+          { label: 'Transactions', value: filtered.length.toLocaleString(), icon: ShoppingBag, color: 'bg-blue-500' },
+          { label: 'Revenue', value: `${settings.currency} ${totalRevenue.toLocaleString()}`, icon: Banknote, color: 'bg-emerald-500' },
           { label: 'Voided', value: totalVoided.toString(), icon: Ban, color: 'bg-red-500' },
           { label: 'Refunded', value: totalRefunded.toString(), icon: RefreshCcw, color: 'bg-amber-500' },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl border shadow-sm p-4 flex items-center gap-3">
-            <div className={`${color} rounded-xl p-2.5 text-white`}><Icon size={20} /></div>
-            <div>
-              <div className="text-xs text-gray-500 font-medium">{label}</div>
-              <div className="text-lg font-extrabold text-gray-900">{value}</div>
+          <div key={label} className="bg-white rounded-xl border shadow-xs sm:shadow-sm p-2.5 sm:p-4 flex items-center gap-2.5 sm:gap-3">
+            <div className={`${color} rounded-lg sm:rounded-xl p-2 sm:p-2.5 text-white shrink-0`}><Icon size={18} /></div>
+            <div className="min-w-0">
+              <div className="text-[10px] sm:text-xs text-gray-500 font-medium truncate">{label}</div>
+              <div className="text-sm sm:text-lg font-extrabold text-gray-900 truncate">{value}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Search + Filter Bar */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-4">
-        <div className="flex gap-3 flex-wrap items-center">
-          <div className="relative flex-1 min-w-56">
+      <div className="bg-white rounded-xl border shadow-xs sm:shadow-sm p-3 sm:p-4 mb-4">
+        <div className="flex gap-2 sm:gap-3 flex-wrap items-center">
+          <div className="relative flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"

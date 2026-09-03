@@ -150,22 +150,22 @@ export default function StationeryServices() {
   };
 
   return (
-    <div className="p-4 md:p-8 bg-background min-h-full flex flex-col gap-6">
+    <div className="p-1.5 sm:p-3 md:p-8 bg-background min-h-full flex flex-col gap-4 sm:gap-6 pb-24">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2">
-            <Printer size={28} className="text-primary" /> Stationery Services
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2">
+            <Printer size={24} className="text-primary sm:w-7 sm:h-7" /> Stationery Services
           </h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
             Configure printing, copying, laminating and other material-based services. Materials are deducted from shared inventory on each sale.
           </p>
         </div>
         <button
           onClick={openAdd}
-          className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md self-start"
+          className="bg-primary text-white px-3.5 py-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1.5 transition shadow-sm sm:shadow-md self-start text-xs sm:text-sm"
         >
-          <Plus size={20} /> Add Service
+          <Plus size={18} /> Add Service
         </button>
       </div>
 

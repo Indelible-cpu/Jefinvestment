@@ -280,33 +280,33 @@ export default function Inventory() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-6 pb-24">
+    <div className="min-h-screen p-1.5 sm:p-3 md:p-6 pb-24">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
-            <Package size={28} /> Inventory Management
+          <h1 className="text-xl md:text-3xl font-bold text-primary flex items-center gap-2">
+            <Package size={26} className="sm:w-7 sm:h-7" /> Inventory Management
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">{products.length} products · {products.filter(p => !p.isService).reduce((s, p) => s + p.stock, 0)} units in stock</p>
+          <p className="text-gray-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">{products.length} products · {products.filter(p => !p.isService).reduce((s, p) => s + p.stock, 0)} units in stock</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {lowStockCount > 0 && (
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2 rounded-lg text-sm font-medium">
-              <AlertTriangle size={16} />
+            <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium">
+              <AlertTriangle size={15} />
               {lowStockCount} low stock
             </div>
           )}
-          <button onClick={openAdd} className="bg-primary text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition shadow-md">
-            <Plus size={20} /> Add Product / Equipment
+          <button onClick={openAdd} className="bg-primary text-white px-3.5 py-2 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-1.5 transition shadow-sm sm:shadow-md text-xs sm:text-sm">
+            <Plus size={18} /> Add Product / Equipment
           </button>
         </div>
       </div>
 
       {/* Inventory Valuation Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Inventory Cost</div>
-          <div className="text-2xl font-black text-gray-800 mt-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 mb-4 sm:mb-6">
+        <div className="bg-white p-3 sm:p-4 rounded-xl border shadow-xs sm:shadow-sm flex flex-col justify-between">
+          <div className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Inventory Cost</div>
+          <div className="text-xl sm:text-2xl font-black text-gray-800 mt-1">
             {settings.currency} {totalInventoryCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-gray-400 mt-1">Current capital invested in stock</div>

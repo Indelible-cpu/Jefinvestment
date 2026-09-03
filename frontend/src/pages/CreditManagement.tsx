@@ -53,13 +53,13 @@ export default function CreditManagement() {
   };
 
   return (
-    <div className="p-4 md:p-8 bg-background min-h-full">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
+    <div className="p-1.5 sm:p-3 md:p-8 bg-background min-h-full pb-24">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Credit Sales &amp; Debt Management</h1>
-          <p className="text-gray-500 text-sm mt-1">Track customer debts, due dates, and record partial or full repayments.</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Credit Sales &amp; Debt Management</h1>
+          <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Track customer debts, due dates, and record partial or full repayments.</p>
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600 bg-white border px-3 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 transition shadow-sm">
+        <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 bg-white border px-3 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 transition shadow-xs sm:shadow-sm self-start sm:self-auto">
           <input 
             type="checkbox" 
             checked={showPaid} 
@@ -71,34 +71,34 @@ export default function CreditManagement() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-card p-4 md:p-6 rounded-lg border shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-amber-100 text-amber-700 rounded-full">
-            <CreditCard size={24} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4 mb-6 sm:mb-8">
+        <div className="bg-card p-3.5 sm:p-5 md:p-6 rounded-xl border shadow-xs sm:shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 bg-amber-100 text-amber-700 rounded-full shrink-0">
+            <CreditCard size={20} className="sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-gray-500 text-sm">Total Outstanding Debt</span>
-            <h3 className="text-2xl font-bold text-amber-700 font-mono">{settings.currency} {totalOutstanding.toLocaleString()}</h3>
-          </div>
-        </div>
-
-        <div className="bg-card p-6 rounded-lg border shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-red-100 text-red-700 rounded-full">
-            <Clock size={24} />
-          </div>
-          <div>
-            <span className="text-gray-500 text-sm">Overdue Debt</span>
-            <h3 className="text-2xl font-bold text-red-700 font-mono">{settings.currency} {totalOverdue.toLocaleString()}</h3>
+          <div className="min-w-0">
+            <span className="text-gray-500 text-xs sm:text-sm">Total Outstanding Debt</span>
+            <h3 className="text-lg sm:text-2xl font-bold text-amber-700 font-mono truncate">{settings.currency} {totalOutstanding.toLocaleString()}</h3>
           </div>
         </div>
 
-        <div className="bg-card p-6 rounded-lg border shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-green-100 text-green-700 rounded-full">
-            <CheckCircle2 size={24} />
+        <div className="bg-card p-3.5 sm:p-5 md:p-6 rounded-xl border shadow-xs sm:shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 bg-red-100 text-red-700 rounded-full shrink-0">
+            <Clock size={20} className="sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <span className="text-gray-500 text-sm">Active Debtors</span>
-            <h3 className="text-2xl font-bold">{credits.filter(c => c.status !== 'FULLY_PAID').length}</h3>
+          <div className="min-w-0">
+            <span className="text-gray-500 text-xs sm:text-sm">Overdue Debt</span>
+            <h3 className="text-lg sm:text-2xl font-bold text-red-600 font-mono truncate">{settings.currency} {totalOverdue.toLocaleString()}</h3>
+          </div>
+        </div>
+
+        <div className="bg-card p-3.5 sm:p-5 md:p-6 rounded-xl border shadow-xs sm:shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 bg-green-100 text-green-700 rounded-full shrink-0">
+            <CheckCircle2 size={20} className="sm:w-6 sm:h-6" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-gray-500 text-xs sm:text-sm">Active Debtors</span>
+            <h3 className="text-lg sm:text-2xl font-bold text-green-700 font-mono truncate">{credits.filter(c => c.status !== 'FULLY_PAID').length}</h3>
           </div>
         </div>
       </div>
