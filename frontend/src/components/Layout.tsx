@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore } from '../store/dataStore';
 import { useProductStore, useCartStore } from '../store/cartStore';
 import { useSyncQueueStore } from '../store/syncQueueStore';
+import { useThemeStore } from '../store/themeStore';
 import { toast } from 'sonner';
 
 export default function Layout() {
@@ -23,6 +24,7 @@ export default function Layout() {
   const loadCredits = useCreditStore(s => s.loadCredits);
   const { loadExpenses } = useExpenseStore();
   const { queue, isSyncing, syncAll } = useSyncQueueStore();
+  const { resolvedTheme, toggleTheme } = useThemeStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isSystemLocked, setIsSystemLocked] = useState(false);
@@ -312,7 +314,16 @@ export default function Layout() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+           {/* Quick Theme Toggle (Mobile) */}
+           <button
+             onClick={toggleTheme}
+             className="text-blue-100 hover:text-white p-1 transition rounded-full hover:bg-white/10"
+             title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} mode`}
+           >
+             {resolvedTheme === 'dark' ? <Sun size={22} className="text-amber-300" /> : <Moon size={22} />}
+           </button>
+
            {/* Sync Status Badge */}
            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-black/20 rounded-full text-sm font-medium backdrop-blur-sm">
              {queue.length > 0 ? (
@@ -392,45 +403,54 @@ export default function Layout() {
       }`}>
         {/* Branding Area */}
         <div className="p-5 border-b border-blue-700/50 flex flex-col items-center pt-8 md:pt-5 relative">
-          <div className="hidden md:block absolute top-4 right-4" ref={desktopNotifRef}>
-            <button onClick={() => setShowNotifications(!showNotifications)} className="text-blue-200 hover:text-white transition relative">
-              <Bell size={20} />
-              {notificationCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-[16px] h-[16px] rounded-full flex items-center justify-center border border-primary">{notificationCount}</span>
-              )}
+          <div className="hidden md:flex items-center gap-2 absolute top-4 right-4">
+            <button 
+              onClick={toggleTheme} 
+              className="text-blue-200 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10" 
+              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} mode`}
+            >
+              {resolvedTheme === 'dark' ? <Sun size={18} className="text-amber-300" /> : <Moon size={18} />}
             </button>
-            {showNotifications && (
-               <div className="absolute top-8 left-0 w-72 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left max-h-80 overflow-y-auto">
-                 <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
-                 {lowStockItems.length > 0 && (
-                   <>
-                     <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock — click to locate</div>
-                     {lowStockItems.map(p => (
-                       <div
-                         key={p.id}
-                         className="px-2 py-2 hover:bg-red-50 rounded cursor-pointer flex items-center justify-between gap-2"
-                         onClick={() => { navigate(`/inventory?highlight=${p.id}`); setShowNotifications(false); }}
-                       >
-                         <div className="flex items-center gap-2 min-w-0">
-                           <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
-                           <span className="text-red-700 font-medium truncate">{p.name}</span>
+            <div ref={desktopNotifRef} className="relative">
+              <button onClick={() => setShowNotifications(!showNotifications)} className="text-blue-200 hover:text-white transition relative p-1.5 rounded-lg hover:bg-white/10">
+                <Bell size={18} />
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[16px] h-[16px] rounded-full flex items-center justify-center border border-primary">{notificationCount}</span>
+                )}
+              </button>
+              {showNotifications && (
+                 <div className="absolute top-8 right-0 w-72 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left max-h-80 overflow-y-auto">
+                   <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
+                   {lowStockItems.length > 0 && (
+                     <>
+                       <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock — click to locate</div>
+                       {lowStockItems.map(p => (
+                         <div
+                           key={p.id}
+                           className="px-2 py-2 hover:bg-red-50 rounded cursor-pointer flex items-center justify-between gap-2"
+                           onClick={() => { navigate(`/inventory?highlight=${p.id}`); setShowNotifications(false); }}
+                         >
+                           <div className="flex items-center gap-2 min-w-0">
+                             <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+                             <span className="text-red-700 font-medium truncate">{p.name}</span>
+                           </div>
+                           <span className="text-xs text-red-400 shrink-0 font-semibold">{p.stock} {p.unit || ''} left</span>
                          </div>
-                         <span className="text-xs text-red-400 shrink-0 font-semibold">{p.stock} {p.unit || ''} left</span>
-                       </div>
-                     ))}
-                   </>
-                 )}
-                 {overdueCreditCount > 0 && (
-                   <div className="p-2 hover:bg-amber-50 rounded cursor-pointer text-amber-600 flex items-center gap-2" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
-                     <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
-                     {overdueCreditCount} overdue credit{overdueCreditCount > 1 ? 's' : ''} — click to review
-                   </div>
-                 )}
-                 {notificationCount === 0 && (
-                   <div className="p-2 text-gray-400 text-center">No new notifications</div>
-                 )}
-               </div>
-            )}
+                       ))}
+                     </>
+                   )}
+                   {overdueCreditCount > 0 && (
+                     <div className="p-2 hover:bg-amber-50 rounded cursor-pointer text-amber-600 flex items-center gap-2" onClick={() => { navigate('/credits'); setShowNotifications(false); }}>
+                       <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                       {overdueCreditCount} overdue credit{overdueCreditCount > 1 ? 's' : ''} — click to review
+                     </div>
+                   )}
+                   {notificationCount === 0 && (
+                     <div className="p-2 text-gray-400 text-center">No new notifications</div>
+                   )}
+                 </div>
+              )}
+            </div>
           </div>
           {companyLogo ? (
             <img src={companyLogo} alt={companyName} className="h-16 w-16 object-cover rounded-full overflow-hidden mb-3 shadow-md" />
@@ -470,12 +490,6 @@ export default function Layout() {
           <Link to="/sales" className={navLinkClass('/sales')}>
             <ClipboardList size={20} /> <span>Sales</span>
           </Link>
-          
-          {isAdmin && (
-            <Link to="/inventory" className={navLinkClass('/inventory', true)}>
-              <Package size={20} /> <span>Inventory</span>
-            </Link>
-          )}
           
           <Link to="/expenses" className={navLinkClass('/expenses')}>
             <Receipt size={20} /> <span>Expenses</span>

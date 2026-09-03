@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useBranchStore } from '../store/branchStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -12,6 +12,7 @@ import { useAuditStore } from '../store/auditStore';
 import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
 import { checkForAppUpdates } from '../utils/pwaUpdate';
+import { useThemeStore } from '../store/themeStore';
 
 export default function Settings() {
   const { 
@@ -21,6 +22,7 @@ export default function Settings() {
   const settings = useSettingsStore();
   const { updateSettings } = settings;
   const { branches, loadBranches } = useBranchStore();
+  const { theme, resolvedTheme, setTheme } = useThemeStore();
   const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
@@ -490,6 +492,90 @@ export default function Settings() {
               </div>
             </div>
           ) : null}
+        </div>
+
+        {/* Appearance & Display Theme */}
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Palette size={18} /> Appearance &amp; Display Theme
+            </div>
+            <span className="text-xs font-normal text-gray-500 bg-white border px-2.5 py-0.5 rounded-full shadow-2xs">
+              Current: <strong className="capitalize">{theme === 'system' ? `System (${resolvedTheme})` : theme}</strong>
+            </span>
+          </div>
+          <div className="p-6">
+            <p className="text-sm text-gray-500 mb-4">
+              Select your preferred visual theme. Your choice is instantly applied and saved on this device.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Light Mode Card */}
+              <button
+                type="button"
+                onClick={() => { setTheme('light'); toast.success('Switched to Light mode'); }}
+                className={`flex flex-col items-center justify-center p-5 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                  theme === 'light'
+                    ? 'border-primary bg-blue-50/50 text-primary shadow-sm ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition ${theme === 'light' ? 'bg-primary text-white shadow-md' : 'bg-amber-100 text-amber-600'}`}>
+                  <Sun size={24} />
+                </div>
+                <div className="font-bold text-base mb-1">Light Mode</div>
+                <p className="text-xs text-gray-500 text-center">Crisp, clean high-visibility day display</p>
+                {theme === 'light' && (
+                  <span className="mt-3 text-[11px] font-semibold bg-primary text-white px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                    <CheckCircle2 size={12} /> Active
+                  </span>
+                )}
+              </button>
+
+              {/* Dark Mode Card */}
+              <button
+                type="button"
+                onClick={() => { setTheme('dark'); toast.success('Switched to Dark mode'); }}
+                className={`flex flex-col items-center justify-center p-5 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                  theme === 'dark'
+                    ? 'border-primary bg-blue-50/50 text-primary shadow-sm ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition ${theme === 'dark' ? 'bg-primary text-white shadow-md' : 'bg-slate-800 text-indigo-300'}`}>
+                  <Moon size={24} />
+                </div>
+                <div className="font-bold text-base mb-1">Dark Mode</div>
+                <p className="text-xs text-gray-500 text-center">Reduces glare &amp; eye strain in low light</p>
+                {theme === 'dark' && (
+                  <span className="mt-3 text-[11px] font-semibold bg-primary text-white px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                    <CheckCircle2 size={12} /> Active
+                  </span>
+                )}
+              </button>
+
+              {/* System Auto Card */}
+              <button
+                type="button"
+                onClick={() => { setTheme('system'); toast.success(`System theme synced (${resolvedTheme})`); }}
+                className={`flex flex-col items-center justify-center p-5 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                  theme === 'system'
+                    ? 'border-primary bg-blue-50/50 text-primary shadow-sm ring-2 ring-primary/20'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition ${theme === 'system' ? 'bg-primary text-white shadow-md' : 'bg-purple-100 text-purple-600'}`}>
+                  <Laptop size={24} />
+                </div>
+                <div className="font-bold text-base mb-1">System Default</div>
+                <p className="text-xs text-gray-500 text-center">Matches your device OS display mode</p>
+                {theme === 'system' && (
+                  <span className="mt-3 text-[11px] font-semibold bg-primary text-white px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                    <CheckCircle2 size={12} /> Active ({resolvedTheme})
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Password Change Requests (Admin only) */}
