@@ -8,7 +8,7 @@ import { auth, db } from '../lib/firebase';
 import { onSnapshot, doc } from 'firebase/firestore';
 
 export default function ChangePassword() {
-  const { user, submitPasswordRequest, clearPasswordChangeFlag } = useAuthStore();
+  const { user, submitPasswordRequest, clearPasswordChangeFlag, refreshOfflineCachePassword } = useAuthStore();
   const navigate = useNavigate();
   
   const isForced = user?.requiresPasswordChange;
@@ -36,6 +36,10 @@ export default function ChangePassword() {
            try {
              await updatePassword(auth.currentUser, newPassword);
              await clearPasswordChangeFlag(user!.id);
+             // Update offline cache so next offline login uses the new password
+             if (user!.email) {
+               await refreshOfflineCachePassword(user!.email, newPassword);
+             }
              setStatus('DONE');
              toast.success('Password updated securely!');
              setTimeout(() => {
@@ -51,7 +55,7 @@ export default function ChangePassword() {
       }
     });
     return () => unsub();
-  }, [requestId, newPassword, user, navigate, clearPasswordChangeFlag]);
+  }, [requestId, newPassword, user, navigate, clearPasswordChangeFlag, refreshOfflineCachePassword]);
 
   const checkPasswordStrength = (pw: string) => {
     let score = 0;

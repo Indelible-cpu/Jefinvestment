@@ -125,6 +125,7 @@ interface AuthState {
   approvePasswordRequest: (requestId: string) => Promise<void>;
   rejectPasswordRequest: (requestId: string) => Promise<void>;
   clearPasswordChangeFlag: (userId: string) => Promise<void>;
+  refreshOfflineCachePassword: (email: string, newPassword: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -240,7 +241,7 @@ export const useAuthStore = create<AuthState>()(
             branchId: userData.branchId || 'main',
             branchName: userData.branchName || 'Main Branch',
             profilePic: userData.profilePic || '',
-            requiresPasswordChange: userData.requiresPasswordChange || false,
+            requiresPasswordChange: userData.requiresPasswordChange === true,
           };
 
           // Cache credentials securely for offline re-login
@@ -377,6 +378,8 @@ export const useAuthStore = create<AuthState>()(
                   ...state.user,
                   ...(data.name && { name: data.name }),
                   ...(data.profilePic && { profilePic: data.profilePic }),
+                  // Always sync this flag from Firestore — corrects any stale persisted value
+                  requiresPasswordChange: data.requiresPasswordChange === true,
                 } : null,
               }));
             }
@@ -416,9 +419,20 @@ export const useAuthStore = create<AuthState>()(
           await signOut(secondaryAuth);
 
           await get().loadUsers();
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to add user:", error);
-          throw error;
+          // Firebase internally emits an IndexedDB "database connection is closing" event
+          // when the secondaryAuth instance cleans up — this is NOT a real error; the user
+          // was already created successfully. Swallow it silently.
+          const msg = (error?.message || '').toLowerCase();
+          const isInternalNoise =
+            msg.includes('database connection is closing') ||
+            msg.includes('idbdatabase') ||
+            msg.includes('the database is not open') ||
+            (error?.name === 'InvalidStateError');
+          if (!isInternalNoise) {
+            throw error;
+          }
         }
       },
 
@@ -544,8 +558,34 @@ export const useAuthStore = create<AuthState>()(
         await updateDoc(doc(db, 'users', userId), { requiresPasswordChange: false });
         const state = get();
         if (state.user && state.user.id === userId) {
-          set({ user: { ...state.user, requiresPasswordChange: false } });
+          const updatedUser = { ...state.user, requiresPasswordChange: false };
+          set({ user: updatedUser });
+          // Refresh offline cache so it no longer carries the stale flag
+          try {
+            const cache = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
+            const key = (updatedUser.email || '').trim().toLowerCase();
+            if (cache[key]) {
+              cache[key].user = updatedUser;
+              localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(cache));
+            }
+          } catch { /* ignore */ }
         }
+      },
+
+      refreshOfflineCachePassword: async (email, newPassword) => {
+        try {
+          const hash = await hashPassword(newPassword);
+          const cache = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
+          const key = email.trim().toLowerCase();
+          if (cache[key]) {
+            cache[key].passwordHash = hash;
+            // Also mark the flag as cleared in the cached user object
+            if (cache[key].user) {
+              cache[key].user.requiresPasswordChange = false;
+            }
+            localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(cache));
+          }
+        } catch { /* ignore */ }
       },
     }),
     { name: 'jef-auth-storage' }
