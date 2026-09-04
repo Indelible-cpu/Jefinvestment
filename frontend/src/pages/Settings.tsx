@@ -99,6 +99,40 @@ export default function Settings() {
     }
   };
 
+  const compressImageToBase64 = (file: File, maxSize = 160): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxSize) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.onerror = reject;
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -108,19 +142,28 @@ export default function Settings() {
     }
     setUploadingPic(true);
     try {
-      const userId = useAuthStore.getState().user?.id;
-      const storageRef = ref(storage, `profile-pictures/${userId}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      // Save URL to Firestore immediately so it syncs across devices
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) throw new Error('Not logged in');
+
+      let finalURL = '';
+      try {
+        const storageRef = ref(storage, `profile-pictures/${currentUser.id}`);
+        await uploadBytes(storageRef, file);
+        finalURL = await getDownloadURL(storageRef);
+      } catch (storageErr) {
+        console.warn('Firebase Storage upload failed, using local/Firestore compressed avatar:', storageErr);
+        finalURL = await compressImageToBase64(file, 160);
+      }
+
+      // Save URL or compressed photo to Firestore immediately so it syncs across devices
       await useAuthStore.getState().updateProfile(
         profileForm.name,
-        downloadURL
+        finalURL
       );
-      setProfileForm(f => ({ ...f, profilePic: downloadURL }));
+      setProfileForm(f => ({ ...f, profilePic: finalURL }));
       toast.success('Profile picture updated!', { description: 'Synced to all your devices.' });
     } catch (err: any) {
-      toast.error('Upload failed', { description: err.message });
+      toast.error('Upload failed', { description: err.message || 'Could not update profile picture.' });
     } finally {
       setUploadingPic(false);
     }
@@ -277,28 +320,34 @@ export default function Settings() {
 
   const handleSuspend = async (u: typeof users[0]) => {
     if (u.id === user?.id) { toast.error('You cannot suspend your own account.'); return; }
-    toast(`Suspend "${u.name}"?`, {
-      description: 'They will be blocked from logging in until unsuspended.',
-      action: { label: 'Suspend', onClick: async () => {
-        await updateUser(u.id, { isSuspended: true, isActive: false });
-        addLog('USER_SUSPENDED', `Admin "${user?.name}" suspended user "${u.name}".`);
-        toast.success(`"${u.name}" has been suspended.`);
-      }},
-      cancel: { label: 'Cancel', onClick: () => {} },
-    });
+    try {
+      await updateUser(u.id, { isSuspended: true, isActive: false });
+      addLog('USER_SUSPENDED', `Admin "${user?.name}" suspended user "${u.name}".`);
+      toast.success(`User "${u.name}" has been suspended.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to suspend user.');
+    }
   };
 
   const handleActivate = async (u: typeof users[0]) => {
-    await updateUser(u.id, { isSuspended: false, isActive: true });
-    addLog('USER_ACTIVATED', `Admin "${user?.name}" activated/unsuspended user "${u.name}".`);
-    toast.success(`"${u.name}" is now active.`);
+    try {
+      await updateUser(u.id, { isSuspended: false, isActive: true });
+      addLog('USER_ACTIVATED', `Admin "${user?.name}" activated user "${u.name}".`);
+      toast.success(`User "${u.name}" is now active.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to activate user.');
+    }
   };
 
   const handleDeactivate = async (u: typeof users[0]) => {
     if (u.id === user?.id) { toast.error('You cannot deactivate your own account.'); return; }
-    await updateUser(u.id, { isActive: false });
-    addLog('USER_DEACTIVATED', `Admin "${user?.name}" deactivated user "${u.name}".`);
-    toast.success(`"${u.name}" has been deactivated.`);
+    try {
+      await updateUser(u.id, { isActive: false, isSuspended: false });
+      addLog('USER_DEACTIVATED', `Admin "${user?.name}" deactivated user "${u.name}".`);
+      toast.success(`User "${u.name}" has been deactivated.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to deactivate user.');
+    }
   };
 
   const handleExportData = () => {
@@ -1032,6 +1081,16 @@ export default function Settings() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={editForm.isActive} onChange={e => setEditForm(f => ({ ...f, isActive: e.target.checked }))} className="sr-only peer" />
                   <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-red-50/60 mt-2">
+                <div>
+                  <span className="font-semibold text-sm text-red-700 block">Suspend Account</span>
+                  <span className="text-xs text-red-500">Blocks this user from logging in immediately</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={editForm.isSuspended} onChange={e => setEditForm(f => ({ ...f, isSuspended: e.target.checked, ...(e.target.checked ? { isActive: false } : {}) }))} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600"></div>
                 </label>
               </div>
               <div className="flex gap-3 pt-2">

@@ -226,11 +226,16 @@ export const useAuthStore = create<AuthState>()(
             await setDoc(doc(db, 'users', firebaseUser.uid), userData);
           }
 
-          // Block suspended accounts before setting any auth state
+          // Block suspended or deactivated accounts before setting any auth state
           if (userData.isSuspended === true) {
             await signOut(auth);
             set({ isLoading: false });
             return { success: false, error: 'Your account has been suspended. Please contact an administrator.' };
+          }
+          if (userData.isActive === false) {
+            await signOut(auth);
+            set({ isLoading: false });
+            return { success: false, error: 'Your account has been deactivated. Please contact an administrator.' };
           }
 
           const userObj = {
@@ -373,6 +378,10 @@ export const useAuthStore = create<AuthState>()(
           const unsubProfile = onSnapshot(doc(db, 'users', state.user.id), (userDoc) => {
             if (userDoc.exists()) {
               const data = userDoc.data();
+              if (data.isSuspended === true || data.isActive === false) {
+                get().logout();
+                return;
+              }
               set((state) => ({
                 user: state.user ? {
                   ...state.user,
