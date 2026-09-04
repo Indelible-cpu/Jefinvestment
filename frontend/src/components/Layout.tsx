@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
@@ -207,7 +207,52 @@ export default function Layout() {
   const overdueCreditCount = useMemo(() => credits?.filter(c => c.status === 'OVERDUE').length || 0, [credits]);
   const pendingPasswordRequests = useMemo(() => (passwordRequests || []).filter(r => r.status === 'PENDING'), [passwordRequests]);
   const passwordRequestCount = user?.role === 'ADMIN' ? pendingPasswordRequests.length : 0;
-  const notificationCount = lowStockCount + overdueCreditCount + passwordRequestCount;
+  
+  // Official Warnings logic
+  const warnings = useMemo(() => user?.warnings || [], [user?.warnings]);
+  const [unacknowledgedWarnings, setUnacknowledgedWarnings] = useState<string[]>([]);
+  const [activeWarningModal, setActiveWarningModal] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || !warnings.length) {
+      setUnacknowledgedWarnings([]);
+      setActiveWarningModal(null);
+      return;
+    }
+    const ackKey = `msikaflo_ack_warnings_${user.id}`;
+    let acknowledged: string[] = [];
+    try {
+      acknowledged = JSON.parse(localStorage.getItem(ackKey) || '[]');
+    } catch {
+      acknowledged = [];
+    }
+    const unacked = warnings.filter(w => !acknowledged.includes(w));
+    setUnacknowledgedWarnings(unacked);
+    if (unacked.length > 0) {
+      setActiveWarningModal(unacked[unacked.length - 1]);
+    }
+  }, [user?.id, warnings]);
+
+  const handleAcknowledgeWarning = (warnText: string) => {
+    if (!user?.id) return;
+    const ackKey = `msikaflo_ack_warnings_${user.id}`;
+    let acknowledged: string[] = [];
+    try {
+      acknowledged = JSON.parse(localStorage.getItem(ackKey) || '[]');
+    } catch {
+      acknowledged = [];
+    }
+    if (!acknowledged.includes(warnText)) {
+      acknowledged.push(warnText);
+      localStorage.setItem(ackKey, JSON.stringify(acknowledged));
+    }
+    const remaining = unacknowledgedWarnings.filter(w => w !== warnText);
+    setUnacknowledgedWarnings(remaining);
+    setActiveWarningModal(remaining.length > 0 ? remaining[remaining.length - 1] : null);
+    toast.info('Warning acknowledged.');
+  };
+
+  const notificationCount = lowStockCount + overdueCreditCount + passwordRequestCount + unacknowledgedWarnings.length;
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -341,6 +386,34 @@ export default function Layout() {
              {showNotifications && (
                <div className="absolute top-10 -right-12 sm:right-0 w-[90vw] max-w-[288px] sm:max-w-none sm:w-72 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm max-h-80 overflow-y-auto">
                  <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
+                 {warnings.length > 0 && (
+                   <div className="mb-2.5 pb-2 border-b">
+                     <div className="px-2 py-1 text-[10px] font-bold text-red-600 uppercase tracking-wider flex items-center gap-1">
+                       <AlertTriangle size={12} className="text-red-600 shrink-0" /> Official Warnings ({warnings.length})
+                     </div>
+                     {warnings.map((w, idx) => (
+                       <div key={idx} className="p-2 my-1 bg-red-50 border border-red-200 rounded text-xs text-red-950">
+                         <div className="flex items-center justify-between font-bold text-[11px] mb-1">
+                           <span className="text-red-700">Management Warning</span>
+                           {unacknowledgedWarnings.includes(w) ? (
+                             <span className="text-[9px] bg-red-200 text-red-800 px-1 py-0.5 rounded font-bold animate-pulse">New</span>
+                           ) : (
+                             <span className="text-[9px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-medium">Seen</span>
+                           )}
+                         </div>
+                         <p className="whitespace-pre-wrap text-gray-800 leading-snug">{w}</p>
+                         {unacknowledgedWarnings.includes(w) && (
+                           <button
+                             onClick={() => handleAcknowledgeWarning(w)}
+                             className="mt-1.5 w-full py-1 text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold rounded transition active:scale-95"
+                           >
+                             Acknowledge Warning
+                           </button>
+                         )}
+                       </div>
+                     ))}
+                   </div>
+                 )}
                  {lowStockItems.length > 0 && (
                    <>
                      <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock — tap to locate</div>
@@ -403,11 +476,39 @@ export default function Layout() {
                 )}
               </button>
               {showNotifications && (
-                 <div className="absolute top-8 left-0 sm:left-4 w-96 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left max-h-80 overflow-y-auto">
-                   <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
-                   {lowStockItems.length > 0 && (
-                     <>
-                       <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock — click to locate</div>
+                  <div className="absolute top-8 left-0 sm:left-4 w-96 bg-white text-black shadow-xl rounded-lg border p-2 z-[100] text-sm text-left max-h-80 overflow-y-auto">
+                    <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
+                    {warnings.length > 0 && (
+                      <div className="mb-2.5 pb-2 border-b">
+                        <div className="px-2 py-1 text-[10px] font-bold text-red-600 uppercase tracking-wider flex items-center gap-1">
+                          <AlertTriangle size={12} className="text-red-600 shrink-0" /> Official Warnings ({warnings.length})
+                        </div>
+                        {warnings.map((w, idx) => (
+                          <div key={idx} className="p-2.5 my-1.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-950">
+                            <div className="flex items-center justify-between font-bold text-[11px] mb-1">
+                              <span className="text-red-700">Management Warning</span>
+                              {unacknowledgedWarnings.includes(w) ? (
+                                <span className="text-[9px] bg-red-200 text-red-800 px-1.5 py-0.5 rounded font-bold animate-pulse">Action Required</span>
+                              ) : (
+                                <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">Seen</span>
+                              )}
+                            </div>
+                            <p className="whitespace-pre-wrap text-gray-800 leading-snug">{w}</p>
+                            {unacknowledgedWarnings.includes(w) && (
+                              <button
+                                onClick={() => handleAcknowledgeWarning(w)}
+                                className="mt-2 w-full py-1 text-[11px] bg-red-600 hover:bg-red-700 text-white font-bold rounded transition active:scale-95 cursor-pointer"
+                              >
+                                Acknowledge Warning
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {lowStockItems.length > 0 && (
+                      <>
+                        <div className="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Low Stock — click to locate</div>
                        {lowStockItems.map(p => (
                          <div
                            key={p.id}
@@ -581,6 +682,37 @@ export default function Layout() {
           <span className="text-[10px] font-medium">More</span>
         </button>
       </div>
+
+      {/* Urgent Official Warning Modal Popup */}
+      {activeWarningModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border-2 border-red-500 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-red-600 text-white p-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-3 bg-white/20 rounded-full flex items-center justify-center">
+                <AlertTriangle size={36} className="text-white animate-bounce" />
+              </div>
+              <h2 className="text-xl font-black tracking-wide uppercase">Official Management Warning</h2>
+              <p className="text-red-100 text-xs mt-1 font-medium">Issued to: <span className="underline font-bold">{user?.name}</span></p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-red-50 border border-red-200 p-4 rounded-xl shadow-inner">
+                <p className="text-sm text-red-950 font-semibold whitespace-pre-wrap leading-relaxed">
+                  {activeWarningModal}
+                </p>
+              </div>
+              <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border text-center">
+                This warning has been officially recorded in your employee record. You must acknowledge receipt to continue.
+              </div>
+              <button
+                onClick={() => handleAcknowledgeWarning(activeWarningModal)}
+                className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-600/30 transition active:scale-95 flex items-center justify-center gap-2 text-sm cursor-pointer"
+              >
+                <CheckCircle2 size={18} /> I Understand and Acknowledge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

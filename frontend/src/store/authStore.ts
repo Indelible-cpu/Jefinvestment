@@ -72,6 +72,7 @@ export interface User {
   profilePic?: string;
   lastActiveAt?: number;
   requiresPasswordChange?: boolean;
+  warnings?: string[];
 }
 
 export interface UserAccount extends User {
@@ -247,6 +248,7 @@ export const useAuthStore = create<AuthState>()(
             branchName: userData.branchName || 'Main Branch',
             profilePic: userData.profilePic || '',
             requiresPasswordChange: userData.requiresPasswordChange === true,
+            warnings: Array.isArray(userData.warnings) ? userData.warnings : [],
           };
 
           // Cache credentials securely for offline re-login
@@ -389,6 +391,7 @@ export const useAuthStore = create<AuthState>()(
                   ...(data.profilePic && { profilePic: data.profilePic }),
                   // Always sync this flag from Firestore — corrects any stale persisted value
                   requiresPasswordChange: data.requiresPasswordChange === true,
+                  warnings: Array.isArray(data.warnings) ? data.warnings : [],
                 } : null,
               }));
             }
