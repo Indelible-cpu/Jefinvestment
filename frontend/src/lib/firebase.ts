@@ -1,5 +1,4 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import {
   initializeFirestore,
@@ -20,24 +19,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6Ld1VKctAAAAAKumuGcc_7c7M7kn_EE9evkv7Duo';
-
-// Initialize Firebase App Check with reCAPTCHA Enterprise
-if (typeof window !== 'undefined' && recaptchaSiteKey) {
-  if (import.meta.env.DEV) {
-    // In local development, enable debug token to prevent local requests from failing
-    // @ts-ignore
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-  }
-  try {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
-      isTokenAutoRefreshEnabled: true
-    });
-  } catch (err) {
-    console.warn('App Check initialization failed:', err);
-  }
-}
+// App Check is currently disabled to prevent auth/firebase-app-check-token-is-invalid
+// errors across login, user creation, and password/PIN resets.
+// If needed in the future, ensure the web app is properly registered in Firebase Console first.
 
 const auth = getAuth(app);
 const storage = getStorage(app);
@@ -52,17 +36,5 @@ const db = initializeFirestore(app, {
 // Secondary app for user creation so admin doesn't get signed out
 const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
 const secondaryAuth = getAuth(secondaryApp);
-
-// Initialize Firebase App Check with reCAPTCHA Enterprise for SecondaryApp
-if (typeof window !== 'undefined' && recaptchaSiteKey) {
-  try {
-    initializeAppCheck(secondaryApp, {
-      provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
-      isTokenAutoRefreshEnabled: true
-    });
-  } catch (err) {
-    console.warn('App Check initialization for SecondaryApp failed:', err);
-  }
-}
 
 export { app, auth, db, storage, secondaryApp, secondaryAuth };
