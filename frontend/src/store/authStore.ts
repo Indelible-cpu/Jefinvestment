@@ -15,7 +15,8 @@ import {
   deleteDoc,
   updateDoc,
   onSnapshot,
-  arrayUnion
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { auth, db, secondaryAuth } from '../lib/firebase';
 
@@ -112,6 +113,8 @@ interface AuthState {
   deleteUser: (userId: string) => Promise<void>;
   updateUser: (userId: string, data: Partial<Pick<UserAccount, 'name' | 'role' | 'branchId' | 'isActive' | 'isSuspended'>>) => Promise<void>;
   warnUser: (userId: string, message: string) => Promise<void>;
+  dismissWarning: (userId: string, warningText: string) => Promise<void>;
+  clearAllWarnings: (userId: string) => Promise<void>;
   loadUsers: () => Promise<void>;
   
   isTemporarilyUnlocked: boolean;
@@ -486,6 +489,54 @@ export const useAuthStore = create<AuthState>()(
         } catch (e) {
           console.error("Failed to warn user", e);
           throw e;
+        }
+      },
+
+      dismissWarning: async (userId, warningText) => {
+        try {
+          await updateDoc(doc(db, 'users', userId), {
+            warnings: arrayRemove(warningText),
+          });
+          set((state) => ({
+            user: state.user?.id === userId 
+              ? { ...state.user, warnings: (state.user.warnings || []).filter(w => w !== warningText) }
+              : state.user,
+            users: state.users.map((u) =>
+              u.id === userId
+                ? { ...u, warnings: (u.warnings || []).filter(w => w !== warningText) }
+                : u
+            ),
+          }));
+        } catch (e) {
+          console.warn("Failed to dismiss warning from Firestore", e);
+          set((state) => ({
+            user: state.user?.id === userId 
+              ? { ...state.user, warnings: (state.user.warnings || []).filter(w => w !== warningText) }
+              : state.user,
+          }));
+        }
+      },
+
+      clearAllWarnings: async (userId) => {
+        try {
+          await updateDoc(doc(db, 'users', userId), {
+            warnings: [],
+          });
+          set((state) => ({
+            user: state.user?.id === userId 
+              ? { ...state.user, warnings: [] }
+              : state.user,
+            users: state.users.map((u) =>
+              u.id === userId ? { ...u, warnings: [] } : u
+            ),
+          }));
+        } catch (e) {
+          console.warn("Failed to clear warnings from Firestore", e);
+          set((state) => ({
+            user: state.user?.id === userId 
+              ? { ...state.user, warnings: [] }
+              : state.user,
+          }));
         }
       },
 

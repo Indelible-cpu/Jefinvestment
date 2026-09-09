@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
@@ -187,7 +187,35 @@ export default function Layout() {
   const passwordRequestCount = user?.role === 'ADMIN' ? pendingPasswordRequests.length : 0;
   
   // Official Warnings logic
-  const warnings = useMemo(() => user?.warnings || [], [user?.warnings]);
+  const rawWarnings = useMemo(() => user?.warnings || [], [user?.warnings]);
+  const [dismissedWarnings, setDismissedWarnings] = useState<string[]>(() => {
+    const uid = user?.id;
+    if (!uid) return [];
+    try {
+      return JSON.parse(localStorage.getItem(`msikaflo_dismissed_warnings_${uid}`) || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (!user?.id) {
+      setDismissedWarnings([]);
+      return;
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(`msikaflo_dismissed_warnings_${user.id}`) || '[]');
+      setDismissedWarnings(saved);
+    } catch {
+      setDismissedWarnings([]);
+    }
+  }, [user?.id]);
+
+  // Only display warnings that have not been removed/deleted by the user
+  const warnings = useMemo(() => {
+    return rawWarnings.filter(w => !dismissedWarnings.includes(w));
+  }, [rawWarnings, dismissedWarnings]);
+
   const [unacknowledgedWarnings, setUnacknowledgedWarnings] = useState<string[]>([]);
   const [activeWarningModal, setActiveWarningModal] = useState<string | null>(null);
 
@@ -228,6 +256,61 @@ export default function Layout() {
     setUnacknowledgedWarnings(remaining);
     setActiveWarningModal(remaining.length > 0 ? remaining[remaining.length - 1] : null);
     toast.info('Warning acknowledged.');
+  };
+
+  const handleDeleteWarning = async (warnText: string) => {
+    if (!user?.id) return;
+    // 1. Immediately record in local storage so it vanishes from the UI
+    const key = `msikaflo_dismissed_warnings_${user.id}`;
+    const nextDismissed = Array.from(new Set([...dismissedWarnings, warnText]));
+    localStorage.setItem(key, JSON.stringify(nextDismissed));
+    setDismissedWarnings(nextDismissed);
+
+    // 2. Also acknowledge so modal doesn't pop up
+    const ackKey = `msikaflo_ack_warnings_${user.id}`;
+    try {
+      const acked = JSON.parse(localStorage.getItem(ackKey) || '[]');
+      if (!acked.includes(warnText)) {
+        acked.push(warnText);
+        localStorage.setItem(ackKey, JSON.stringify(acked));
+      }
+    } catch {
+      // Ignore
+    }
+    const remaining = unacknowledgedWarnings.filter(w => w !== warnText);
+    setUnacknowledgedWarnings(remaining);
+    if (activeWarningModal === warnText) {
+      setActiveWarningModal(remaining.length > 0 ? remaining[remaining.length - 1] : null);
+    }
+
+    // 3. Remove from Firestore user document in the cloud
+    try {
+      await useAuthStore.getState().dismissWarning(user.id, warnText);
+    } catch (e) {
+      console.warn("Failed to remove warning from Firestore:", e);
+    }
+
+    toast.success('Warning removed from notifications');
+  };
+
+  const handleClearAllWarnings = async () => {
+    if (!user?.id || warnings.length === 0) return;
+    const key = `msikaflo_dismissed_warnings_${user.id}`;
+    const nextDismissed = Array.from(new Set([...dismissedWarnings, ...warnings]));
+    localStorage.setItem(key, JSON.stringify(nextDismissed));
+    setDismissedWarnings(nextDismissed);
+
+    setUnacknowledgedWarnings([]);
+    setActiveWarningModal(null);
+
+    // Remove all from Firestore user document
+    try {
+      await useAuthStore.getState().clearAllWarnings(user.id);
+    } catch (e) {
+      console.warn("Failed to clear all warnings from Firestore:", e);
+    }
+
+    toast.success('All warnings removed from notifications');
   };
 
   const notificationCount = lowStockCount + overdueCreditCount + passwordRequestCount + unacknowledgedWarnings.length;
@@ -387,28 +470,54 @@ export default function Layout() {
                  <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
                  {warnings.length > 0 && (
                    <div className="mb-2.5 pb-2 border-b">
-                     <div className="px-2 py-1 text-[10px] font-bold text-red-600 uppercase tracking-wider flex items-center gap-1">
-                       <AlertTriangle size={12} className="text-red-600 shrink-0" /> Official Warnings ({warnings.length})
+                     <div className="px-2 py-1 text-[10px] font-bold text-red-600 uppercase tracking-wider flex items-center justify-between">
+                       <span className="flex items-center gap-1">
+                         <AlertTriangle size={12} className="text-red-600 shrink-0" /> Official Warnings ({warnings.length})
+                       </span>
+                       <button
+                         onClick={handleClearAllWarnings}
+                         className="text-[9px] text-red-600 hover:text-red-800 font-semibold hover:underline cursor-pointer"
+                       >
+                         Clear all
+                       </button>
                      </div>
                      {warnings.map((w, idx) => (
                        <div key={idx} className="p-2 my-1 bg-red-50 border border-red-200 rounded text-xs text-red-950">
                          <div className="flex items-center justify-between font-bold text-[11px] mb-1">
                            <span className="text-red-700">Management Warning</span>
-                           {unacknowledgedWarnings.includes(w) ? (
-                             <span className="text-[9px] bg-red-200 text-red-800 px-1 py-0.5 rounded font-bold animate-pulse">New</span>
-                           ) : (
-                             <span className="text-[9px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-medium">Seen</span>
-                           )}
+                           <div className="flex items-center gap-1.5">
+                             {unacknowledgedWarnings.includes(w) ? (
+                               <span className="text-[9px] bg-red-200 text-red-800 px-1 py-0.5 rounded font-bold animate-pulse">New</span>
+                             ) : (
+                               <span className="text-[9px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-medium">Seen</span>
+                             )}
+                             <button
+                               onClick={(e) => { e.stopPropagation(); handleDeleteWarning(w); }}
+                               className="text-gray-400 hover:text-red-600 p-0.5 rounded hover:bg-red-100 transition cursor-pointer"
+                               title="Remove warning"
+                             >
+                               <Trash2 size={12} />
+                             </button>
+                           </div>
                          </div>
                          <p className="whitespace-pre-wrap text-gray-800 leading-snug">{w}</p>
-                         {unacknowledgedWarnings.includes(w) && (
+                         <div className="mt-1.5 flex items-center gap-1.5">
+                           {unacknowledgedWarnings.includes(w) && (
+                             <button
+                               onClick={() => handleAcknowledgeWarning(w)}
+                               className="flex-1 py-1 text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold rounded transition active:scale-95 cursor-pointer"
+                             >
+                               Acknowledge Warning
+                             </button>
+                           )}
                            <button
-                             onClick={() => handleAcknowledgeWarning(w)}
-                             className="mt-1.5 w-full py-1 text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold rounded transition active:scale-95"
+                             onClick={() => handleDeleteWarning(w)}
+                             className="py-1 px-2 text-[10px] text-red-700 hover:text-red-900 hover:bg-red-100 font-semibold rounded border border-red-200 transition flex items-center gap-1 cursor-pointer"
+                             title="Delete warning"
                            >
-                             Acknowledge Warning
+                             <Trash2 size={11} /> Delete
                            </button>
-                         )}
+                         </div>
                        </div>
                      ))}
                    </div>
@@ -479,28 +588,54 @@ export default function Layout() {
                     <h3 className="font-bold border-b pb-2 mb-2 px-2">Notifications</h3>
                     {warnings.length > 0 && (
                       <div className="mb-2.5 pb-2 border-b">
-                        <div className="px-2 py-1 text-[10px] font-bold text-red-600 uppercase tracking-wider flex items-center gap-1">
-                          <AlertTriangle size={12} className="text-red-600 shrink-0" /> Official Warnings ({warnings.length})
+                        <div className="px-2 py-1 text-[10px] font-bold text-red-600 uppercase tracking-wider flex items-center justify-between">
+                          <span className="flex items-center gap-1">
+                            <AlertTriangle size={12} className="text-red-600 shrink-0" /> Official Warnings ({warnings.length})
+                          </span>
+                          <button
+                            onClick={handleClearAllWarnings}
+                            className="text-[9px] text-red-600 hover:text-red-800 font-semibold hover:underline cursor-pointer"
+                          >
+                            Clear all
+                          </button>
                         </div>
                         {warnings.map((w, idx) => (
                           <div key={idx} className="p-2.5 my-1.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-950">
                             <div className="flex items-center justify-between font-bold text-[11px] mb-1">
                               <span className="text-red-700">Management Warning</span>
-                              {unacknowledgedWarnings.includes(w) ? (
-                                <span className="text-[9px] bg-red-200 text-red-800 px-1.5 py-0.5 rounded font-bold animate-pulse">Action Required</span>
-                              ) : (
-                                <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">Seen</span>
-                              )}
+                              <div className="flex items-center gap-1.5">
+                                {unacknowledgedWarnings.includes(w) ? (
+                                  <span className="text-[9px] bg-red-200 text-red-800 px-1.5 py-0.5 rounded font-bold animate-pulse">Action Required</span>
+                                ) : (
+                                  <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium">Seen</span>
+                                )}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteWarning(w); }}
+                                  className="text-gray-400 hover:text-red-600 p-0.5 rounded hover:bg-red-100 transition cursor-pointer"
+                                  title="Remove warning"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </div>
                             <p className="whitespace-pre-wrap text-gray-800 leading-snug">{w}</p>
-                            {unacknowledgedWarnings.includes(w) && (
+                            <div className="mt-2 flex items-center gap-2">
+                              {unacknowledgedWarnings.includes(w) && (
+                                <button
+                                  onClick={() => handleAcknowledgeWarning(w)}
+                                  className="flex-1 py-1 text-[11px] bg-red-600 hover:bg-red-700 text-white font-bold rounded transition active:scale-95 cursor-pointer"
+                                >
+                                  Acknowledge Warning
+                                </button>
+                              )}
                               <button
-                                onClick={() => handleAcknowledgeWarning(w)}
-                                className="mt-2 w-full py-1 text-[11px] bg-red-600 hover:bg-red-700 text-white font-bold rounded transition active:scale-95 cursor-pointer"
+                                onClick={() => handleDeleteWarning(w)}
+                                className="py-1 px-2.5 text-[11px] text-red-700 hover:text-red-900 hover:bg-red-100 font-semibold rounded border border-red-200 transition flex items-center gap-1 cursor-pointer"
+                                title="Delete warning"
                               >
-                                Acknowledge Warning
+                                <Trash2 size={12} /> Delete
                               </button>
-                            )}
+                            </div>
                           </div>
                         ))}
                       </div>
