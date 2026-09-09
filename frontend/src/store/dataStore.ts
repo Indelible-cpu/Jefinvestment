@@ -6,17 +6,25 @@ import {
   addDoc, 
   deleteDoc, 
   updateDoc, 
+  setDoc,
   query, 
   orderBy, 
-  where,
-  increment,
-  getDoc,
-  getDocs,
-  writeBatch,
-  arrayUnion
+  where, 
+  increment, 
+  getDoc, 
+  getDocs, 
+  writeBatch, 
+  arrayUnion,
+  type Query,
+  type QuerySnapshot
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { registerListener, useAuthStore } from './authStore';
+import { 
+  saveSaleToOfflineBackup, 
+  removeSaleFromOfflineBackup, 
+  useSyncQueueStore 
+} from './syncQueueStore';
 
 // ─── Expense Store ─────────────────────────────────────────────────────────────
 export interface Expense {
@@ -160,18 +168,22 @@ export const useSaleStore = create<SaleState>()(
       const user = useAuthStore.getState().user;
       const branchId = user?.branchId || 'main';
       
-      let q;
+      let q: Query;
       if (user?.role === 'ADMIN') {
         q = query(collection(db, 'sales'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
       } else {
         q = query(collection(db, 'sales'), where('branchId', '==', branchId), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
       }
-      const unsub_sales = onSnapshot(q, (snapshot) => {
+      // includeMetadataChanges: true is critical — it ensures this listener fires
+      // when local cache writes are acknowledged by the cloud backend!
+      const unsub_sales = onSnapshot(q, { includeMetadataChanges: true }, (snapshot: QuerySnapshot) => {
+        const pendingSalesList: SaleRecord[] = [];
         const mappedSales = snapshot.docs.map(doc => {
           const s = doc.data();
           const d = new Date(s.createdAt || Date.now());
           const rawStatus = (s.status || 'completed').toLowerCase() as SaleRecord['status'];
-          return {
+          const isPending = doc.metadata.hasPendingWrites;
+          const rec: SaleRecord = {
             id: doc.id,
             invoiceNumber: s.invoiceNumber,
             date: d.toISOString().slice(0, 10),
@@ -192,11 +204,16 @@ export const useSaleStore = create<SaleState>()(
             isCredit: s.isCredit || false,
             dueDate: s.dueDate,
             status: rawStatus,
-            syncStatus: 'synced' as const,
+            syncStatus: isPending ? 'pending' : 'synced',
             branch: s.branch,
           };
+          if (isPending) {
+            pendingSalesList.push(rec);
+          }
+          return rec;
         });
         set({ sales: mappedSales, isLoading: false });
+        useSyncQueueStore.getState().setPendingSales(pendingSalesList);
       }, (error) => {
         console.error('Failed to load sales from Firestore', error);
         set({ isLoading: false });
@@ -224,8 +241,12 @@ export const useSaleStore = create<SaleState>()(
 
       const cleanedSale = sanitizeFirestoreData(sale);
       const branchId = useAuthStore.getState().user?.branchId || 'main';
+      const saleRef = doc(collection(db, 'sales'));
+      const saleId = saleRef.id;
+
       const newSale: Record<string, any> = {
         ...cleanedSale,
+        id: saleId,
         branchId,
         createdAt: Date.now(),
         status: 'completed'
@@ -235,28 +256,45 @@ export const useSaleStore = create<SaleState>()(
         newSale.creditPaid = cleanedSale.amountPaid || 0;
       }
 
-      const batch = writeBatch(db);
-      const saleRef = doc(collection(db, 'sales'));
-      batch.set(saleRef, newSale);
+      // Step 1: Immediately save to durable emergency offline backup in LocalStorage
+      // Even if the browser tab is closed right away, this sale will NEVER be lost
+      saveSaleToOfflineBackup(saleId, newSale);
 
-      // Decrement inventory automatically inside the same batch for atomic checkouts
+      // Step 2: Write sale document first via setDoc
+      // By separating the sale document write from inventory updates, we guarantee
+      // that the financial record is 100% committed to persistent cache and will NEVER
+      // be aborted by an inventory rule or missing product error!
+      setDoc(saleRef, newSale)
+        .then(() => {
+          removeSaleFromOfflineBackup(saleId);
+        })
+        .catch(e => {
+          console.warn('Offline sale write queued or deferred:', e);
+        });
+
+      // Step 3: Decrement inventory in parallel with isolated error guards
       if (Array.isArray(sale.items)) {
         sale.items.forEach((item: any) => {
           if (!item.isService && !item.isOther && item.productId && !item.productId.startsWith('other_') && !item.productId.startsWith('stationery_')) {
             const invRef = doc(db, 'products', item.productId);
-            batch.update(invRef, { stock: increment(-item.quantity) });
+            updateDoc(invRef, { stock: increment(-item.quantity) }).catch(e => {
+              console.warn(`Stock decrement deferred for ${item.productId}:`, e);
+            });
           } else if (item.materialsConsumed && Array.isArray(item.materialsConsumed)) {
             item.materialsConsumed.forEach((mat: any) => {
               const invRef = doc(db, 'products', mat.inventoryItemId || mat.productId);
-              batch.update(invRef, { stock: increment(-(mat.quantityPerUnit || mat.quantityUsed || 1) * item.quantity) });
+              updateDoc(invRef, { stock: increment(-(mat.quantityPerUnit || mat.quantityUsed || 1) * item.quantity) }).catch(e => {
+                console.warn(`Material decrement deferred for ${mat.inventoryItemId || mat.productId}:`, e);
+              });
             });
           }
         });
       }
 
-      // Do not await the commit so offline sales complete instantly in the UI
-      // Firestore's local cache will queue it and sync when online
-      batch.commit().catch(e => console.error('Sale sync deferred or failed:', e));
+      // Step 4: If online, immediately kick off background auto-sync flush
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        useSyncQueueStore.getState().syncAll(false).catch(() => {});
+      }
     },
     restoreStationeryMaterials: async (saleId) => {
       try {
@@ -296,7 +334,7 @@ export const useSaleStore = create<SaleState>()(
     },
 
     syncPendingSales: async () => {
-      // No-op. Firestore syncs automatically.
+      await useSyncQueueStore.getState().syncAll(true);
     },
     updateSaleStatus: async (id, status) => {
       try {
@@ -455,13 +493,13 @@ export const useCreditStore = create<CreditState>()(
       const user = useAuthStore.getState().user;
       const branchId = user?.branchId || 'main';
       
-      let q;
+      let q: Query;
       if (user?.role === 'ADMIN') {
         q = query(collection(db, 'sales'), where('isCredit', '==', true));
       } else {
         q = query(collection(db, 'sales'), where('branchId', '==', branchId), where('isCredit', '==', true));
       }
-      const unsub_credits = onSnapshot(q, (snapshot) => {
+      const unsub_credits = onSnapshot(q, { includeMetadataChanges: true }, (snapshot: QuerySnapshot) => {
         const today = new Date().toISOString().slice(0, 10);
         const mapped = snapshot.docs.map(doc => {
           const c = doc.data();

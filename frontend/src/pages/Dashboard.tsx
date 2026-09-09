@@ -1,9 +1,10 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSaleStore, useCreditStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
+import { useSyncEngine } from '../hooks/useSyncEngine';
 import { useState, useEffect } from 'react';
 
 const ALL_ACTIONS = [
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
   const { getTodayTotal, sales } = useSaleStore();
+  const { pendingCount, isSyncing, syncAll } = useSyncEngine();
   
   // By accessing the raw arrays, we force the Dashboard to re-render when they update
   const outstandingCredit = useCreditStore(s => {
@@ -124,6 +126,34 @@ export default function Dashboard() {
         </div>
         <LiveClockBadge />
       </div>
+
+      {/* Pending Syncs Warning Card if offline records exist */}
+      {pendingCount > 0 && (
+        <div className="mb-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 text-amber-950 dark:text-amber-200 shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <CloudUpload size={20} className={isSyncing ? 'animate-spin' : 'animate-bounce'} />
+            </div>
+            <div className="min-w-0">
+              <div className="font-bold text-xs sm:text-sm flex items-center gap-2">
+                <span>{pendingCount} Offline Sale{pendingCount > 1 ? 's' : ''} Stored Locally</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+              </div>
+              <p className="text-[11px] sm:text-xs text-amber-800 dark:text-amber-300/80 mt-0.5 truncate">
+                Saved locally. MsikaFlo auto-syncs continuously in the background.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => syncAll(true)}
+            disabled={isSyncing}
+            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-blue-950 font-black text-xs rounded-xl transition shadow-sm flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+          >
+            <CloudUpload size={14} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Syncing...' : 'Sync Now'}
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className={`grid grid-cols-2 lg:grid-cols-${stats.length === 2 ? '2' : '4'} gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4`}>

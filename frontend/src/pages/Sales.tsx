@@ -3,10 +3,12 @@ import {
   Search, Filter, ChevronLeft, ChevronRight, Eye, MoreVertical,
   Ban, RefreshCcw, Download, CheckCircle2, Clock, X, FileText, Undo2,
   ShoppingBag, Banknote, WifiOff, Wifi, ArrowUpDown, CalendarRange, Trash2,
+  CloudUpload,
 } from 'lucide-react';
 import { useSaleStore, type SaleRecord } from '../store/dataStore';
 import { useAuthStore } from '../store/authStore';
 import { useAuditStore } from '../store/auditStore';
+import { useSyncEngine } from '../hooks/useSyncEngine';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import { toast } from 'sonner';
 import { useSettingsStore } from '../store/settingsStore';
@@ -173,8 +175,12 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
           )}
 
           {/* Sync status */}
-          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-            {sale.syncStatus === 'synced' ? <><Wifi size={13} className="text-green-500" /> Synced to cloud</> : <><WifiOff size={13} className="text-amber-500" /> Pending sync</>}
+          <div className="flex items-center gap-2 text-xs font-semibold">
+            {sale.syncStatus === 'synced' ? (
+              <span className="text-green-600 dark:text-green-400 flex items-center gap-1.5"><Wifi size={14} className="text-green-500 shrink-0" /> Confirmed synced to cloud database</span>
+            ) : (
+              <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5 animate-pulse"><WifiOff size={14} className="text-amber-500 shrink-0" /> Saved locally on this device — awaiting cloud sync</span>
+            )}
           </div>
 
           {/* Actions for completed sales */}
@@ -230,6 +236,7 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
 // ─── Main Sales Page ───────────────────────────────────────────────────────────
 export default function Sales() {
   const { sales, isLoading, updateSaleStatus, deleteSale } = useSaleStore();
+  const { pendingCount, isSyncing, syncAll } = useSyncEngine();
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -368,6 +375,34 @@ export default function Sales() {
           </button>
         )}
       </div>
+
+      {/* Pending Offline Sales Sync Alert Banner */}
+      {pendingCount > 0 && (
+        <div className="mb-4 sm:mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950 dark:text-amber-200 shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+              <CloudUpload size={22} className={isSyncing ? 'animate-spin' : 'animate-bounce'} />
+            </div>
+            <div className="min-w-0">
+              <div className="font-bold text-sm sm:text-base flex items-center gap-2">
+                <span>{pendingCount} Offline Sale{pendingCount > 1 ? 's' : ''} Stored Locally</span>
+                <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-300/80 mt-0.5">
+                These records are safely saved on this device. When internet is detected, they will auto-sync to the cloud, or you can force sync now.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => syncAll(true)}
+            disabled={isSyncing}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-blue-950 font-black text-xs rounded-xl transition shadow-sm flex items-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+          >
+            <CloudUpload size={14} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Syncing...' : 'Sync Now'}
+          </button>
+        </div>
+      )}
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
@@ -511,8 +546,14 @@ export default function Sales() {
                         <span className={`font-mono font-bold text-blue-700 text-xs ${isVoidedOrRefunded ? 'line-through' : ''}`}>
                           {sale.invoiceNumber}
                         </span>
-                        {sale.syncStatus === 'pending' && (
-                          <span className="ml-2 text-amber-500 text-xs" title="Pending sync"><WifiOff size={11} className="inline" /></span>
+                        {sale.syncStatus === 'pending' ? (
+                          <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800 animate-pulse" title="Recorded offline, pending cloud sync">
+                            <WifiOff size={10} /> Pending Sync
+                          </span>
+                        ) : (
+                          <span className="ml-2 inline-flex items-center gap-0.5 text-[10px] text-green-600 dark:text-green-400 opacity-60 hover:opacity-100 transition" title="Confirmed synced to cloud">
+                            <Wifi size={10} />
+                          </span>
                         )}
                       </td>
                       <td className="p-4">

@@ -341,7 +341,13 @@ const playSound = (type: 'success' | 'error') => {
           isCredit: paymentMethod === 'CREDIT',
         });
         
-        toast.success('Sale completed successfully');
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          toast.success('Sale completed & saved locally', { 
+            description: 'Offline mode active. MsikaFlo will auto-sync to cloud when online.' 
+          });
+        } else {
+          toast.success('Sale completed successfully');
+        }
       } catch (err: any) {
         if (err.message === 'OFFLINE_QUEUED') {
           toast.warning('Offline', { description: 'Sale queued and will sync when online' });

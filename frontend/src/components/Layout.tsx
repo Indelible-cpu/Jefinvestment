@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
 import { useProductStore, useCartStore } from '../store/cartStore';
-import { useSyncQueueStore } from '../store/syncQueueStore';
+import { useSyncEngine } from '../hooks/useSyncEngine';
 import { useThemeStore } from '../store/themeStore';
 import { toast } from 'sonner';
 
@@ -24,12 +24,11 @@ export default function Layout() {
   const loadCredits = useCreditStore(s => s.loadCredits);
   const { loadExpenses } = useExpenseStore();
   const { loadEmployees } = useEmployeeStore();
-  const { queue, isSyncing, syncAll } = useSyncQueueStore();
+  const { isOnline, isSyncing, pendingCount, syncAll } = useSyncEngine();
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isSystemLocked, setIsSystemLocked] = useState(false);
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -119,27 +118,6 @@ export default function Layout() {
     }
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [user?.id, user?.role]);
-
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      syncAll();
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Initial check
-    setIsOnline(navigator.onLine);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   // System Lock Logic
   useEffect(() => {
@@ -361,20 +339,41 @@ export default function Layout() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-           {/* Sync Status Badge */}
-           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-black/20 rounded-full text-sm font-medium backdrop-blur-sm">
-             {queue.length > 0 ? (
+           {/* Sync Status Badge & Action */}
+           <button
+             onClick={() => syncAll(true)}
+             disabled={isSyncing}
+             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm transition active:scale-95 cursor-pointer ${
+               pendingCount > 0
+                 ? 'bg-amber-500/25 text-amber-200 border border-amber-400/40 hover:bg-amber-500/35 animate-pulse'
+                 : isOnline
+                   ? 'bg-black/20 text-green-200 border border-green-400/30'
+                   : 'bg-red-500/25 text-red-200 border border-red-400/40'
+             }`}
+             title={pendingCount > 0 ? `${pendingCount} offline record(s) pending. Tap to sync now.` : (isOnline ? 'All synced to cloud. Tap to force sync.' : 'Offline mode')}
+           >
+             {isSyncing ? (
                <>
-                 {isSyncing ? <CloudUpload size={16} className="animate-pulse text-yellow-300" /> : <CloudOff size={16} className="text-red-300" />}
-                 <span className="text-yellow-100">{queue.length} Pending</span>
+                 <CloudUpload size={14} className="animate-spin text-amber-300 shrink-0" />
+                 <span className="text-amber-100 text-[11px] font-bold">Syncing...</span>
+               </>
+             ) : pendingCount > 0 ? (
+               <>
+                 <CloudUpload size={14} className="text-amber-300 shrink-0" />
+                 <span className="text-amber-100 text-[11px] font-bold">{pendingCount} Pending</span>
+               </>
+             ) : isOnline ? (
+               <>
+                 <Cloud size={14} className="text-green-300 shrink-0" />
+                 <span className="text-green-50 text-[11px]">Synced</span>
                </>
              ) : (
                <>
-                 <Cloud size={16} className="text-green-300" />
-                 <span className="text-green-50">Online</span>
+                 <CloudOff size={14} className="text-red-300 shrink-0" />
+                 <span className="text-red-100 text-[11px]">Offline</span>
                </>
              )}
-           </div>
+           </button>
 
            <div className="relative" ref={mobileNotifRef}>
              <button onClick={() => setShowNotifications(!showNotifications)} className="relative cursor-pointer p-1">
@@ -550,6 +549,48 @@ export default function Layout() {
             ) : (
               <div className="w-2 h-2 bg-red-400 rounded-full shrink-0" title="Offline"></div>
             )}
+          </div>
+
+          {/* Desktop Live Sync Status Widget */}
+          <div className="mt-3 w-full px-1">
+            <div className={`p-2 rounded-xl border flex items-center justify-between gap-2 text-xs backdrop-blur-sm transition ${
+              pendingCount > 0
+                ? 'bg-amber-950/40 border-amber-500/50 text-amber-200 shadow-sm'
+                : isOnline
+                  ? 'bg-blue-950/40 border-blue-500/30 text-blue-200'
+                  : 'bg-red-950/40 border-red-500/40 text-red-200'
+            }`}>
+              <div className="flex items-center gap-2 min-w-0">
+                {isSyncing ? (
+                  <CloudUpload size={16} className="animate-spin text-amber-300 shrink-0" />
+                ) : pendingCount > 0 ? (
+                  <CloudUpload size={16} className="animate-bounce text-amber-400 shrink-0" />
+                ) : isOnline ? (
+                  <Cloud size={16} className="text-green-400 shrink-0" />
+                ) : (
+                  <CloudOff size={16} className="text-red-400 shrink-0" />
+                )}
+                <div className="flex flex-col truncate">
+                  <span className="font-bold truncate text-[11px]">
+                    {isSyncing ? 'Syncing with cloud...' : (pendingCount > 0 ? `${pendingCount} Pending Sync` : (isOnline ? 'Cloud Synced' : 'Offline Mode'))}
+                  </span>
+                  <span className="text-[9px] opacity-75 truncate">
+                    {pendingCount > 0 ? 'Saved locally on device' : (isOnline ? 'Auto-sync active' : 'Will sync on reconnect')}
+                  </span>
+                </div>
+              </div>
+
+              {(pendingCount > 0 || !isOnline || isSyncing) && (
+                <button
+                  onClick={() => syncAll(true)}
+                  disabled={isSyncing}
+                  className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 active:scale-95 text-blue-950 font-black text-[10px] rounded-lg transition disabled:opacity-50 shrink-0 shadow-xs cursor-pointer"
+                  title="Force immediate synchronization with cloud"
+                >
+                  {isSyncing ? '...' : 'Sync'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
