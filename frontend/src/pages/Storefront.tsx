@@ -321,7 +321,7 @@ export default function Storefront() {
                   const phone = (settings.storefrontWhatsApp || settings.phone || '+265999123456').replace(/[^0-9]/g, '');
                   if (cartItems.length > 0) {
                     let text = `Hello ${settings.companyName || ''}! I am inquiring about the following items in my cart:\n`;
-                    cartItems.forEach((item, idx) => {
+                    cartItems.forEach((item) => {
                       text += `• ${item.name} (x${item.quantity} ${item.unit}) - ${currency} ${(item.sellingPrice * item.quantity).toLocaleString()}\n`;
                     });
                     text += `Total: ${currency} ${subtotal.toLocaleString()}\n\nPlease let me know about availability or any details. Thank you!`;
