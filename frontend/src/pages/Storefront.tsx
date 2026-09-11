@@ -1094,8 +1094,11 @@ export default function Storefront() {
           <span>&bull;</span>
           <Link to="/privacy" className="hover:text-blue-600 transition">Privacy Policy</Link>
         </div>
-        <p>
-          &copy; 2026 {settings.companyName || 'MsikaFlo'}. All rights reserved. Powered by MsikaFlo . Indelible Technologies
+        <p className="text-slate-600">
+          &copy; 2026 {settings.companyName || 'MsikaFlo'}. All rights reserved.
+        </p>
+        <p className="text-[11px] text-slate-400 font-medium">
+          Powered by MsikaFlo &bull; Indelible Technologies
         </p>
       </footer>
     </div>
