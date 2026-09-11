@@ -700,8 +700,8 @@ export default function Storefront() {
             onClick={() => setIsCartOpen(false)}
           />
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+          <div className="fixed inset-y-0 right-0 flex max-w-full w-full sm:w-auto sm:pl-10">
+            <div className="w-full sm:w-screen max-w-md bg-white shadow-2xl flex flex-col">
               {/* Drawer Header */}
               <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                 <div className="flex items-center gap-2.5">
@@ -748,7 +748,7 @@ export default function Storefront() {
                       {cartItems.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200"
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200"
                         >
                           <div className="flex-1 min-w-0">
                             <h4 className="font-bold text-slate-900 text-sm truncate">{item.name}</h4>
@@ -757,26 +757,26 @@ export default function Storefront() {
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center bg-white border border-slate-200 rounded-lg">
+                          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto mt-1 sm:mt-0">
+                            <div className="flex items-center bg-white border border-slate-200 rounded-lg shadow-sm">
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                className="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-rose-600 cursor-pointer"
+                                className="w-8 h-8 flex items-center justify-center text-slate-600 hover:text-rose-600 cursor-pointer transition"
                               >
-                                {item.quantity === 1 ? <Trash2 size={13} /> : <Minus size={13} />}
+                                {item.quantity === 1 ? <Trash2 size={14} /> : <Minus size={14} />}
                               </button>
-                              <span className="w-7 text-center font-bold text-xs text-slate-900">
+                              <span className="w-8 text-center font-bold text-xs text-slate-900">
                                 {item.quantity}
                               </span>
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-blue-600 cursor-pointer"
+                                className="w-8 h-8 flex items-center justify-center text-slate-600 hover:text-blue-600 cursor-pointer transition"
                               >
-                                <Plus size={13} />
+                                <Plus size={14} />
                               </button>
                             </div>
 
-                            <span className="font-bold text-xs text-slate-900 min-w-[70px] text-right">
+                            <span className="font-bold text-sm text-slate-900 min-w-[70px] text-right">
                               {formatMoney(item.sellingPrice * item.quantity)}
                             </span>
                           </div>
@@ -789,30 +789,30 @@ export default function Storefront() {
                       <label className="block text-xs font-black uppercase text-slate-500 tracking-wider">
                         Fulfillment Option
                       </label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => setCustomerDetails({ deliveryMethod: 'PICKUP' })}
-                          className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                          className={`p-3 rounded-xl border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-2 transition cursor-pointer ${
                             deliveryMethod === 'PICKUP'
                               ? 'border-blue-600 bg-blue-50 text-blue-700'
                               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                           }`}
                         >
-                          <Store size={18} />
-                          <span>In-Store Pickup (Free)</span>
+                          <Store size={18} className="shrink-0" />
+                          <span className="text-center sm:text-left">In-Store Pickup (Free)</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setCustomerDetails({ deliveryMethod: 'DELIVERY' })}
-                          className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                          className={`p-3 rounded-xl border text-xs font-bold flex flex-col sm:flex-row items-center justify-center gap-2 transition cursor-pointer ${
                             deliveryMethod === 'DELIVERY'
                               ? 'border-blue-600 bg-blue-50 text-blue-700'
                               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                           }`}
                         >
-                          <Truck size={18} />
-                          <span>Delivery (+{formatMoney(deliveryFee)})</span>
+                          <Truck size={18} className="shrink-0" />
+                          <span className="text-center sm:text-left">Delivery (+{formatMoney(deliveryFee)})</span>
                         </button>
                       </div>
                     </div>
@@ -993,8 +993,6 @@ export default function Storefront() {
           <Link to="/terms" className="hover:text-blue-600 transition">Terms of Service</Link>
           <span>&bull;</span>
           <Link to="/privacy" className="hover:text-blue-600 transition">Privacy Policy</Link>
-          <span>&bull;</span>
-          <Link to="/login" className="hover:text-blue-600 transition">Staff Portal</Link>
         </div>
         <p>
           &copy; {new Date().getFullYear()} {settings.companyName || 'MsikaFlo'}. All rights reserved.
