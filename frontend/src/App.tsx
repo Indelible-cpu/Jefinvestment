@@ -22,6 +22,8 @@ const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Order = lazy(() => import('./pages/Order'));
 const Branches = lazy(() => import('./pages/Branches'));
+const Storefront = lazy(() => import('./pages/Storefront'));
+const OnlineOrders = lazy(() => import('./pages/OnlineOrders'));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center h-screen w-full bg-gray-50">
@@ -41,6 +43,9 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
+          {/* Public Customer Storefront (WhatsApp Commerce) */}
+          <Route path="/store" element={<Storefront />} />
+          <Route path="/shop" element={<Storefront />} />
           
           <Route path="/" element={<ProtectedRoute />}>
             <Route element={<Layout />}>
@@ -57,6 +62,7 @@ function App() {
               {/* Shared routes (Admin + Cashier) */}
               <Route index element={<Dashboard />} />
               <Route path="pos" element={<POS />} />
+              <Route path="online-orders" element={<OnlineOrders />} />
               <Route path="sales" element={<Sales />} />
               <Route path="expenses" element={<Expenses />} />
               <Route path="order" element={<Order />} />

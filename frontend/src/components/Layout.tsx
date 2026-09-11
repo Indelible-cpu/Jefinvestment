@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon, AlertTriangle, CheckCircle2, Trash2, ShoppingBag, Store, ExternalLink } from 'lucide-react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useSaleStore, useCreditStore, useExpenseStore, useEmployeeStore } from '../store/dataStore';
@@ -29,8 +31,24 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isSystemLocked, setIsSystemLocked] = useState(false);
+  const [pendingOnlineOrdersCount, setPendingOnlineOrdersCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Listen to pending online orders count in real time
+  useEffect(() => {
+    try {
+      const q = query(collection(db, 'onlineOrders'), where('status', '==', 'PENDING'));
+      const unsub = onSnapshot(q, (snap) => {
+        setPendingOnlineOrdersCount(snap.docs.length);
+      }, (err) => {
+        console.warn('Unable to subscribe to pending online orders count', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Error setting up online orders count', e);
+    }
+  }, []);
 
   // References for the notifications dropdown to detect outside clicks
   const mobileNotifRef = useRef<HTMLDivElement>(null);
@@ -313,7 +331,7 @@ export default function Layout() {
     toast.success('All warnings removed from notifications');
   };
 
-  const notificationCount = lowStockCount + overdueCreditCount + passwordRequestCount + unacknowledgedWarnings.length;
+  const notificationCount = lowStockCount + overdueCreditCount + passwordRequestCount + unacknowledgedWarnings.length + pendingOnlineOrdersCount;
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -742,6 +760,30 @@ export default function Layout() {
           <Link to="/pos" className={navLinkClass('/pos', true)}>
             <ShoppingCart size={20} /> <span>POS Terminal</span>
           </Link>
+
+          <Link to="/online-orders" className={navLinkClass('/online-orders')}>
+            <ShoppingBag size={20} /> 
+            <span className="flex-1">Online Orders</span>
+            {pendingOnlineOrdersCount > 0 && (
+              <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow-xs animate-pulse">
+                {pendingOnlineOrdersCount}
+              </span>
+            )}
+          </Link>
+
+          <a
+            href="/store"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between p-2.5 rounded-xl bg-blue-800/40 hover:bg-blue-700/60 text-blue-100 hover:text-white transition text-xs font-bold border border-blue-500/30 my-2 shadow-xs group"
+            title="Open customer-facing WhatsApp storefront in a new tab"
+          >
+            <span className="flex items-center gap-2">
+              <Store size={16} className="text-emerald-400 group-hover:scale-110 transition" />
+              <span>View Storefront</span>
+            </span>
+            <ExternalLink size={13} className="text-blue-300" />
+          </a>
 
           <Link to="/product-finder" className={navLinkClass('/product-finder', true)}>
             <Search size={20} /> <span>Find Product</span>

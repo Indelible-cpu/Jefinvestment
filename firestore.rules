@@ -26,9 +26,9 @@ service cloud.firestore {
       return isAuthenticated() && userRole() == 'MANAGER';
     }
 
-    // Settings
+    // Settings - Public read allowed for storefront branding & WhatsApp contact
     match /settings/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
@@ -39,9 +39,9 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
     }
 
-    // Products (Inventory)
+    // Products (Inventory) - Public read allowed for customer catalog browsing
     match /products/{productId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create, delete: if isAdmin() || isManager();
       allow update: if isAdmin() || isManager() ||
         (
@@ -102,6 +102,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // Online Orders (WhatsApp Storefront)
+    match /onlineOrders/{orderId} {
+      allow create: if true; // Public customers placing orders
+      allow read, update, delete: if isAuthenticated(); // Staff only
+    }
+
     // Fallback: Deny everything else
     match /{document=**} {
       allow read, write: if false;

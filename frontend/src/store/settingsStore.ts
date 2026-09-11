@@ -26,6 +26,13 @@ export interface CompanySettings {
   idleLockMinutes?: number;
   lastDataClearDate?: number;
   shopMapImage?: string;
+  // Storefront & WhatsApp Commerce Settings
+  storefrontEnabled?: boolean;
+  storefrontWhatsApp?: string;
+  storefrontBanner?: string;
+  storefrontDeliveryFee?: number;
+  storefrontMinOrder?: number;
+  storefrontAbout?: string;
   updateSettings: (settings: Partial<CompanySettings>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
@@ -51,6 +58,12 @@ export const useSettingsStore = create<CompanySettings>()(
       workTimeStart: '07:30',
       workTimeEnd: '17:30',
       idleLockMinutes: 10,
+      storefrontEnabled: true,
+      storefrontWhatsApp: '+265 999 123 456',
+      storefrontBanner: '🛍️ Welcome to Jef Investment Online! Order directly on WhatsApp for fast pickup or delivery.',
+      storefrontDeliveryFee: 2500,
+      storefrontMinOrder: 0,
+      storefrontAbout: 'Your trusted partner for Stationery, Office Supplies, Printing, Electronics & Tech Services in Malawi.',
       updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
         try {

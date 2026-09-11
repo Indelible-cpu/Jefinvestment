@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useBranchStore } from '../store/branchStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette, ShoppingBag, ExternalLink, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -52,6 +52,43 @@ export default function Settings() {
     workTimeEnd: settings.workTimeEnd || '20:00',
     idleLockMinutes: settings.idleLockMinutes || 10
   });
+
+  const [storefrontForm, setStorefrontForm] = useState({
+    storefrontEnabled: settings.storefrontEnabled ?? true,
+    storefrontWhatsApp: settings.storefrontWhatsApp || settings.phone || '+265 999 123 456',
+    storefrontBanner: settings.storefrontBanner || '',
+    storefrontDeliveryFee: settings.storefrontDeliveryFee ?? 2500,
+    storefrontMinOrder: settings.storefrontMinOrder ?? 0,
+    storefrontAbout: settings.storefrontAbout || '',
+  });
+
+  useEffect(() => {
+    setStorefrontForm({
+      storefrontEnabled: settings.storefrontEnabled ?? true,
+      storefrontWhatsApp: settings.storefrontWhatsApp || settings.phone || '+265 999 123 456',
+      storefrontBanner: settings.storefrontBanner || '',
+      storefrontDeliveryFee: settings.storefrontDeliveryFee ?? 2500,
+      storefrontMinOrder: settings.storefrontMinOrder ?? 0,
+      storefrontAbout: settings.storefrontAbout || '',
+    });
+  }, [
+    settings.storefrontEnabled,
+    settings.storefrontWhatsApp,
+    settings.storefrontBanner,
+    settings.storefrontDeliveryFee,
+    settings.storefrontMinOrder,
+    settings.storefrontAbout,
+  ]);
+
+  const handleStorefrontSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateSettings(storefrontForm);
+      toast.success('WhatsApp Storefront settings saved!');
+    } catch (err: any) {
+      toast.error('Failed to save storefront settings');
+    }
+  };
 
   // User management state
   const [resetTarget, setResetTarget] = useState<string | null>(null);
@@ -542,6 +579,167 @@ export default function Settings() {
             </div>
           ) : null}
         </div>
+
+        {/* WhatsApp Storefront & E-Commerce Settings */}
+        {isAdmin && (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 p-4 border-b font-bold text-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-800">
+                <ShoppingBag size={20} className="text-emerald-600" />
+                <span>WhatsApp Storefront &amp; Public Catalog</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/store"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs bg-white hover:bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-lg border border-emerald-300 flex items-center gap-1.5 shadow-2xs transition"
+                >
+                  <ExternalLink size={13} />
+                  <span>Preview Store</span>
+                </a>
+              </div>
+            </div>
+
+            <form onSubmit={handleStorefrontSave} className="p-6 space-y-5">
+              {/* Shareable Store Link Banner */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                    Customer Storefront URL
+                  </span>
+                  <p className="font-mono text-xs font-semibold text-slate-700 truncate">
+                    {window.location.origin}/store
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/store`);
+                    toast.success('Storefront link copied to clipboard!', {
+                      description: 'Share this link with customers on WhatsApp, Facebook, or SMS.',
+                    });
+                  }}
+                  className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold rounded-lg border border-slate-300 shadow-2xs transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <Copy size={13} />
+                  <span>Copy Store Link</span>
+                </button>
+              </div>
+
+              {/* Status Toggle & WhatsApp Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Storefront Status
+                  </label>
+                  <select
+                    value={storefrontForm.storefrontEnabled ? 'true' : 'false'}
+                    onChange={(e) =>
+                      setStorefrontForm((f) => ({ ...f, storefrontEnabled: e.target.value === 'true' }))
+                    }
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white font-semibold text-sm"
+                  >
+                    <option value="true">🟢 Active &amp; Accepting Orders</option>
+                    <option value="false">🔴 Disabled (Under Maintenance)</option>
+                  </select>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Toggle whether customers can browse products and checkout on WhatsApp.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    WhatsApp Orders Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={storefrontForm.storefrontWhatsApp}
+                    onChange={(e) =>
+                      setStorefrontForm((f) => ({ ...f, storefrontWhatsApp: e.target.value }))
+                    }
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm font-mono"
+                    placeholder="e.g. +265 999 123 456"
+                    required
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Include country code (+265). Customer orders will open WhatsApp to this number.
+                  </p>
+                </div>
+              </div>
+
+              {/* Delivery Fee & Tagline */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Standard Delivery Fee ({settings.currency || 'MWK'})
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={storefrontForm.storefrontDeliveryFee}
+                    onChange={(e) =>
+                      setStorefrontForm((f) => ({
+                        ...f,
+                        storefrontDeliveryFee: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm font-semibold"
+                    placeholder="e.g. 2500"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Added to order when customer selects home/office delivery. Set 0 for free delivery.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Top Announcement / Promo Banner
+                  </label>
+                  <input
+                    type="text"
+                    value={storefrontForm.storefrontBanner}
+                    onChange={(e) =>
+                      setStorefrontForm((f) => ({ ...f, storefrontBanner: e.target.value }))
+                    }
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
+                    placeholder="e.g. 🛍️ Free Delivery on Stationery Orders above MWK 50,000 this week!"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Optional banner shown at the very top of your storefront.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tagline / About */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Store Tagline / About Description
+                </label>
+                <textarea
+                  rows={2}
+                  value={storefrontForm.storefrontAbout}
+                  onChange={(e) =>
+                    setStorefrontForm((f) => ({ ...f, storefrontAbout: e.target.value }))
+                  }
+                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
+                  placeholder="Your trusted supplier for quality stationery, phone repairs, printing and electronics."
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Save Storefront Settings</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Appearance & Display Theme */}
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
