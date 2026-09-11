@@ -26,9 +26,13 @@ interface ImageMatch {
 }
 
 export default function ProductFinder() {
-  const { products } = useProductStore();
+  const { products, loadProducts } = useProductStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
   useEmbeddingPrewarm();
 

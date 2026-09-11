@@ -50,7 +50,7 @@ export default function POS() {
   const prevCartLengthRef = useRef(0);
 
   const cart = useCartStore();
-  const { products, isLoading: productsLoading } = useProductStore();
+  const { products, isLoading: productsLoading, loadProducts } = useProductStore();
   const { addSale } = useSaleStore();
   const { services: stationeryServices, loadStationeryServices } = useStationeryStore();
   const settings = useSettingsStore();
@@ -58,17 +58,18 @@ export default function POS() {
   const { taxRate, taxName, taxType } = settings;
 
   const normalizeCategory = (cat: string) => {
-    if (!cat) return '';
+    if (!cat) return 'General';
     const lower = cat.trim().toLowerCase();
-    if (lower === 'general' || lower === 'stationery service') return '';
+    if (lower === 'stationery service') return 'Stationery Services';
     if (lower === 'stationery' || lower === 'stationery items') return 'Stationery Items';
     if (lower === 'accessories' || lower === 'accessory') return 'Accessories';
     if (lower === 'services' || lower === 'service') return 'Services';
+    if (lower === 'general') return 'General';
     return cat.trim();
   };
 
   const productCategories = Array.from(new Set(products.map(p => normalizeCategory(p.category)).filter(Boolean)));
-  const canonicalOrder = ['All', 'Accessories', 'Services', 'Stationery Items'];
+  const canonicalOrder = ['All', 'Accessories', 'Services', 'Stationery Items', 'General'];
   const categories = [
     'All',
     ...canonicalOrder.filter(c => c !== 'All' && productCategories.includes(c)),
@@ -77,8 +78,7 @@ export default function POS() {
 
   const filteredProducts = products.filter(p => {
     if (p.isEquipment) return false;
-    const pCat = normalizeCategory(p.category);
-    if (!pCat) return false;
+    const pCat = normalizeCategory(p.category) || 'General';
     const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCat = catFilter === 'All' || pCat === catFilter;
@@ -178,9 +178,10 @@ export default function POS() {
     return baseTotal;
   }, [cart.getTotal(), taxRate, taxType]);
 
-  // Load stationery services when POS mounts (lazy-loaded page)
+  // Load stationery services and products when POS mounts (lazy-loaded page)
   useEffect(() => {
     loadStationeryServices();
+    loadProducts();
   }, []);
 
   useEffect(() => {
