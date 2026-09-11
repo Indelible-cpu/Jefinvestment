@@ -314,6 +314,7 @@ export default function Storefront() {
               </div>
             </Link>
 
+            <div className="flex items-center gap-2 sm:gap-4">
               {/* WhatsApp Quick Link with Cart Quote */}
               <a
                 href={(() => {
