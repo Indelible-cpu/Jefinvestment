@@ -341,7 +341,7 @@ export default function Storefront() {
                 </span>
                 <span className="text-[11px] sm:text-xs text-slate-500 flex items-center gap-1 font-medium">
                   <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                  WhatsApp Order Store
+                  Online Shop
                 </span>
               </div>
             </Link>
