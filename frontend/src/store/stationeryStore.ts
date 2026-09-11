@@ -25,6 +25,7 @@ export interface StationeryService {
   electricityCost: number; // per unit
   otherOverheadCost: number; // per unit
   equipmentCostPerUnit?: number; // per unit equipment wear & tear / maintenance allocation
+  unit?: string;           // pricing unit label: 'page', 'paper', 'copy', 'piece', etc.
   materialsUsed: MaterialEntry[];
 }
 
@@ -51,6 +52,7 @@ export const useStationeryStore = create<StationeryState>()((set, get) => ({
           electricityCost: Number(d.electricityCost) || 0,
           otherOverheadCost: Number(d.otherOverheadCost) || 0,
           equipmentCostPerUnit: Number(d.equipmentCostPerUnit) || 0,
+          unit: d.unit || 'page',
           materialsUsed: Array.isArray(d.materialsUsed) ? d.materialsUsed : [],
         } as StationeryService;
       });

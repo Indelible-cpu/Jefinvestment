@@ -15,12 +15,14 @@ import {
   ArrowRight,
   ShieldCheck,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  Printer
 } from 'lucide-react';
 import { collection, onSnapshot, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useSettingsStore } from '../store/settingsStore';
 import { useStorefrontCartStore } from '../store/storefrontCartStore';
+import { useStationeryStore } from '../store/stationeryStore';
 import type { Product } from '../store/cartStore';
 import { toast } from 'sonner';
 
@@ -43,6 +45,8 @@ export default function Storefront() {
     getItemCount,
   } = useStorefrontCartStore();
 
+  const { services: stationeryServices, loadStationeryServices } = useStationeryStore();
+
   // Local state
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,9 +57,10 @@ export default function Storefront() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<{ id: string; total: number } | null>(null);
 
-  // Load settings on mount
+  // Load settings and stationery services on mount
   useEffect(() => {
     settings.loadSettings();
+    loadStationeryServices();
   }, []);
 
   // Fetch products in real time directly from Firestore
@@ -96,26 +101,53 @@ export default function Storefront() {
     return () => unsub();
   }, []);
 
+  // Combine products and stationery services into a unified storefront catalog
+  const catalogItems = useMemo<Product[]>(() => {
+    const stationeryAsProducts: Product[] = stationeryServices.map((svc) => ({
+      id: `stationery_${svc.id}`,
+      name: svc.serviceName,
+      sku: 'STAT-SVC',
+      category: 'Stationery Services',
+      costPrice: 0,
+      sellingPrice: svc.sellingPrice,
+      stock: 9999, // services are not limited by raw stock on public storefront
+      reorderLevel: 0,
+      isService: true,
+      isEquipment: false,
+      unit: svc.unit || 'page',
+      aliases: ['typing', 'scanning', 'photocopy', 'photocopying', 'lamination', 'printing', 'print'],
+      images: [],
+      displayLocationText: 'Stationery Counter',
+      createdAt: 0,
+    }));
+
+    return [...products, ...stationeryAsProducts];
+  }, [products, stationeryServices]);
+
   // Normalize a raw category — collapse bare "Stationery" into "Stationery Items"
   const normalizeCategory = (cat: string): string => {
     const trimmed = cat.trim();
-    return trimmed.toLowerCase() === 'stationery' ? 'Stationery Items' : trimmed;
+    if (trimmed.toLowerCase() === 'stationery') return 'Stationery Items';
+    if (trimmed.toLowerCase() === 'stationery service' || trimmed.toLowerCase() === 'stationery services') {
+      return 'Stationery Services';
+    }
+    return trimmed;
   };
 
   // Compute unique categories (using normalized values)
   const categories = useMemo(() => {
     const set = new Set<string>();
-    products.forEach((p) => {
+    catalogItems.forEach((p) => {
       if (p.category && p.category.trim()) {
         set.add(normalizeCategory(p.category));
       }
     });
     return ['ALL', ...Array.from(set).sort()];
-  }, [products]);
+  }, [catalogItems]);
 
   // Filter products by search & category
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
+    return catalogItems.filter((p) => {
       // Exclude internal tools/equipment
       if (p.isEquipment) return false;
 
@@ -133,7 +165,7 @@ export default function Storefront() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [products, selectedCategory, searchTerm]);
+  }, [catalogItems, selectedCategory, searchTerm]);
 
   // Formatting helpers
   const currency = settings.currency || 'MWK';
@@ -511,6 +543,10 @@ export default function Storefront() {
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                         loading="lazy"
                       />
+                    ) : product.category === 'Stationery Services' || product.sku === 'STAT-SVC' ? (
+                      <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-xs">
+                        <Printer size={32} />
+                      </div>
                     ) : (
                       <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center font-bold text-xl">
                         {product.name.charAt(0)}

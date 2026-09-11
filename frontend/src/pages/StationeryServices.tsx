@@ -12,6 +12,7 @@ const EMPTY_SERVICE: Omit<StationeryService, 'id'> = {
   electricityCost: 0,
   otherOverheadCost: 0,
   equipmentCostPerUnit: 0,
+  unit: 'page',
   materialsUsed: [],
 };
 
@@ -58,6 +59,7 @@ export default function StationeryServices() {
       electricityCost: svc.electricityCost,
       otherOverheadCost: svc.otherOverheadCost,
       equipmentCostPerUnit: svc.equipmentCostPerUnit || 0,
+      unit: svc.unit || 'page',
       materialsUsed: svc.materialsUsed.map(m => ({ ...m })),
     });
     setShowModal(true);
@@ -205,7 +207,7 @@ export default function StationeryServices() {
                 {/* Pricing breakdown */}
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="bg-green-50 rounded-lg p-2.5">
-                    <div className="text-gray-500 text-xs">Selling Price</div>
+                    <div className="text-gray-500 text-xs">Selling Price (/{svc.unit || 'page'})</div>
                     <div className="font-bold text-green-700">{settings.currency} {svc.sellingPrice.toLocaleString()}</div>
                   </div>
                   <div className="bg-red-50 rounded-lg p-2.5">
@@ -270,22 +272,38 @@ export default function StationeryServices() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-5 overflow-y-auto max-h-[75vh]">
-              {/* Service Name */}
-              <div>
-                <label className="block text-xs font-semibold mb-1">Service Name *</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full p-2.5 border rounded-lg"
-                  placeholder="e.g. Black & White Printing"
-                  value={form.serviceName}
-                  onChange={e => setForm(f => ({ ...f, serviceName: e.target.value }))}
-                />
+              {/* Service Name & Unit */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold mb-1">Service Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full p-2.5 border rounded-lg"
+                    placeholder="e.g. Photocopying, Scanning, Lamination"
+                    value={form.serviceName}
+                    onChange={e => setForm(f => ({ ...f, serviceName: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1">Pricing Unit *</label>
+                  <select
+                    className="w-full p-2.5 border rounded-lg bg-white text-sm"
+                    value={form.unit || 'page'}
+                    onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
+                  >
+                    <option value="page">per page</option>
+                    <option value="paper">per paper</option>
+                    <option value="copy">per copy</option>
+                    <option value="piece">per piece</option>
+                    <option value="book">per book</option>
+                  </select>
+                </div>
               </div>
 
               {/* Pricing */}
               <div>
-                <label className="block text-xs font-semibold mb-2 flex items-center gap-1"><DollarSign size={13} /> Pricing (per unit / page)</label>
+                <label className="block text-xs font-semibold mb-2 flex items-center gap-1"><DollarSign size={13} /> Pricing (per {form.unit || 'page'})</label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Selling Price ({settings.currency}) *</label>

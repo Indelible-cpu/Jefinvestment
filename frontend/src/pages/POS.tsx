@@ -657,7 +657,7 @@ const playSound = (type: 'success' | 'error') => {
                       <h3 className="font-semibold text-sm line-clamp-2">{svc.serviceName}</h3>
                     </div>
                     <div className="flex justify-between items-end">
-                      <div className="font-bold text-blue-700 text-sm">{settings.currency} {svc.sellingPrice.toLocaleString()}/unit</div>
+                      <div className="font-bold text-blue-700 text-sm">{settings.currency} {svc.sellingPrice.toLocaleString()}/{svc.unit || 'unit'}</div>
                       <Plus size={16} className="text-blue-500" />
                     </div>
                   </div>

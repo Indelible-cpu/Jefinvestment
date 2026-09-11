@@ -13,6 +13,7 @@ import { db } from '../lib/firebase';
 import { useSettingsStore } from '../store/settingsStore';
 import { useCartStore } from '../store/cartStore';
 import { useProductStore } from '../store/cartStore';
+import { useStationeryStore } from '../store/stationeryStore';
 import { useAuthStore } from '../store/authStore';
 import {
   ShoppingBag,
@@ -59,6 +60,7 @@ export default function OnlineOrders() {
   const user = useAuthStore((s) => s.user);
   const { addItem: addPosItem, clearCart: clearPosCart } = useCartStore();
   const { products } = useProductStore();
+  const { services: stationeryServices, loadStationeryServices } = useStationeryStore();
 
   const [orders, setOrders] = useState<OnlineOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +70,7 @@ export default function OnlineOrders() {
 
   // Subscribe to onlineOrders in real time
   useEffect(() => {
+    loadStationeryServices();
     setIsLoading(true);
     const q = query(collection(db, 'onlineOrders'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(
@@ -144,39 +147,75 @@ export default function OnlineOrders() {
     let loadedCount = 0;
 
     order.items.forEach((item) => {
-      const match = products.find((p) => p.id === item.id);
-      if (match) {
-        // Add existing inventory item
+      // Check if item is a stationery service
+      const isStationery = item.id.startsWith('stationery_');
+      const rawStationeryId = isStationery ? item.id.replace('stationery_', '') : null;
+      const stationeryMatch = rawStationeryId ? stationeryServices.find(s => s.id === rawStationeryId) : null;
+
+      if (stationeryMatch) {
+        const matCost = stationeryMatch.materialsUsed.reduce((sum, m) => {
+          const product = products.find(p => p.id === m.inventoryItemId);
+          return sum + (product?.costPrice || 0) * m.quantityPerUnit;
+        }, 0);
+        const unitCost = matCost + (stationeryMatch.laborCost || 0) + (stationeryMatch.electricityCost || 0) + (stationeryMatch.otherOverheadCost || 0);
+
         for (let i = 0; i < item.quantity; i++) {
           addPosItem({
-            id: match.id,
-            name: match.name,
-            sku: match.sku,
-            unitPrice: match.sellingPrice,
+            id: `stationery_${stationeryMatch.id}`,
+            name: stationeryMatch.serviceName,
+            sku: 'STAT-SVC',
+            unitPrice: stationeryMatch.sellingPrice,
+            costPrice: unitCost,
             quantity: 1,
             discount: 0,
-            isService: match.isService,
-            costPrice: match.costPrice,
-            category: match.category,
+            isService: true,
+            category: 'Stationery Services',
+            materialsConsumed: stationeryMatch.materialsUsed.map(m => {
+              const product = products.find(p => p.id === m.inventoryItemId);
+              return {
+                inventoryItemId: m.inventoryItemId,
+                quantityPerUnit: m.quantityPerUnit,
+                name: product?.name || m.inventoryItemId
+              };
+            })
           });
         }
         loadedCount++;
       } else {
-        // Fallback for items with slight changes
-        for (let i = 0; i < item.quantity; i++) {
-          addPosItem({
-            id: item.id,
-            name: item.name,
-            sku: '',
-            unitPrice: item.sellingPrice,
-            quantity: 1,
-            discount: 0,
-            isService: false,
-            costPrice: 0,
-            category: item.category || 'Online Order',
-          });
+        const match = products.find((p) => p.id === item.id);
+        if (match) {
+          // Add existing inventory item
+          for (let i = 0; i < item.quantity; i++) {
+            addPosItem({
+              id: match.id,
+              name: match.name,
+              sku: match.sku,
+              unitPrice: match.sellingPrice,
+              quantity: 1,
+              discount: 0,
+              isService: match.isService,
+              costPrice: match.costPrice,
+              category: match.category,
+            });
+          }
+          loadedCount++;
+        } else {
+          // Fallback for items with slight changes
+          for (let i = 0; i < item.quantity; i++) {
+            addPosItem({
+              id: item.id,
+              name: item.name,
+              sku: '',
+              unitPrice: item.sellingPrice,
+              quantity: 1,
+              discount: 0,
+              isService: false,
+              costPrice: 0,
+              category: item.category || 'Online Order',
+            });
+          }
+          loadedCount++;
         }
-        loadedCount++;
       }
     });
 
