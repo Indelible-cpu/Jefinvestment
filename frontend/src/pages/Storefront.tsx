@@ -96,12 +96,18 @@ export default function Storefront() {
     return () => unsub();
   }, []);
 
-  // Compute unique categories
+  // Normalize a raw category — collapse bare "Stationery" into "Stationery Items"
+  const normalizeCategory = (cat: string): string => {
+    const trimmed = cat.trim();
+    return trimmed.toLowerCase() === 'stationery' ? 'Stationery Items' : trimmed;
+  };
+
+  // Compute unique categories (using normalized values)
   const categories = useMemo(() => {
     const set = new Set<string>();
     products.forEach((p) => {
       if (p.category && p.category.trim()) {
-        set.add(p.category.trim());
+        set.add(normalizeCategory(p.category));
       }
     });
     return ['ALL', ...Array.from(set).sort()];
@@ -113,8 +119,9 @@ export default function Storefront() {
       // Exclude internal tools/equipment
       if (p.isEquipment) return false;
 
+      const normalizedProductCategory = normalizeCategory(p.category);
       const matchesCategory =
-        selectedCategory === 'ALL' || p.category.toLowerCase() === selectedCategory.toLowerCase();
+        selectedCategory === 'ALL' || normalizedProductCategory.toLowerCase() === selectedCategory.toLowerCase();
 
       const term = searchTerm.trim().toLowerCase();
       const matchesSearch =
