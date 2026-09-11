@@ -314,21 +314,22 @@ export default function Storefront() {
                 href={`https://wa.me/${(settings.storefrontWhatsApp || settings.phone || '+265999123456').replace(/[^0-9]/g, '')}?text=Hello!%20I%20have%20an%20inquiry%20regarding%20products%20at%20${encodeURIComponent(settings.companyName)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs border border-emerald-200 transition"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs border border-emerald-200 transition"
               >
                 <MessageCircle size={16} className="text-emerald-600" />
-                <span>Chat with Us</span>
+                <span className="hidden sm:inline">Chat with Us</span>
+                <span className="sm:hidden">Chat</span>
               </a>
 
               {/* Cart Drawer Trigger */}
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="relative flex items-center gap-2.5 px-3.5 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-blue-600/20 transition cursor-pointer"
+                className="relative flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-blue-600/20 transition cursor-pointer"
               >
                 <ShoppingBag size={18} />
                 <span className="hidden sm:inline">My Cart</span>
                 {itemCount > 0 && (
-                  <span className="bg-amber-400 text-slate-950 text-xs font-black px-2 py-0.5 rounded-full">
+                  <span className="bg-amber-400 text-slate-950 text-[10px] sm:text-xs font-black px-1.5 sm:px-2 py-0.5 rounded-full">
                     {itemCount}
                   </span>
                 )}
@@ -995,10 +996,7 @@ export default function Storefront() {
           <Link to="/privacy" className="hover:text-blue-600 transition">Privacy Policy</Link>
         </div>
         <p>
-          &copy; {new Date().getFullYear()} {settings.companyName || 'MsikaFlo'}. All rights reserved.
-        </p>
-        <p className="text-[11px] text-slate-400">
-          Powered by MsikaFlo ERP &bull; Official WhatsApp Conversational Commerce
+          &copy; 2026 {settings.companyName || 'MsikaFlo'}. All rights reserved. Powered by MsikaFlo . Indelible Technologies
         </p>
       </footer>
     </div>

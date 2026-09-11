@@ -862,7 +862,7 @@ export default function Layout() {
             </button>
           </div>
           <div className="text-[10px] text-center text-white font-normal tracking-wide pb-4 md:pb-0 mt-2">
-            MsikaFlo • Powered by Indelible Technologies
+            &copy; 2026 {companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies
           </div>
         </div>
       </aside>
