@@ -314,18 +314,30 @@ export default function Storefront() {
               </div>
             </Link>
 
-            {/* Header Right Actions */}
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* WhatsApp Quick Link */}
+              {/* WhatsApp Quick Link with Cart Quote */}
               <a
-                href={`https://wa.me/${(settings.storefrontWhatsApp || settings.phone || '+265999123456').replace(/[^0-9]/g, '')}?text=Hello!%20I%20have%20an%20inquiry%20regarding%20products%20at%20${encodeURIComponent(settings.companyName)}`}
+                href={(() => {
+                  const phone = (settings.storefrontWhatsApp || settings.phone || '+265999123456').replace(/[^0-9]/g, '');
+                  if (cartItems.length > 0) {
+                    let text = `Hello ${settings.companyName || ''}! I am inquiring about the following items in my cart:\n`;
+                    cartItems.forEach((item, idx) => {
+                      text += `• ${item.name} (x${item.quantity} ${item.unit}) - ${currency} ${(item.sellingPrice * item.quantity).toLocaleString()}\n`;
+                    });
+                    text += `Total: ${currency} ${subtotal.toLocaleString()}\n\nPlease let me know about availability or any details. Thank you!`;
+                    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+                  }
+                  return `https://wa.me/${phone}?text=${encodeURIComponent(`Hello! I have an inquiry regarding products/services at ${settings.companyName || 'your store'}.`)}`;
+                })()}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs border border-emerald-200 transition"
+                title={cartItems.length > 0 ? "Chat with quote of your cart items" : "Chat with Us on WhatsApp"}
               >
                 <MessageCircle size={16} className="text-emerald-600" />
-                <span className="hidden sm:inline">Chat with Us</span>
-                <span className="sm:hidden">Chat</span>
+                <span className="hidden sm:inline">
+                  {cartItems.length > 0 ? `Chat Quote (${itemCount})` : 'Chat with Us'}
+                </span>
+                <span className="sm:hidden">{cartItems.length > 0 ? `Quote (${itemCount})` : 'Chat'}</span>
               </a>
 
               {/* Cart Drawer Trigger */}
@@ -680,7 +692,7 @@ export default function Storefront() {
                 </div>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-2 flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => {
                     addItem(selectedProduct, 1);
@@ -688,11 +700,27 @@ export default function Storefront() {
                     setIsCartOpen(true);
                   }}
                   disabled={!selectedProduct.isService && selectedProduct.stock <= 0}
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-2xl shadow-lg shadow-blue-600/20 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-2xl shadow-lg shadow-blue-600/20 transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   <ShoppingBag size={18} />
-                  <span>Add to Cart & Checkout</span>
+                  <span>Add to Cart</span>
                 </button>
+                <a
+                  href={`https://wa.me/${(settings.storefrontWhatsApp || settings.phone || '+265999123456').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                    `Hello ${settings.companyName || ''}! I am inquiring about:\n\n` +
+                    `📦 *${selectedProduct.name}*\n` +
+                    `💰 Price: ${currency} ${selectedProduct.sellingPrice.toLocaleString()} / ${selectedProduct.unit}\n` +
+                    (selectedProduct.sku ? `🏷️ SKU: ${selectedProduct.sku}\n` : '') +
+                    `\nIs this currently available?`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm"
+                  title="Inquire about this product on WhatsApp"
+                >
+                  <MessageCircle size={18} />
+                  <span>Ask on WhatsApp</span>
+                </a>
               </div>
             </div>
           </div>
@@ -751,6 +779,33 @@ export default function Storefront() {
                   </div>
                 ) : (
                   <>
+                    {/* Quick WhatsApp Quote Action Banner */}
+                    <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-2xl border border-emerald-200 gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MessageCircle size={18} className="text-emerald-600 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-emerald-950 truncate">Need help with these items?</p>
+                          <p className="text-[10px] text-emerald-700 truncate">Quote your cart directly in WhatsApp chat</p>
+                        </div>
+                      </div>
+                      <a
+                        href={(() => {
+                          const phone = (settings.storefrontWhatsApp || settings.phone || '+265999123456').replace(/[^0-9]/g, '');
+                          let text = `Hello ${settings.companyName || ''}! I have the following items in my cart:\n\n`;
+                          cartItems.forEach((item, idx) => {
+                            text += `${idx + 1}. *${item.name}* (x${item.quantity} ${item.unit}) - ${currency} ${(item.sellingPrice * item.quantity).toLocaleString()}\n`;
+                          });
+                          text += `\n💰 *Total:* ${currency} ${subtotal.toLocaleString()}\n\nCould you please assist me with availability/pricing? Thank you!`;
+                          return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+                        })()}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold shrink-0 transition flex items-center gap-1 shadow-xs"
+                      >
+                        <span>Chat Quote</span>
+                      </a>
+                    </div>
+
                     {/* Item List */}
                     <div className="space-y-3">
                       {cartItems.map((item) => (
