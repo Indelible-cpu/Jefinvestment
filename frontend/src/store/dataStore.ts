@@ -168,15 +168,19 @@ export const useSaleStore = create<SaleState>()(
       const user = useAuthStore.getState().user;
       const branchId = user?.branchId || 'main';
       
-      let q: Query;
-      if (user?.role === 'ADMIN') {
-        q = query(collection(db, 'sales'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
-      } else {
-        q = query(collection(db, 'sales'), where('branchId', '==', branchId), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'));
-      }
-      // includeMetadataChanges: true is critical — it ensures this listener fires
-      // when local cache writes are acknowledged by the cloud backend!
-      const unsub_sales = onSnapshot(q, { includeMetadataChanges: true }, (snapshot: QuerySnapshot) => {
+      const buildQuery = (useOrderBy = true): Query => {
+        if (user?.role === 'ADMIN') {
+          return useOrderBy
+            ? query(collection(db, 'sales'), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'))
+            : query(collection(db, 'sales'), where('createdAt', '>=', cutoff));
+        } else {
+          return useOrderBy
+            ? query(collection(db, 'sales'), where('branchId', '==', branchId), where('createdAt', '>=', cutoff), orderBy('createdAt', 'desc'))
+            : query(collection(db, 'sales'), where('branchId', '==', branchId), where('createdAt', '>=', cutoff));
+        }
+      };
+
+      const handleSnapshot = (snapshot: QuerySnapshot) => {
         const pendingSalesList: SaleRecord[] = [];
         const mappedSales = snapshot.docs.map(doc => {
           const s = doc.data();
@@ -186,8 +190,8 @@ export const useSaleStore = create<SaleState>()(
           const rec: SaleRecord = {
             id: doc.id,
             invoiceNumber: s.invoiceNumber,
-            date: d.toISOString().slice(0, 10),
-            time: d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+            date: s.date || d.toISOString().slice(0, 10),
+            time: s.time || d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
             cashier: s.cashier || 'Unknown',
             items: s.items || [],
             subtotal: Number(s.subtotal),
@@ -205,20 +209,55 @@ export const useSaleStore = create<SaleState>()(
             dueDate: s.dueDate,
             status: rawStatus,
             syncStatus: isPending ? 'pending' : 'synced',
-            branch: s.branch,
+            branch: s.branch || s.branchId,
           };
           if (isPending) {
             pendingSalesList.push(rec);
           }
           return rec;
         });
+
+        // Always sort descending by createdAt / date+time
+        mappedSales.sort((a, b) => {
+          const timeA = new Date(`${a.date}T${a.time || '00:00'}`).getTime();
+          const timeB = new Date(`${b.date}T${b.time || '00:00'}`).getTime();
+          return timeB - timeA;
+        });
+
         set({ sales: mappedSales, isLoading: false });
         useSyncQueueStore.getState().setPendingSales(pendingSalesList);
-      }, (error) => {
-        console.error('Failed to load sales from Firestore', error);
+      };
+
+      try {
+        let q = buildQuery(true);
+        const unsub_sales = onSnapshot(q, { includeMetadataChanges: true }, handleSnapshot, (error) => {
+          console.warn('Primary sales query failed (likely missing index), falling back to unindexed query:', error);
+          // Fallback: Query without orderBy compound requirement
+          try {
+            const fallbackQ = buildQuery(false);
+            const fallbackUnsub = onSnapshot(fallbackQ, { includeMetadataChanges: true }, handleSnapshot, (err2) => {
+              console.warn('Fallback sales query also encountered error, attempting raw collection query:', err2);
+              // Ultimate fallback: Query entire sales collection with client-side filter
+              const rawQ = query(collection(db, 'sales'));
+              const rawUnsub = onSnapshot(rawQ, { includeMetadataChanges: true }, (rawSnap) => {
+                handleSnapshot(rawSnap);
+              }, (rawErr) => {
+                console.error('All sales queries failed:', rawErr);
+                set({ isLoading: false });
+              });
+              registerListener(rawUnsub);
+            });
+            registerListener(fallbackUnsub);
+          } catch (e) {
+            console.error('Error attaching fallback sales listener:', e);
+            set({ isLoading: false });
+          }
+        });
+        registerListener(unsub_sales);
+      } catch (err) {
+        console.error('Failed to initialize loadSales query:', err);
         set({ isLoading: false });
-      });
-      registerListener(unsub_sales);
+      }
     },
     addSale: async (sale) => {
       // Recursively remove any undefined values from payload (Firestore strictly throws on undefined fields)
