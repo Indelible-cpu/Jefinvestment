@@ -1,11 +1,12 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, PiggyBank, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useSaleStore, useCreditStore, useEmployeeStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore, useEmployeeStore, useExpenseStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { useSyncEngine } from '../hooks/useSyncEngine';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { calcDailyRealizedProfit } from '../utils/profitUtils';
 
 const ALL_ACTIONS = [
   { id: 'new-sale', label: 'New Sale (POS)', icon: ShoppingCart, link: '/pos', color: 'text-blue-500' },
@@ -102,7 +103,18 @@ export default function Dashboard() {
     });
   });
 
+  const { expenses } = useExpenseStore();
   const isAdmin = user?.role === 'ADMIN';
+
+  const todayFinancials = useMemo(() => {
+    return calcDailyRealizedProfit(
+      today,
+      sales,
+      expenses,
+      settings.dailySavingsPercentage ?? 10,
+      settings.dailySavingsEnabled ?? true
+    );
+  }, [today, sales, expenses, settings.dailySavingsPercentage, settings.dailySavingsEnabled]);
 
   const stats = [
     { label: "Today's Sales", value: `${settings.currency} ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports', adminOnly: false },
@@ -152,6 +164,64 @@ export default function Dashboard() {
             <CloudUpload size={14} className={isSyncing ? 'animate-spin' : ''} />
             {isSyncing ? 'Syncing...' : 'Sync Now'}
           </button>
+        </div>
+      )}
+
+      {/* Executive Daily Savings & Realized Profit Banner (Admin Only) */}
+      {isAdmin && settings.dailySavingsEnabled !== false && (
+        <div className="mb-4 bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-emerald-800/40 relative overflow-hidden">
+          <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-44 h-44 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+                <PiggyBank size={24} className="sm:w-6 sm:h-6" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs uppercase tracking-wider text-emerald-300 font-bold">Daily Savings Target</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold">
+                    {todayFinancials.savingsPercentage}% of Realized Net Profit
+                  </span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-extrabold text-white mt-0.5 tracking-tight">
+                  {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
+                </div>
+                <div className="text-[11px] sm:text-xs text-slate-300 mt-0.5 flex flex-wrap items-center gap-x-2">
+                  <span className="truncate">Reserve: <strong className="text-emerald-300">{settings.dailySavingsPurpose || 'Business Reserve'}</strong></span>
+                  <span className="text-slate-500">&bull;</span>
+                  <span>From {settings.currency} {todayFinancials.realizedNetProfit.toLocaleString()} Realized Net Profit</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3 border-t border-slate-800 md:border-t-0 pt-2.5 md:pt-0">
+              <div className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-center flex-1 md:flex-initial">
+                <div className="text-[9.5px] sm:text-[10px] text-slate-400 uppercase font-semibold">Realized Gross</div>
+                <div className="text-xs sm:text-sm font-bold text-emerald-400">
+                  {settings.currency} {todayFinancials.realizedGrossProfit.toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-center flex-1 md:flex-initial">
+                <div className="text-[9.5px] sm:text-[10px] text-slate-400 uppercase font-semibold">Expenses</div>
+                <div className="text-xs sm:text-sm font-bold text-red-300">
+                  {settings.currency} {todayFinancials.totalExpenses.toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-center flex-1 md:flex-initial">
+                <div className="text-[9.5px] sm:text-[10px] text-slate-400 uppercase font-semibold">Free Retained Cash</div>
+                <div className="text-xs sm:text-sm font-bold text-teal-300">
+                  {settings.currency} {todayFinancials.netRetainedProfit.toLocaleString()}
+                </div>
+              </div>
+              <Link
+                to="/reports"
+                className="hidden lg:flex items-center gap-1 text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-2 rounded-xl transition shadow-xs shrink-0"
+              >
+                <span>Report</span>
+                <ChevronRight size={14} />
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 

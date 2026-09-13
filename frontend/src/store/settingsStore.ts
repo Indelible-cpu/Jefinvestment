@@ -33,6 +33,10 @@ export interface CompanySettings {
   storefrontDeliveryFee?: number;
   storefrontMinOrder?: number;
   storefrontAbout?: string;
+  // Daily Savings / Reserve Target Settings
+  dailySavingsEnabled?: boolean;
+  dailySavingsPercentage?: number;
+  dailySavingsPurpose?: string;
   updateSettings: (settings: Partial<CompanySettings>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
@@ -64,6 +68,9 @@ export const useSettingsStore = create<CompanySettings>()(
       storefrontDeliveryFee: 2500,
       storefrontMinOrder: 0,
       storefrontAbout: 'Your trusted partner for Stationery, Office Supplies, Printing, Electronics & Tech Services in Malawi.',
+      dailySavingsEnabled: true,
+      dailySavingsPercentage: 10,
+      dailySavingsPurpose: 'Business Reserve & Emergency Fund',
       updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
         try {

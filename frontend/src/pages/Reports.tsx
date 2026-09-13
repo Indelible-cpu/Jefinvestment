@@ -1,25 +1,11 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBag, AlertCircle, Printer, Calendar, Package, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBag, AlertCircle, Printer, Calendar, Package, Activity, ChevronLeft, ChevronRight, PiggyBank } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from 'recharts';
 import { useSaleStore, useExpenseStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { calcDailyRealizedProfit, calcSaleProfit } from '../utils/profitUtils';
 
 const today = new Date().toISOString().slice(0, 10);
-
-/** Compute profit from a completed sale.
- * For normal products: profit = (unitPrice - costPrice) * quantity.
- * For stationery services: costPrice already includes material + labor + electricity + overhead
- *   so the same formula applies correctly as long as the product's costPrice is per-sheet (not per-ream).
- */
-function calcSaleProfit(sale: { items: Array<{ quantity: number; unitPrice: number; costPrice?: number; isService?: boolean }>; profit?: number; discount?: number }): number {
-  if ((sale as any).profit !== undefined) return (sale as any).profit as number;
-  const gross = sale.items.reduce((sum, item) => {
-    const rev = item.quantity * item.unitPrice;
-    const cost = (item.costPrice || 0) * item.quantity;
-    return sum + (rev - cost);
-  }, 0);
-  return gross - (sale.discount || 0);
-}
 
 export default function Reports() {
   const [reportDate, setReportDate] = useState(today);
@@ -143,6 +129,16 @@ export default function Reports() {
     };
   }, [reportDate, completedSales, expenses]);
 
+  const realizedMetrics = useMemo(() => {
+    return calcDailyRealizedProfit(
+      reportDate,
+      completedSales,
+      expenses,
+      settings.dailySavingsPercentage ?? 10,
+      settings.dailySavingsEnabled ?? true
+    );
+  }, [reportDate, completedSales, expenses, settings.dailySavingsPercentage, settings.dailySavingsEnabled]);
+
   /* ── Cumulative (all-time) totals ── */
   const cumulative = useMemo(() => {
     const totalRevenue = completedSales.reduce((sum, s) => {
@@ -212,21 +208,70 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Realized Revenue Reconciliation Box */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-4 sm:p-6 mb-4 sm:mb-6 shadow-md">
-        <div className="text-blue-200 font-medium mb-1.5 sm:mb-2 flex items-center gap-1.5 text-xs sm:text-sm">
-          <DollarSign size={16} /> Net Realized Revenue
+      {/* Realized Revenue & Daily Savings Target Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 sm:mb-6">
+        {/* Net Realized Revenue Box */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-4 sm:p-6 shadow-md flex flex-col justify-between">
+          <div>
+            <div className="text-blue-200 font-medium mb-1.5 sm:mb-2 flex items-center gap-1.5 text-xs sm:text-sm">
+              <DollarSign size={16} /> Net Realized Revenue
+            </div>
+            <div className="text-3xl sm:text-5xl font-extrabold mb-1">{cur} {data.netRevenue.toLocaleString()}</div>
+            <div className="text-blue-200 text-xs sm:text-sm mt-1.5 sm:mt-2">Realized Revenue ({cur} {data.realizedRevenue.toLocaleString()}) – Expenses ({cur} {data.totalExpenses.toLocaleString()})</div>
+            {data.netRevenue < 0 && (
+              <div className="mt-2.5 flex items-center gap-2 bg-red-400/30 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold">
+                <AlertCircle size={15} /> Warning: Expenses exceed realized revenue today!
+              </div>
+            )}
+          </div>
+          <div className="mt-3 pt-3 border-t border-blue-500/40 text-xs text-blue-200 flex items-center justify-between">
+            <span>Cash: {cur} {data.cashSales.toLocaleString()}</span>
+            <span>Bank/Transfer: {cur} {data.transferSales.toLocaleString()}</span>
+          </div>
         </div>
-        <div className="text-3xl sm:text-5xl font-extrabold mb-1">{cur} {data.netRevenue.toLocaleString()}</div>
-        <div className="text-blue-200 text-xs sm:text-sm mt-1.5 sm:mt-2">Realized Revenue ({cur} {data.realizedRevenue.toLocaleString()}) – Expenses ({cur} {data.totalExpenses.toLocaleString()})</div>
-        {data.netRevenue < 0 && (
-          <div className="mt-2.5 flex items-center gap-2 bg-red-400/30 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold">
-            <AlertCircle size={15} /> Warning: Expenses exceed realized revenue today!
+
+        {/* Daily Savings & Reserve Fund Box */}
+        {settings.dailySavingsEnabled !== false ? (
+          <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 text-white rounded-xl p-4 sm:p-6 shadow-md flex flex-col justify-between border border-emerald-700/50">
+            <div>
+              <div className="text-emerald-200 font-medium mb-1.5 sm:mb-2 flex items-center justify-between text-xs sm:text-sm">
+                <span className="flex items-center gap-1.5">
+                  <PiggyBank size={18} className="text-emerald-300" />
+                  <span>Target Daily Savings</span>
+                </span>
+                <span className="bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                  {realizedMetrics.savingsPercentage}% of Realized Net Profit
+                </span>
+              </div>
+              <div className="text-3xl sm:text-5xl font-extrabold mb-1 tracking-tight text-white">
+                {cur} {realizedMetrics.dailySavingsTarget.toLocaleString()}
+              </div>
+              <div className="text-emerald-100 text-xs sm:text-sm mt-1.5 sm:mt-2">
+                Fund: <strong className="text-emerald-300">{settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund'}</strong>
+              </div>
+              <div className="text-slate-300 text-xs mt-1">
+                From {cur} {realizedMetrics.realizedNetProfit.toLocaleString()} Realized Net Profit
+                {realizedMetrics.newCreditIssued > 0 && (
+                  <span className="opacity-80"> (excludes {cur} {realizedMetrics.newCreditIssued.toLocaleString()} unpaid credit)</span>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-emerald-700/60 flex items-center justify-between text-xs">
+              <span className="text-emerald-300 font-medium">Free Retained Operating Cash:</span>
+              <span className="font-extrabold text-sm text-teal-200">{cur} {realizedMetrics.netRetainedProfit.toLocaleString()}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-dashed rounded-xl p-4 sm:p-6 flex flex-col items-center justify-center text-center text-gray-500">
+            <PiggyBank size={32} className="text-gray-400 mb-2" />
+            <div className="font-semibold text-sm text-gray-700">Daily Savings Target Disabled</div>
+            <div className="text-xs text-gray-400 mt-1">Enable it in Settings to calculate daily reserve allocations.</div>
           </div>
         )}
       </div>
 
-      {/* KPI Cards — 5 cards including Daily Profit */}
+      {/* KPI Cards — 5 cards including Realized Net Profit */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white p-4 md:p-5 rounded-lg border shadow-sm">
           <div className="flex justify-between items-start mb-3">
@@ -250,7 +295,7 @@ export default function Reports() {
             <CreditCard size={20} className="text-amber-500" />
           </div>
           <div className="text-2xl font-bold text-amber-600">{cur} {data.creditSales.toLocaleString()}</div>
-          <div className="text-xs text-gray-400 mt-1">Not received in cash</div>
+          <div className="text-xs text-gray-400 mt-1">Uncollected credit debt</div>
         </div>
         <div className="bg-white p-5 rounded-lg border shadow-sm">
           <div className="flex justify-between items-start mb-3">
@@ -260,16 +305,20 @@ export default function Reports() {
           <div className="text-2xl font-bold text-red-600">{cur} {data.totalExpenses.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">Deducted from realized revenue</div>
         </div>
-        <div className={`p-5 rounded-lg border shadow-sm ${data.dailyProfit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+        <div className={`p-5 rounded-lg border shadow-sm ${realizedMetrics.realizedNetProfit >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
           <div className="flex justify-between items-start mb-3">
-            <div className="text-sm text-gray-600 font-medium">Current Day Profit</div>
-            <Activity size={20} className={data.dailyProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} />
+            <div className="text-sm text-gray-600 font-medium">Realized Net Profit</div>
+            <Activity size={20} className={realizedMetrics.realizedNetProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} />
           </div>
-          <div className={`text-2xl font-bold ${data.dailyProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-            {cur} {data.dailyProfit.toLocaleString()}
+          <div className={`text-2xl font-bold ${realizedMetrics.realizedNetProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+            {cur} {realizedMetrics.realizedNetProfit.toLocaleString()}
           </div>
-          <div className="text-xs text-gray-400 mt-1">
-            {data.totalSales > 0 ? `${Math.round(data.dailyProfit / data.totalSales * 100)}% margin` : 'No sales today'}
+          <div className="text-xs text-gray-500 mt-1">
+            {realizedMetrics.dailySavingsTarget > 0 ? (
+              <span className="text-emerald-700 font-semibold">Save: {cur} {realizedMetrics.dailySavingsTarget.toLocaleString()}</span>
+            ) : (
+              <span>Cash-basis net profit</span>
+            )}
           </div>
         </div>
       </div>

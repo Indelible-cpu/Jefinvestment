@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useBranchStore } from '../store/branchStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette, ShoppingBag, ExternalLink, Copy } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette, ShoppingBag, ExternalLink, Copy, PiggyBank } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -87,6 +87,30 @@ export default function Settings() {
       toast.success('WhatsApp Storefront settings saved!');
     } catch (err: any) {
       toast.error('Failed to save storefront settings');
+    }
+  };
+
+  const [savingsForm, setSavingsForm] = useState({
+    dailySavingsEnabled: settings.dailySavingsEnabled ?? true,
+    dailySavingsPercentage: settings.dailySavingsPercentage ?? 10,
+    dailySavingsPurpose: settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund',
+  });
+
+  useEffect(() => {
+    setSavingsForm({
+      dailySavingsEnabled: settings.dailySavingsEnabled ?? true,
+      dailySavingsPercentage: settings.dailySavingsPercentage ?? 10,
+      dailySavingsPurpose: settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund',
+    });
+  }, [settings.dailySavingsEnabled, settings.dailySavingsPercentage, settings.dailySavingsPurpose]);
+
+  const handleSavingsSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateSettings(savingsForm);
+      toast.success('Daily Savings & Reserve settings saved!');
+    } catch (err: any) {
+      toast.error('Failed to save savings settings');
     }
   };
 
@@ -735,6 +759,113 @@ export default function Settings() {
                 >
                   <CheckCircle2 size={16} />
                   <span>Save Storefront Settings</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Daily Savings & Reserve Fund Settings */}
+        {isAdmin && (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 p-4 border-b font-bold text-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-800">
+                <PiggyBank size={20} className="text-emerald-600" />
+                <span>Daily Savings &amp; Reserve Fund Allocation</span>
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase tracking-wider">
+                Admin / Executive
+              </span>
+            </div>
+
+            <form onSubmit={handleSavingsSave} className="p-6 space-y-5">
+              <div className="flex items-center justify-between p-4 rounded-xl border bg-gray-50/50">
+                <div className="space-y-0.5">
+                  <div className="text-sm font-bold text-gray-800">Enable Daily Savings Target</div>
+                  <div className="text-xs text-gray-500">
+                    Calculates a target savings amount automatically from each day's realized net profit.
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={savingsForm.dailySavingsEnabled}
+                    onChange={(e) => setSavingsForm(f => ({ ...f, dailySavingsEnabled: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Daily Savings Percentage (%)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      step="1"
+                      value={savingsForm.dailySavingsPercentage}
+                      onChange={(e) =>
+                        setSavingsForm(f => ({
+                          ...f,
+                          dailySavingsPercentage: Math.max(1, Math.min(100, parseFloat(e.target.value) || 0)),
+                        }))
+                      }
+                      className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold"
+                      placeholder="e.g. 10"
+                      required
+                    />
+                    <span className="text-sm font-bold text-gray-500">%</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Recommended: 10% – 20% of net realized profit.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Reserve Purpose / Account Name
+                  </label>
+                  <input
+                    type="text"
+                    value={savingsForm.dailySavingsPurpose}
+                    onChange={(e) =>
+                      setSavingsForm(f => ({ ...f, dailySavingsPurpose: e.target.value }))
+                    }
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                    placeholder="e.g. Business Reserve & Emergency Fund"
+                    required
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Displayed on Executive Dashboard and Daily Financial Reports.
+                  </p>
+                </div>
+              </div>
+
+              {/* Informational Safeguard Box */}
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-950 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                  <ShieldCheck size={16} /> Realized Profit Safeguard:
+                </div>
+                <p className="text-emerald-900/90 leading-relaxed">
+                  The savings target is calculated strictly from <strong>realized net profit</strong> (actual cash, mobile money, and bank collections minus operating expenses). Outstanding, uncollected credit sales are <strong>excluded</strong> until client debt is repaid. If the business has a net loss today, the calculated savings target is automatically <strong>{settings.currency || 'MWK'} 0</strong>.
+                </p>
+                <div className="text-[11px] text-emerald-800 font-semibold pt-0.5">
+                  &bull; <strong>Role Privacy:</strong> Cashiers cannot see this configuration, profit margins, or target savings on their dashboard.
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 transition flex items-center gap-2 cursor-pointer"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Save Savings Settings</span>
                 </button>
               </div>
             </form>
