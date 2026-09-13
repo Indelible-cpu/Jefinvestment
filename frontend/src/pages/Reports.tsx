@@ -232,22 +232,23 @@ export default function Reports() {
 
         {/* Daily Savings & Reserve Fund Box */}
         {settings.dailySavingsEnabled !== false ? (
-          <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 text-white rounded-xl p-4 sm:p-6 shadow-md flex flex-col justify-between border border-emerald-700/50">
+          <div className="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 text-white rounded-xl p-4 sm:p-6 shadow-lg flex flex-col justify-between border border-violet-700/50 relative overflow-hidden">
+            <div className="absolute right-0 top-0 translate-x-6 -translate-y-6 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
             <div>
-              <div className="text-emerald-200 font-medium mb-1.5 sm:mb-2 flex items-center justify-between text-xs sm:text-sm">
+              <div className="text-amber-300 font-medium mb-1.5 sm:mb-2 flex items-center justify-between text-xs sm:text-sm">
                 <span className="flex items-center gap-1.5">
-                  <PiggyBank size={18} className="text-emerald-300" />
+                  <PiggyBank size={18} className="text-amber-300" />
                   <span>Target Daily Savings</span>
                 </span>
-                <span className="bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                <span className="bg-amber-400/15 border border-amber-400/30 text-amber-200 text-[10px] px-2.5 py-0.5 rounded-full font-bold">
                   {realizedMetrics.savingsPercentage}% of Realized Net Profit
                 </span>
               </div>
               <div className="text-3xl sm:text-5xl font-extrabold mb-1 tracking-tight text-white">
                 {cur} {realizedMetrics.dailySavingsTarget.toLocaleString()}
               </div>
-              <div className="text-emerald-100 text-xs sm:text-sm mt-1.5 sm:mt-2">
-                Fund: <strong className="text-emerald-300">{settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund'}</strong>
+              <div className="text-amber-100 text-xs sm:text-sm mt-1.5 sm:mt-2">
+                Fund: <strong className="text-amber-300">{settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund'}</strong>
               </div>
               <div className="text-slate-300 text-xs mt-1">
                 From {cur} {realizedMetrics.realizedNetProfit.toLocaleString()} Realized Net Profit
@@ -257,9 +258,9 @@ export default function Reports() {
               </div>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-emerald-700/60 flex items-center justify-between text-xs">
-              <span className="text-emerald-300 font-medium">Free Retained Operating Cash:</span>
-              <span className="font-extrabold text-sm text-teal-200">{cur} {realizedMetrics.netRetainedProfit.toLocaleString()}</span>
+            <div className="mt-3 pt-3 border-t border-violet-700/60 flex items-center justify-between text-xs">
+              <span className="text-amber-300 font-medium">Free Retained Operating Cash:</span>
+              <span className="font-extrabold text-sm text-violet-300">{cur} {realizedMetrics.netRetainedProfit.toLocaleString()}</span>
             </div>
           </div>
         ) : (

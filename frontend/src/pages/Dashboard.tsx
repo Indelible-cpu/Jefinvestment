@@ -169,17 +169,18 @@ export default function Dashboard() {
 
       {/* Executive Daily Savings & Realized Profit Banner (Admin Only) */}
       {isAdmin && settings.dailySavingsEnabled !== false && (
-        <div className="mb-4 bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white rounded-2xl p-3.5 sm:p-5 shadow-sm border border-emerald-800/40 relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-44 h-44 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="mb-4 bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 text-white rounded-2xl p-3.5 sm:p-5 shadow-lg border border-violet-700/50 relative overflow-hidden">
+          <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-44 h-44 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute left-1/2 bottom-0 translate-y-6 w-64 h-24 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0 shadow-inner">
                 <PiggyBank size={24} className="sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs uppercase tracking-wider text-emerald-300 font-bold">Daily Savings Target</span>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2 py-0.5 rounded-full font-semibold">
+                  <span className="text-xs uppercase tracking-wider text-amber-300 font-bold">Daily Savings Target</span>
+                  <span className="text-[10px] bg-amber-400/15 text-amber-200 border border-amber-400/30 px-2 py-0.5 rounded-full font-semibold">
                     {todayFinancials.savingsPercentage}% of Realized Net Profit
                   </span>
                 </div>
@@ -187,17 +188,17 @@ export default function Dashboard() {
                   {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
                 </div>
                 <div className="text-[11px] sm:text-xs text-slate-300 mt-0.5 flex flex-wrap items-center gap-x-2">
-                  <span className="truncate">Reserve: <strong className="text-emerald-300">{settings.dailySavingsPurpose || 'Business Reserve'}</strong></span>
+                  <span className="truncate">Reserve: <strong className="text-amber-300">{settings.dailySavingsPurpose || 'Business Reserve'}</strong></span>
                   <span className="text-slate-500">&bull;</span>
                   <span>From {settings.currency} {todayFinancials.realizedNetProfit.toLocaleString()} Realized Net Profit</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 border-t border-slate-800 md:border-t-0 pt-2.5 md:pt-0">
+            <div className="flex items-center gap-2 sm:gap-3 border-t border-violet-800/60 md:border-t-0 pt-2.5 md:pt-0">
               <div className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-center flex-1 md:flex-initial">
                 <div className="text-[9.5px] sm:text-[10px] text-slate-400 uppercase font-semibold">Realized Gross</div>
-                <div className="text-xs sm:text-sm font-bold text-emerald-400">
+                <div className="text-xs sm:text-sm font-bold text-amber-400">
                   {settings.currency} {todayFinancials.realizedGrossProfit.toLocaleString()}
                 </div>
               </div>
@@ -209,13 +210,13 @@ export default function Dashboard() {
               </div>
               <div className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 text-center flex-1 md:flex-initial">
                 <div className="text-[9.5px] sm:text-[10px] text-slate-400 uppercase font-semibold">Free Retained Cash</div>
-                <div className="text-xs sm:text-sm font-bold text-teal-300">
+                <div className="text-xs sm:text-sm font-bold text-violet-300">
                   {settings.currency} {todayFinancials.netRetainedProfit.toLocaleString()}
                 </div>
               </div>
               <Link
                 to="/reports"
-                className="hidden lg:flex items-center gap-1 text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3 py-2 rounded-xl transition shadow-xs shrink-0"
+                className="hidden lg:flex items-center gap-1 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-slate-950 px-3 py-2 rounded-xl transition shadow-xs shrink-0"
               >
                 <span>Report</span>
                 <ChevronRight size={14} />
