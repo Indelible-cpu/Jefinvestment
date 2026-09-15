@@ -73,29 +73,26 @@ export default defineConfig({
             return 'chunk-tfjs-misc';
           }
 
-          // ── Firebase — split into independently-cacheable sub-chunks ──────────
-          if (id.includes('@firebase/auth') || id.includes('firebase/auth')) {
-            return 'chunk-firebase-auth';
-          }
-          if (id.includes('@firebase/storage') || id.includes('firebase/storage')) {
-            return 'chunk-firebase-storage';
-          }
+          // ── Firebase — all core packages in one chunk to avoid circular refs ──
           if (
-            id.includes('@firebase/firestore') ||
-            id.includes('firebase/firestore') ||
-            id.includes('@firebase/app') ||
-            id.includes('firebase/app') ||
+            id.includes('@firebase/auth') || id.includes('firebase/auth') ||
+            id.includes('@firebase/storage') || id.includes('firebase/storage') ||
+            id.includes('@firebase/messaging') || id.includes('firebase/messaging') ||
+            id.includes('@firebase/firestore') || id.includes('firebase/firestore') ||
+            id.includes('@firebase/app') || id.includes('firebase/app') ||
             id.includes('@firebase/component') ||
             id.includes('@firebase/util') ||
-            id.includes('@firebase/logger')
+            id.includes('@firebase/logger') ||
+            id.includes('@firebase/installations') ||
+            id.includes('@firebase/analytics') ||
+            id.includes('@firebase/performance') ||
+            id.includes('@firebase/remote-config') ||
+            id.includes('@firebase/database') ||
+            id.includes('@firebase/functions') ||
+            id.includes('node_modules/firebase') ||
+            id.includes('@firebase')
           ) {
-            return 'chunk-firebase-core';
-          }
-          if (id.includes('@firebase/messaging') || id.includes('firebase/messaging')) {
-            return 'chunk-firebase-messaging';
-          }
-          if (id.includes('node_modules/firebase') || id.includes('@firebase')) {
-            return 'chunk-firebase-misc';
+            return 'chunk-firebase';
           }
 
           // ── UI & charting ─────────────────────────────────────────────────────
