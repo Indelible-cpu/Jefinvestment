@@ -13,6 +13,14 @@ import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
 import { checkForAppUpdates } from '../utils/pwaUpdate';
 import { useThemeStore } from '../store/themeStore';
+import {
+  requestPushPermission,
+  getPushPermissionState,
+  getUserNotificationPrefs,
+  updateUserNotificationPrefs,
+  dispatchSalePushNotification,
+  type NotificationPreferences,
+} from '../utils/pushNotifications';
 
 export default function Settings() {
   const { 
@@ -31,6 +39,67 @@ export default function Settings() {
       loadBranches();
     }
   }, [isAdmin, loadUsers, loadBranches]);
+
+  const [pushPermission, setPushPermission] = useState(getPushPermissionState());
+  const [isRequestingPush, setIsRequestingPush] = useState(false);
+  const [isSendingTestPush, setIsSendingTestPush] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(() => getUserNotificationPrefs(user));
+
+  useEffect(() => {
+    setPushPermission(getPushPermissionState());
+    setNotifPrefs(getUserNotificationPrefs(user));
+  }, [user]);
+
+  const handleEnablePush = async () => {
+    if (!user?.id) return;
+    setIsRequestingPush(true);
+    try {
+      const result = await requestPushPermission(user.id);
+      setPushPermission(getPushPermissionState());
+      if (result.success) {
+        toast.success('Push notifications enabled successfully!', {
+          description: 'You will now receive alerts for sales even when MsikaFlo is closed or locked.',
+        });
+      } else {
+        toast.error(result.error || 'Failed to enable push notifications');
+      }
+    } finally {
+      setIsRequestingPush(false);
+    }
+  };
+
+  const handleTogglePref = async (key: keyof NotificationPreferences) => {
+    if (!user?.id) return;
+    const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(updated);
+    try {
+      await updateUserNotificationPrefs(user.id, updated);
+      toast.success('Notification preferences updated');
+    } catch {
+      toast.error('Failed to update notification preferences');
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    setIsSendingTestPush(true);
+    try {
+      await dispatchSalePushNotification({
+        type: 'SALE',
+        invoiceNumber: 'INV-TEST',
+        cashierName: 'System Test',
+        amount: 45000,
+        paymentMethod: 'Cash',
+        currency: settings.currency || 'MWK',
+      });
+      toast.success('Test notification dispatched!', {
+        description: 'Check your notifications bar or lock screen.',
+      });
+    } catch {
+      toast.error('Failed to dispatch test notification');
+    } finally {
+      setIsSendingTestPush(false);
+    }
+  };
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', profilePic: user?.profilePic || '' });
   const [brandForm, setBrandForm] = useState({ 
@@ -762,6 +831,169 @@ export default function Settings() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Real-Time Push Notifications Section */}
+        {(isAdmin || user?.role === 'MANAGER') && (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-4 border-b font-bold text-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-primary">
+                <BellRing size={20} className="text-primary" />
+                <span>Real-Time Push &amp; Sale Notifications</span>
+              </div>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1.5 ${
+                pushPermission === 'granted'
+                  ? 'bg-green-100 text-green-700'
+                  : pushPermission === 'denied'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-amber-100 text-amber-700'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  pushPermission === 'granted' ? 'bg-green-500' : pushPermission === 'denied' ? 'bg-red-500' : 'bg-amber-500'
+                }`} />
+                {pushPermission === 'granted' ? 'Active' : pushPermission === 'denied' ? 'Blocked' : 'Not Enabled'}
+              </span>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Permission & Device Registration Banner */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-sm text-gray-900">
+                    {pushPermission === 'granted'
+                      ? 'Push notifications are active on this device'
+                      : pushPermission === 'denied'
+                      ? 'Notifications are blocked in your browser settings'
+                      : 'Enable notifications for this device'}
+                  </h4>
+                  <p className="text-xs text-gray-600 max-w-xl">
+                    {pushPermission === 'granted'
+                      ? 'You will receive instant alerts for new sales and orders even when the Staff Portal is closed, running in the background, or your phone is locked.'
+                      : pushPermission === 'denied'
+                      ? 'To receive alerts, click the lock/settings icon in your browser address bar and change Notifications to "Allow", then reload.'
+                      : 'Tap the button below to grant permission and connect this device (phone, tablet, or desktop) to real-time sale alerts.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                  {pushPermission !== 'granted' ? (
+                    <button
+                      type="button"
+                      onClick={handleEnablePush}
+                      disabled={isRequestingPush || pushPermission === 'denied'}
+                      className="w-full sm:w-auto px-4 py-2 bg-primary hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isRequestingPush ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
+                      <span>Enable Notifications</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendTestPush}
+                      disabled={isSendingTestPush}
+                      className="w-full sm:w-auto px-3.5 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 text-xs font-bold rounded-lg shadow-2xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      {isSendingTestPush ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-amber-500" />}
+                      <span>Send Test Alert</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Notification Categories / Preferences */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Notification Types &amp; Events
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Cashier Sales */}
+                  <div
+                    onClick={() => handleTogglePref('notifyCashierSales')}
+                    className="p-3.5 rounded-xl border border-gray-200 hover:border-primary/50 bg-white hover:bg-blue-50/20 cursor-pointer transition flex items-start justify-between gap-3"
+                  >
+                    <div>
+                      <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
+                        <span>New Cashier Sales</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Instant push alert when a cashier records a POS sale.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.notifyCashierSales}
+                      onChange={() => {}}
+                      className="mt-1 w-4 h-4 text-primary rounded accent-primary cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Online Orders */}
+                  <div
+                    onClick={() => handleTogglePref('notifyOnlineOrders')}
+                    className="p-3.5 rounded-xl border border-gray-200 hover:border-primary/50 bg-white hover:bg-blue-50/20 cursor-pointer transition flex items-start justify-between gap-3"
+                  >
+                    <div>
+                      <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
+                        <span>Online Store Orders</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Instant push alert when an order is placed on the online storefront.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.notifyOnlineOrders}
+                      onChange={() => {}}
+                      className="mt-1 w-4 h-4 text-primary rounded accent-primary cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Credit Payments */}
+                  <div
+                    onClick={() => handleTogglePref('notifyCreditPayments')}
+                    className="p-3.5 rounded-xl border border-gray-200 hover:border-primary/50 bg-white hover:bg-blue-50/20 cursor-pointer transition flex items-start justify-between gap-3"
+                  >
+                    <div>
+                      <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
+                        <span>Payment &amp; Credit Alerts</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Alerts for customer credit transactions and debt repayments.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.notifyCreditPayments}
+                      onChange={() => {}}
+                      className="mt-1 w-4 h-4 text-primary rounded accent-primary cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Low Stock */}
+                  <div
+                    onClick={() => handleTogglePref('notifyLowStock')}
+                    className="p-3.5 rounded-xl border border-gray-200 hover:border-primary/50 bg-white hover:bg-blue-50/20 cursor-pointer transition flex items-start justify-between gap-3"
+                  >
+                    <div>
+                      <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
+                        <span>Low-Stock Alerts</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Alerts when product inventory reaches or drops below reorder level.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={notifPrefs.notifyLowStock}
+                      onChange={() => {}}
+                      className="mt-1 w-4 h-4 text-primary rounded accent-primary cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

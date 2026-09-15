@@ -32,7 +32,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Users
+    // Users — authenticated users can update their own profile, FCM tokens, and notification preferences
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow update: if request.auth.uid == userId || isAdmin();

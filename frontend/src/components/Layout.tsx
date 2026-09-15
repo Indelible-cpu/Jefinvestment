@@ -10,11 +10,13 @@ import { useProductStore, useCartStore } from '../store/cartStore';
 import { useSyncEngine } from '../hooks/useSyncEngine';
 import { useThemeStore } from '../store/themeStore';
 import { toast } from 'sonner';
+import { initForegroundNotificationListener, dispatchSalePushNotification } from '../utils/pushNotifications';
+import { calcDailyRealizedProfit } from '../utils/profitUtils';
 
 export default function Layout() {
 
   const { user, logout, loadProfile, unlockTemporarily, passwordRequests, loadPasswordRequests } = useAuthStore();
-  const { companyName, companyLogo, loadSettings, autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes } = useSettingsStore();
+  const { companyName, companyLogo, loadSettings, autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes, currency } = useSettingsStore();
 
   // Use fine-grained selectors — subscribes only to what Layout needs,
   // so a sale or stock change doesn't re-render the entire sidebar
@@ -49,6 +51,148 @@ export default function Layout() {
       console.warn('Error setting up online orders count', e);
     }
   }, []);
+
+  // Real-time in-app notifications for authorized managers & admins (when Staff Portal is open)
+  useEffect(() => {
+    if (!user || user.role === 'CASHIER') return;
+
+    const sessionStart = Date.now();
+    const seenSaleIds = new Set<string>();
+    const seenOrderIds = new Set<string>();
+
+    // 1. Sales listener
+    const salesQ = query(
+      collection(db, 'sales'),
+      where('createdAt', '>=', sessionStart)
+    );
+
+    const unsubSales = onSnapshot(salesQ, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const docId = change.doc.id;
+          if (seenSaleIds.has(docId)) return;
+          seenSaleIds.add(docId);
+
+          const sale = change.doc.data();
+          // Cashier self-exclusion: do not notify cashier about their own sale
+          if (sale.cashier && user.name && sale.cashier.trim().toLowerCase() === user.name.trim().toLowerCase()) {
+            return;
+          }
+
+          // Check user preference
+          const prefs = (user as any).notificationPrefs;
+          if (prefs && prefs.notifyCashierSales === false) return;
+
+          const amountFormatted = Number(sale.total || 0).toLocaleString();
+          const notifTitle = `🔔 New Sale — ${companyName || 'JEF Investment'}`;
+          const notifBody = `Cashier: ${sale.cashier || 'Staff'}\nSale #: ${sale.invoiceNumber || 'INV'}\nAmount: ${currency || 'MWK'} ${amountFormatted}\nPayment: ${sale.paymentMethod || 'Cash'}`;
+
+          // 1. In-app toast for when user is looking at the screen
+          toast.success(notifTitle, {
+            description: notifBody,
+            duration: 8000,
+            action: {
+              label: 'View Sale',
+              onClick: () => navigate('/sales'),
+            },
+          });
+
+          // 2. Native OS / Android system notification (status bar & lock screen when app is minimized/backgrounded)
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.ready.then((reg) => {
+                reg.showNotification(notifTitle, {
+                  body: notifBody,
+                  icon: '/pwa-192x192.png',
+                  badge: '/pwa-192x192.png',
+                  tag: 'msikaflo-sale-' + docId,
+                  vibrate: [200, 100, 200],
+                  data: { url: '/sales' },
+                } as any);
+              }).catch(() => {});
+            }
+          }
+        }
+      });
+    }, (err) => {
+      console.warn('Real-time sale notification listener notice:', err);
+    });
+
+    // 2. Online orders listener
+    const ordersQ = query(
+      collection(db, 'onlineOrders'),
+      where('createdAt', '>=', sessionStart)
+    );
+
+    const unsubOrders = onSnapshot(ordersQ, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const docId = change.doc.id;
+          if (seenOrderIds.has(docId)) return;
+          seenOrderIds.add(docId);
+
+          const order = change.doc.data();
+          const prefs = (user as any).notificationPrefs;
+          if (prefs && prefs.notifyOnlineOrders === false) return;
+
+          const amountFormatted = Number(order.total || 0).toLocaleString();
+          const orderTitle = '🔔 New Online Order';
+          const orderBody = `Order #: #${order.orderId || docId.slice(-5)}\nAmount: ${currency || 'MWK'} ${amountFormatted}`;
+
+          // 1. In-app toast
+          toast.info(orderTitle, {
+            description: orderBody,
+            duration: 8000,
+            action: {
+              label: 'View Order',
+              onClick: () => navigate('/online-orders'),
+            },
+          });
+
+          // 2. Native OS / Android system notification
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.ready.then((reg) => {
+                reg.showNotification(orderTitle, {
+                  body: orderBody,
+                  icon: '/pwa-192x192.png',
+                  badge: '/pwa-192x192.png',
+                  tag: 'msikaflo-order-' + docId,
+                  vibrate: [200, 100, 200],
+                  data: { url: '/online-orders' },
+                } as any);
+              }).catch(() => {});
+            }
+          }
+        }
+      });
+    }, (err) => {
+      console.warn('Real-time online order notification listener notice:', err);
+    });
+
+    // 3. Foreground FCM push listener
+    const unsubFCM = initForegroundNotificationListener((payload) => {
+      const title = payload.notification?.title || payload.data?.title;
+      const body = payload.notification?.body || payload.data?.body;
+      const targetUrl = payload.data?.url || '/sales';
+      if (title && body) {
+        toast(title, {
+          description: body,
+          duration: 8000,
+          action: {
+            label: 'View',
+            onClick: () => navigate(targetUrl),
+          },
+        });
+      }
+    });
+
+    return () => {
+      unsubSales();
+      unsubOrders();
+      unsubFCM();
+    };
+  }, [user?.id, user?.role, user?.name, companyName, currency, navigate]);
 
   // References for the notifications dropdown to detect outside clicks
   const mobileNotifRef = useRef<HTMLDivElement>(null);
@@ -178,8 +322,85 @@ export default function Layout() {
       }
     };
 
+    // Automated Serving notification: 10 minutes before closing, retrieves the
+    // existing automated calculation as the single source of truth and notifies cashier
+    const checkServingReminder = () => {
+      const end = workTimeEnd || '20:00';
+      const [endH, endM] = end.split(':').map(Number);
+      if (isNaN(endH) || isNaN(endM)) return;
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const endMinutes = endH * 60 + endM;
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+      // Check if within 10 minutes before closing
+      const is10MinsBeforeClose = nowMinutes >= (endMinutes - 10) && nowMinutes < endMinutes;
+      if (!is10MinsBeforeClose) return;
+
+      const storageKey = `msikaflo_serving_alert_${todayStr}`;
+      if (localStorage.getItem(storageKey)) return;
+
+      // Single source of truth: retrieve the existing automated calculation directly
+      const allSales = useSaleStore.getState().sales;
+      const allExpenses = useExpenseStore.getState().expenses;
+      const savingsPct = useSettingsStore.getState().dailySavingsPercentage ?? 10;
+      const savingsOn = useSettingsStore.getState().dailySavingsEnabled ?? true;
+
+      const metrics = calcDailyRealizedProfit(
+        todayStr,
+        allSales,
+        allExpenses,
+        savingsPct,
+        savingsOn
+      );
+
+      const servingAmount = metrics.dailySavingsTarget;
+      if (servingAmount <= 0) return;
+
+      localStorage.setItem(storageKey, 'true');
+
+      // Cashier receives the exact amount (unalterable)
+      const currentRole = useAuthStore.getState().user?.role;
+      if (currentRole === 'CASHIER') {
+        const servingTitle = `🔔 Daily Serving Due — ${companyName || 'JEF Investment'}`;
+        const servingBody = `Today's Serving Amount: ${currency || 'MWK'} ${servingAmount.toLocaleString()}\nClosing in 10 minutes. Please serve/remit this exact calculated amount.`;
+
+        toast.info(servingTitle, {
+          description: servingBody,
+          duration: 30000,
+        });
+
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then((reg) => {
+              reg.showNotification(servingTitle, {
+                body: servingBody,
+                icon: '/pwa-192x192.png',
+                badge: '/pwa-192x192.png',
+                tag: 'msikaflo-serving-' + todayStr,
+                vibrate: [200, 100, 200, 100, 200],
+                data: { url: '/pos' },
+              } as any);
+            }).catch(() => {});
+          }
+        }
+      }
+
+      // Also dispatch push notification
+      dispatchSalePushNotification({
+        type: 'SERVING_DUE',
+        amount: servingAmount,
+        currency: currency || 'MWK',
+      }).catch((e) => console.warn('Serving notification dispatch notice:', e));
+    };
+
     checkLockStatus(); // Check immediately
-    const interval = setInterval(checkLockStatus, 60000); // Check every minute
+    checkServingReminder();
+    const interval = setInterval(() => {
+      checkLockStatus();
+      checkServingReminder();
+    }, 60000); // Check every minute
 
     // Activity listeners
     const handleActivity = () => {

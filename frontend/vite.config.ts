@@ -2,15 +2,18 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { fcmDevPlugin } from './vite-fcm-plugin.js';
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    fcmDevPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: ['**/firebase-messaging-sw.js'],
         maximumFileSizeToCacheInBytes: 5000000, // 5 MB — covers Firebase SDK
         // Cache Firebase Storage images at runtime so product images load instantly
         runtimeCaching: [
@@ -87,6 +90,9 @@ export default defineConfig({
             id.includes('@firebase/logger')
           ) {
             return 'chunk-firebase-core';
+          }
+          if (id.includes('@firebase/messaging') || id.includes('firebase/messaging')) {
+            return 'chunk-firebase-messaging';
           }
           if (id.includes('node_modules/firebase') || id.includes('@firebase')) {
             return 'chunk-firebase-misc';

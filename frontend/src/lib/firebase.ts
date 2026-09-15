@@ -6,6 +6,7 @@ import {
   persistentMultipleTabManager
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDQx0Jq6BglTBel-IqXAA_lo8BWNMA3IjQ',
@@ -37,4 +38,22 @@ const db = initializeFirestore(app, {
 const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
 const secondaryAuth = getAuth(secondaryApp);
 
-export { app, auth, db, storage, secondaryApp, secondaryAuth };
+// Lazily and safely initialize Firebase Messaging (checks browser/PWA support)
+let messagingInstance: Messaging | null = null;
+async function getFirebaseMessaging(): Promise<Messaging | null> {
+  if (typeof window === 'undefined') return null;
+  if (messagingInstance) return messagingInstance;
+  try {
+    const supported = await isSupported();
+    if (supported) {
+      messagingInstance = getMessaging(app);
+      return messagingInstance;
+    }
+  } catch (e) {
+    console.warn('Firebase Messaging is not supported in this browser/environment:', e);
+  }
+  return null;
+}
+
+export { app, auth, db, storage, secondaryApp, secondaryAuth, getFirebaseMessaging };
+

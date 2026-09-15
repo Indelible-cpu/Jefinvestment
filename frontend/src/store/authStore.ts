@@ -19,6 +19,7 @@ import {
   arrayRemove
 } from 'firebase/firestore';
 import { auth, db, secondaryAuth } from '../lib/firebase';
+import { removePushToken } from '../utils/pushNotifications';
 
 // ─── Offline Credential Cache ──────────────────────────────────────────────────
 // We store a SHA-256 hash of the password alongside the user profile so that
@@ -341,6 +342,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        const currentUserId = get().user?.id;
+        if (currentUserId) {
+          removePushToken(currentUserId).catch(() => {});
+        }
         // Kill all active Firestore listeners BEFORE signing out
         // to prevent "Missing or insufficient permissions" errors
         unsubscribeAllListeners();

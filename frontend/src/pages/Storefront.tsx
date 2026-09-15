@@ -25,6 +25,7 @@ import { useStorefrontCartStore } from '../store/storefrontCartStore';
 import { useStationeryStore } from '../store/stationeryStore';
 import type { Product } from '../store/cartStore';
 import { toast } from 'sonner';
+import { dispatchSalePushNotification } from '../utils/pushNotifications';
 
 export default function Storefront() {
   const settings = useSettingsStore();
@@ -247,6 +248,15 @@ export default function Storefront() {
     try {
       // 1. Ingest order into Firestore for ERP staff
       await addDoc(collection(db, 'onlineOrders'), orderPayload);
+
+      // Fire-and-forget push notification to authorized managers/admins (never blocks order)
+      dispatchSalePushNotification({
+        type: 'ONLINE_ORDER',
+        orderNumber: String(orderRefId),
+        amount: grandTotal,
+        currency,
+        itemCount: cartItems.reduce((s, i) => s + i.quantity, 0),
+      }).catch((e) => console.warn('Online order push notification dispatch notice:', e));
 
       // 2. Generate structured WhatsApp Message
       const targetPhone = (settings.storefrontWhatsApp || settings.phone || '+265999123456')

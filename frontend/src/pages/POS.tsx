@@ -10,6 +10,7 @@ import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { generateInvoiceNumber } from '../utils/invoiceNumber';
 import { toast } from 'sonner';
+import { dispatchSalePushNotification } from '../utils/pushNotifications';
 
 export default function POS() {
   const location = useLocation();
@@ -349,6 +350,19 @@ const playSound = (type: 'success' | 'error') => {
         } else {
           toast.success('Sale completed successfully');
         }
+
+        // Fire-and-forget push notification to authorized managers/admins (never blocks cashier or sale)
+        const currentStaff = useAuthStore.getState().user;
+        dispatchSalePushNotification({
+          type: 'SALE',
+          invoiceNumber,
+          cashierName: currentStaff?.name || 'Staff',
+          cashierUid: currentStaff?.id,
+          amount: finalTotal,
+          paymentMethod,
+          currency: settings.currency || 'MWK',
+          itemCount: cart.items.reduce((s, i) => s + i.quantity, 0),
+        }).catch((e) => console.warn('Push notification dispatch notice:', e));
       } catch (err: any) {
         if (err.message === 'OFFLINE_QUEUED') {
           toast.warning('Offline', { description: 'Sale queued and will sync when online' });
