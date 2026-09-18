@@ -525,12 +525,70 @@ export const useSaleStore = create<SaleState>()(
 
     getTodaySales: () => {
       const today = new Date().toISOString().slice(0, 10);
-      return get().sales.filter(s => s.date === today && s.status === 'completed');
+      return get().sales.filter(s => s.date === today && (s.status ?? 'completed') === 'completed');
     },
-    getTodayCashTotal: () => get().getTodaySales().filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0),
-    getTodayCreditTotal: () => get().getTodaySales().filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + s.total, 0),
-    getTodayTransferTotal: () => get().getTodaySales().filter(s => s.paymentMethod === 'BANK_TRANSFER').reduce((sum, s) => sum + s.total, 0),
-    getTodayTotal: () => get().getTodaySales().reduce((sum, s) => sum + s.total, 0),
+    getTodayCashTotal: () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const daySales = get().getTodaySales();
+      const directCash = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
+      const creditInitialCash = daySales.filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + (s.amountPaid || 0), 0);
+      let repaymentCash = 0;
+      get().sales.forEach(s => {
+        if (s.paymentMethod === 'CREDIT' && Array.isArray((s as any).repayments)) {
+          (s as any).repayments.forEach((r: any) => {
+            if (r.date && r.date.startsWith(today) && (r.method === 'CASH' || !r.method)) {
+              repaymentCash += Number(r.amount) || 0;
+            }
+          });
+        }
+      });
+      return directCash + creditInitialCash + repaymentCash;
+    },
+    getTodayCreditTotal: () => {
+      // Uncollected credit debt issued today (Accounts Receivable created today)
+      return get().getTodaySales()
+        .filter(s => s.paymentMethod === 'CREDIT')
+        .reduce((sum, s) => sum + Math.max(0, s.total - (s.amountPaid || 0)), 0);
+    },
+    getTodayTransferTotal: () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const daySales = get().getTodaySales();
+      const directTransfers = daySales
+        .filter(s => s.paymentMethod !== 'CASH' && s.paymentMethod !== 'CREDIT')
+        .reduce((sum, s) => sum + s.total, 0);
+      let repaymentTransfers = 0;
+      get().sales.forEach(s => {
+        if (s.paymentMethod === 'CREDIT' && Array.isArray((s as any).repayments)) {
+          (s as any).repayments.forEach((r: any) => {
+            if (r.date && r.date.startsWith(today) && r.method && r.method !== 'CASH') {
+              repaymentTransfers += Number(r.amount) || 0;
+            }
+          });
+        }
+      });
+      return directTransfers + repaymentTransfers;
+    },
+    getTodayTotal: () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const daySales = get().getTodaySales();
+      // Cash basis total collections: direct non-credit + credit initial deposits + credit repayments collected today
+      let total = daySales.reduce((sum, s) => {
+        if (s.paymentMethod === 'CREDIT') {
+          return sum + (s.amountPaid || 0);
+        }
+        return sum + s.total;
+      }, 0);
+      get().sales.forEach(s => {
+        if (s.paymentMethod === 'CREDIT' && Array.isArray((s as any).repayments)) {
+          (s as any).repayments.forEach((r: any) => {
+            if (r.date && r.date.startsWith(today)) {
+              total += Number(r.amount) || 0;
+            }
+          });
+        }
+      });
+      return total;
+    },
   })
 );
 

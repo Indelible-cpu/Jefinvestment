@@ -90,8 +90,13 @@ export default function Dashboard() {
   let otherIncome = 0;
   
   todaysSales.forEach(sale => {
+    const isCredit = sale.paymentMethod === 'CREDIT';
+    const collectedRatio = isCredit 
+      ? (sale.total > 0 ? Math.min(1, (sale.amountPaid || 0) / sale.total) : 0)
+      : 1;
+
     sale.items.forEach((item: any) => {
-      const itemTotal = item.quantity * item.unitPrice;
+      const itemTotal = (item.quantity * item.unitPrice) * collectedRatio;
       const product = products.find(p => p.name === item.name || p.id === item.productId);
       if (item.isOther || item.category === 'Other' || item.productId?.startsWith('other_') || item.sku === 'OTHER') {
         otherIncome += itemTotal;
