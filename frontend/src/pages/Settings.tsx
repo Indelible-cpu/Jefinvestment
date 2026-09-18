@@ -707,7 +707,7 @@ export default function Settings() {
         {
           id: 'profile',
           title: 'Personal Profile',
-          description: 'Update your display name, profile photo, and view account details',
+          description: 'Your profile information',
           icon: <User size={20} className="text-blue-600" />,
           iconBg: 'bg-blue-50 text-blue-600 border border-blue-100',
           badge: user?.role,
@@ -717,7 +717,7 @@ export default function Settings() {
         {
           id: 'theme',
           title: 'Appearance & Display Theme',
-          description: 'Switch between light mode, dark mode, or device system display mode',
+          description: 'Theme and display preferences',
           icon: <Palette size={20} className="text-purple-600" />,
           iconBg: 'bg-purple-50 text-purple-600 border border-purple-100',
           badge: theme === 'system' ? `System (${resolvedTheme})` : theme,
@@ -727,7 +727,7 @@ export default function Settings() {
         {
           id: 'updates',
           title: 'System Updates',
-          description: 'Check for new application versions, patches, and features',
+          description: 'Updates and maintenance',
           icon: <RefreshCw size={20} className="text-indigo-600" />,
           iconBg: 'bg-indigo-50 text-indigo-600 border border-indigo-100',
           visible: true,
@@ -740,7 +740,7 @@ export default function Settings() {
         {
           id: 'branding',
           title: 'Company Branding & Tax',
-          description: 'Company logo, currency, address, MoMo/Bank accounts, and VAT/tax rates',
+          description: 'Business identity and tax settings',
           icon: <Briefcase size={20} className="text-amber-600" />,
           iconBg: 'bg-amber-50 text-amber-600 border border-amber-100',
           badge: brandForm.currency || 'MWK',
@@ -750,7 +750,7 @@ export default function Settings() {
         {
           id: 'storefront',
           title: 'WhatsApp Storefront & Online Catalog',
-          description: 'Online ordering, delivery fee, announcement banner, and catalog link',
+          description: 'Online store and ordering',
           icon: <ShoppingBag size={20} className="text-emerald-600" />,
           iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-100',
           badge: storefrontForm.storefrontEnabled ? 'Enabled' : 'Disabled',
@@ -760,7 +760,7 @@ export default function Settings() {
         {
           id: 'savings',
           title: 'Daily Savings Target & Reserves',
-          description: 'Realized net profit allocation, emergency reserve, and closing reminder timer',
+          description: 'Savings and reserve settings',
           icon: <PiggyBank size={20} className="text-teal-600" />,
           iconBg: 'bg-teal-50 text-teal-600 border border-teal-100',
           badge: savingsForm.dailySavingsEnabled ? `${savingsForm.dailySavingsPercentage}% Target` : 'Paused',
@@ -775,7 +775,7 @@ export default function Settings() {
         {
           id: 'notifications',
           title: 'Real-Time Push Notifications',
-          description: 'Push alerts, audio chimes, cashier sale alerts, and customer order triggers',
+          description: 'Sale and order alert settings',
           icon: <BellRing size={20} className="text-violet-600" />,
           iconBg: 'bg-violet-50 text-violet-600 border border-violet-100',
           visible: isAdmin || user?.role === 'MANAGER',
@@ -783,7 +783,7 @@ export default function Settings() {
         {
           id: 'users',
           title: 'Users & Staff Access',
-          description: 'Manage staff accounts, assign branches, issue warnings, and reset passwords',
+          description: 'Staff accounts and access control',
           icon: <Users size={20} className="text-sky-600" />,
           iconBg: 'bg-sky-50 text-sky-600 border border-sky-100',
           badge: `${users.length} staff`,
@@ -793,7 +793,7 @@ export default function Settings() {
         {
           id: 'security',
           title: 'Security & Auto-Lock',
-          description: 'Business operating hours and automatic idle timeout screen lock',
+          description: 'Operating hours and idle lock settings',
           icon: <Lock size={20} className="text-rose-600" />,
           iconBg: 'bg-rose-50 text-rose-600 border border-rose-100',
           badge: securityForm.autoLockEnabled ? 'Auto-Lock On' : 'Off',
@@ -808,7 +808,7 @@ export default function Settings() {
         {
           id: 'data',
           title: 'System Data & Backup',
-          description: 'Export JSON backups, restore data, clear AI cache, and selective reset',
+          description: 'Backup, restore, and data reset',
           icon: <Database size={20} className="text-slate-600" />,
           iconBg: 'bg-slate-100 text-slate-700 border border-slate-200',
           visible: isAdmin,
@@ -816,7 +816,7 @@ export default function Settings() {
         {
           id: 'audit',
           title: 'Audit Logs',
-          description: 'Chronological activity history of administrative actions and overrides',
+          description: 'System activity and audit trail',
           icon: <ShieldCheck size={20} className="text-cyan-700" />,
           iconBg: 'bg-cyan-50 text-cyan-700 border border-cyan-100',
           visible: isAdmin,
@@ -1920,7 +1920,7 @@ export default function Settings() {
                           <div className="font-bold text-gray-800 text-sm sm:text-base group-hover:text-primary transition flex items-center gap-2">
                             <span>{item.title}</span>
                           </div>
-                          <p className="text-xs text-gray-500 line-clamp-1 sm:line-clamp-none mt-0.5">
+                          <p className="text-xs text-gray-500 mt-0.5 leading-normal">
                             {item.description}
                           </p>
                         </div>
