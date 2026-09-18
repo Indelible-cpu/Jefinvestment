@@ -660,17 +660,15 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
-// Listen to Firebase Auth state changes: wipe storage completely when signed out
+// Listen to Firebase Auth state changes: sync token when online, but NEVER wipe offline sessions
 onAuthStateChanged(auth, (firebaseUser) => {
-  if (!firebaseUser) {
-    const state = useAuthStore.getState();
-    if (state.user && !state.user.id.startsWith('local-')) {
-      useAuthStore.setState({ user: null, token: null, isAuthenticated: false, users: [] });
-      try {
-        localStorage.removeItem('jef-auth-storage');
-      } catch (e) {
-        // ignore
-      }
-    }
+  if (firebaseUser) {
+    firebaseUser.getIdToken().then(token => {
+      useAuthStore.setState({ token });
+    }).catch(() => {});
   }
+  // Note: We deliberately do NOT wipe state when firebaseUser is null here,
+  // because on page reload or network loss, Firebase Auth starts null until network
+  // returns, which was wiping real cashier accounts and logging them out offline!
+  // Explicit logout is handled cleanly by the logout() action.
 });

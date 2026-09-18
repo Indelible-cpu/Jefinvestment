@@ -342,10 +342,10 @@ const playSound = (type: 'success' | 'error') => {
           dueDate: paymentMethod === 'CREDIT' ? (dueDate || '') : '',
           isCredit: paymentMethod === 'CREDIT',
         });
-        
+
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          toast.success('Sale completed & saved locally', { 
-            description: 'Offline mode active. MsikaFlo will auto-sync to cloud when online.' 
+          toast.success('Sale saved (Offline)', {
+            description: 'MsikaFlo will auto-sync to cloud when internet returns.'
           });
         } else {
           toast.success('Sale completed successfully');
@@ -364,12 +364,19 @@ const playSound = (type: 'success' | 'error') => {
           itemCount: cart.items.reduce((s, i) => s + i.quantity, 0),
         }).catch((e) => console.warn('Push notification dispatch notice:', e));
       } catch (err: any) {
-        if (err.message === 'OFFLINE_QUEUED') {
-          toast.warning('Offline', { description: 'Sale queued and will sync when online' });
+        // Sale was already written to offline backup in addSale — it will sync when online.
+        // Do NOT block the cashier; show the right message and continue clearing the cart.
+        if (!navigator.onLine || err.message === 'OFFLINE_QUEUED') {
+          toast.success('Sale saved (Offline)', {
+            description: 'No internet detected. Sale stored locally and will sync automatically.'
+          });
         } else {
-          toast.error('Sale failed', { description: err.message || 'Unknown error' });
-          return;
+          toast.error('Sale error', { description: err.message || 'Unknown error. Sale may have been saved locally.' });
         }
+        // NOTE: No early return here — always clear the cart below so cashier isn't stuck
+      } finally {
+        // ALWAYS reset the submit lock, regardless of success or error
+        setIsSubmitting(false);
       }
 
       cart.clearCart();
@@ -379,7 +386,6 @@ const playSound = (type: 'success' | 'error') => {
       setDueDate('');
       setAmountPaid('');
       setCreditInitialPayment('');
-      setIsSubmitting(false);
     }, 50);
   };
 

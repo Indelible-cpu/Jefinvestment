@@ -1,7 +1,5 @@
 import { create } from 'zustand';
 import { 
-  disableNetwork, 
-  enableNetwork, 
   waitForPendingWrites, 
   doc, 
   setDoc 
@@ -182,21 +180,18 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
     let syncedCount = 0;
 
     try {
-      // Step 2: Proactively wake up and reset Firestore network transport
-      // This immediately clears hung sockets or long exponential backoff
-      try {
-        await disableNetwork(db);
-        await enableNetwork(db);
-      } catch (err) {
-        console.warn('Network reconnect cycle notice:', err);
-      }
+      // Step 2: (Removed network cycling) — calling disableNetwork/enableNetwork
+      // was disrupting Firestore's offline persistent cache, aborting pending writes.
+      // Firestore handles reconnect automatically and safely on its own.
 
-      // Step 3: Flush durable emergency backup sales
+      // Step 3: Flush durable emergency backup sales from LocalStorage
+      // Using plain setDoc (no merge:true) so Firestore evaluates as a CREATE,
+      // not an UPDATE — cashiers have 'create' permission but not 'update'.
       const backupSales = getOfflineSalesBackup();
       for (const sale of backupSales) {
         try {
           const { backupAt, ...cleanData } = sale;
-          await setDoc(doc(db, 'sales', sale.id), cleanData, { merge: true });
+          await setDoc(doc(db, 'sales', sale.id), cleanData);
           removeSaleFromOfflineBackup(sale.id);
           syncedCount++;
         } catch (err) {

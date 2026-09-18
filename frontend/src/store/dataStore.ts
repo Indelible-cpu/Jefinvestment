@@ -283,14 +283,22 @@ export const useSaleStore = create<SaleState>()(
       const saleRef = doc(collection(db, 'sales'));
       const saleId = saleRef.id;
 
+      // Build explicit date + time strings so Dashboard and Sales page can find this sale
+      // immediately offline — they filter by `s.date === today` not `createdAt`
+      const now = new Date();
+      const saleDate = now.toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const saleTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // "HH:MM"
+
       const newSale: Record<string, any> = {
         ...cleanedSale,
         id: saleId,
         branchId,
-        createdAt: Date.now(),
-        status: 'completed'
+        date: saleDate,
+        time: saleTime,
+        createdAt: now.getTime(),
+        status: 'completed',
       };
-      
+
       if (cleanedSale.isCredit) {
         newSale.creditPaid = cleanedSale.amountPaid || 0;
       }
@@ -299,38 +307,63 @@ export const useSaleStore = create<SaleState>()(
       // Even if the browser tab is closed right away, this sale will NEVER be lost
       saveSaleToOfflineBackup(saleId, newSale);
 
-      // Step 2: Write sale document first via setDoc
+      // Step 2: Optimistically prepend the new sale to local state immediately
+      // This makes the sale visible on Dashboard and Sales page INSTANTLY offline
+      const optimisticRecord = {
+        ...newSale,
+        syncStatus: 'pending' as const,
+        branch: branchId,
+      };
+      set((state) => ({
+        sales: [optimisticRecord as any, ...state.sales.filter(s => s.id !== saleId)],
+      }));
+
+      // Step 3: Write sale document via setDoc to Firestore persistent cache
       // By separating the sale document write from inventory updates, we guarantee
       // that the financial record is 100% committed to persistent cache and will NEVER
       // be aborted by an inventory rule or missing product error!
       setDoc(saleRef, newSale)
         .then(() => {
           removeSaleFromOfflineBackup(saleId);
+          // Mark synced in local state
+          set((state) => ({
+            sales: state.sales.map((s) =>
+              s.id === saleId ? { ...s, syncStatus: 'synced' as const } : s
+            ),
+          }));
         })
         .catch(e => {
           console.warn('Offline sale write queued or deferred:', e);
         });
 
-      // Step 3: Decrement inventory in parallel with isolated error guards
+      // Step 4: Optimistically decrement product stock in memory immediately
+      // This makes the stock counter update on POS screen right away, offline or online
+      const { useProductStore } = await import('./cartStore');
       if (Array.isArray(sale.items)) {
         sale.items.forEach((item: any) => {
           if (!item.isService && !item.isOther && item.productId && !item.productId.startsWith('other_') && !item.productId.startsWith('stationery_')) {
+            // Optimistic in-memory decrement
+            useProductStore.getState().decrementStockOptimistic(item.productId, item.quantity);
+            // Durable Firestore decrement (also queued offline by persistent cache)
             const invRef = doc(db, 'products', item.productId);
             updateDoc(invRef, { stock: increment(-item.quantity) }).catch(e => {
               console.warn(`Stock decrement deferred for ${item.productId}:`, e);
             });
           } else if (item.materialsConsumed && Array.isArray(item.materialsConsumed)) {
             item.materialsConsumed.forEach((mat: any) => {
-              const invRef = doc(db, 'products', mat.inventoryItemId || mat.productId);
-              updateDoc(invRef, { stock: increment(-(mat.quantityPerUnit || mat.quantityUsed || 1) * item.quantity) }).catch(e => {
-                console.warn(`Material decrement deferred for ${mat.inventoryItemId || mat.productId}:`, e);
+              const matId = mat.inventoryItemId || mat.productId;
+              const matQty = (mat.quantityPerUnit || mat.quantityUsed || 1) * item.quantity;
+              useProductStore.getState().decrementStockOptimistic(matId, matQty);
+              const invRef = doc(db, 'products', matId);
+              updateDoc(invRef, { stock: increment(-matQty) }).catch(e => {
+                console.warn(`Material decrement deferred for ${matId}:`, e);
               });
             });
           }
         });
       }
 
-      // Step 4: If online, immediately kick off background auto-sync flush
+      // Step 5: If online, immediately kick off background auto-sync flush
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         useSyncQueueStore.getState().syncAll(false).catch(() => {});
       }

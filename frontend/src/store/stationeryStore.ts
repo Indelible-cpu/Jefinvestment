@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   collection,
   doc,
@@ -37,8 +38,10 @@ interface StationeryState {
   deleteStationeryService: (id: string) => Promise<void>;
 }
 
-export const useStationeryStore = create<StationeryState>()((set, get) => ({
-  services: [],
+export const useStationeryStore = create<StationeryState>()(
+  persist(
+    (set, get) => ({
+      services: [],
 
   loadStationeryServices: () => {
     const unsub = onSnapshot(collection(db, 'stationeryServices'), (snapshot) => {
@@ -99,4 +102,9 @@ export const useStationeryStore = create<StationeryState>()((set, get) => ({
   deleteStationeryService: async (id) => {
     deleteDoc(doc(db, 'stationeryServices', id)).catch(e => console.warn('Offline write deferred or failed:', e));
   },
-}));
+}),
+{
+  name: 'msikaflo-stationery-cache',
+  partialize: (state) => ({ services: state.services }),
+}
+));

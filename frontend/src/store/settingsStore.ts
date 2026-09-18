@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -42,6 +43,7 @@ export interface CompanySettings {
 }
 
 export const useSettingsStore = create<CompanySettings>()(
+  persist(
     (set) => ({
       companyName: 'MsikaFlo Limited',
       companyLogo: '',
@@ -90,5 +92,9 @@ export const useSettingsStore = create<CompanySettings>()(
         });
         registerListener(unsub);
       }
-    })
+    }),
+    {
+      name: 'msikaflo-settings-cache',
+    }
+  )
 );

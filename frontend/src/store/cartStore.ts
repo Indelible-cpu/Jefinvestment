@@ -43,12 +43,14 @@ interface ProductState {
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   decrementStock: (id: string, qty: number) => Promise<void>;
+  decrementStockOptimistic: (id: string, qty: number) => void;
 }
 
 export const useProductStore = create<ProductState>()(
-  (set, get) => ({
-    products: [],
-    isLoading: false,
+  persist(
+    (set, get) => ({
+      products: [],
+      isLoading: false,
 
     loadProducts: async () => {
       set({ isLoading: true });
@@ -163,13 +165,26 @@ export const useProductStore = create<ProductState>()(
       deleteDoc(doc(db, 'products', id)).catch(e => console.warn('Offline write deferred or failed:', e));
     },
 
+    decrementStockOptimistic: (id, qty) => {
+      set((state) => ({
+        products: state.products.map((p) =>
+          p.id === id ? { ...p, stock: Math.max(0, (p.stock || 0) - qty) } : p
+        )
+      }));
+    },
+
     decrementStock: async (id, qty) => {
+      get().decrementStockOptimistic(id, qty);
       updateDoc(doc(db, 'products', id), {
         stock: increment(-qty)
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
-  })
-);
+  }),
+  {
+    name: 'msikaflo-products-cache',
+    partialize: (state) => ({ products: state.products }),
+  }
+));
 
 // ─── Cart Store ───────────────────────────────────────────────────────────────
 // Cart keeps persist because we want the cart to survive page refreshes on the same device
