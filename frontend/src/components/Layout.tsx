@@ -322,7 +322,7 @@ export default function Layout() {
       }
     };
 
-    // Automated Serving notification: 10 minutes before closing, retrieves the
+    // Automated Serving notification: configurable minutes before closing, retrieves the
     // existing automated calculation as the single source of truth and notifies cashier
     const checkServingReminder = () => {
       const end = workTimeEnd || '20:00';
@@ -334,9 +334,10 @@ export default function Layout() {
       const endMinutes = endH * 60 + endM;
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-      // Check if within 10 minutes before closing
-      const is10MinsBeforeClose = nowMinutes >= (endMinutes - 10) && nowMinutes < endMinutes;
-      if (!is10MinsBeforeClose) return;
+      // Check if within configured minutes before closing (default: 10 min)
+      const reminderMinutes = useSettingsStore.getState().servingReminderMinutes ?? 10;
+      const isWithinReminderWindow = nowMinutes >= (endMinutes - reminderMinutes) && nowMinutes < endMinutes;
+      if (!isWithinReminderWindow) return;
 
       const storageKey = `msikaflo_serving_alert_${todayStr}`;
       if (localStorage.getItem(storageKey)) return;
@@ -364,7 +365,7 @@ export default function Layout() {
       const currentRole = useAuthStore.getState().user?.role;
       if (currentRole === 'CASHIER') {
         const servingTitle = `🔔 Daily Serving Due — ${companyName || 'JEF Investment'}`;
-        const servingBody = `Today's Serving Amount: ${currency || 'MWK'} ${servingAmount.toLocaleString()}\nClosing in 10 minutes. Please serve/remit this exact calculated amount.`;
+        const servingBody = `Today's Serving Amount: ${currency || 'MWK'} ${servingAmount.toLocaleString()}\nClosing in ${reminderMinutes} minute${reminderMinutes === 1 ? '' : 's'}. Please serve/remit this exact calculated amount.`;
 
         toast.info(servingTitle, {
           description: servingBody,

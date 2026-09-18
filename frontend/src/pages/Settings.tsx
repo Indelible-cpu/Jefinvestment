@@ -163,6 +163,7 @@ export default function Settings() {
     dailySavingsEnabled: settings.dailySavingsEnabled ?? true,
     dailySavingsPercentage: settings.dailySavingsPercentage ?? 10,
     dailySavingsPurpose: settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund',
+    servingReminderMinutes: settings.servingReminderMinutes ?? 10,
   });
 
   useEffect(() => {
@@ -170,8 +171,9 @@ export default function Settings() {
       dailySavingsEnabled: settings.dailySavingsEnabled ?? true,
       dailySavingsPercentage: settings.dailySavingsPercentage ?? 10,
       dailySavingsPurpose: settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund',
+      servingReminderMinutes: settings.servingReminderMinutes ?? 10,
     });
-  }, [settings.dailySavingsEnabled, settings.dailySavingsPercentage, settings.dailySavingsPurpose]);
+  }, [settings.dailySavingsEnabled, settings.dailySavingsPercentage, settings.dailySavingsPurpose, settings.servingReminderMinutes]);
 
   const handleSavingsSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1075,6 +1077,35 @@ export default function Settings() {
                   <p className="text-[11px] text-gray-400 mt-1">
                     Displayed on Executive Dashboard and Daily Financial Reports.
                   </p>
+                </div>
+              </div>
+
+              {/* Serving Reminder Timing */}
+              <div className="flex items-center justify-between p-4 rounded-xl border bg-gray-50/50 gap-4">
+                <div className="space-y-0.5 flex-1">
+                  <div className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <BellRing size={15} className="text-emerald-600" /> Serving Reminder — Minutes Before Closing
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    How many minutes before closing time to send the daily serving/remittance notification to the cashier.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    step="1"
+                    value={savingsForm.servingReminderMinutes}
+                    onChange={(e) =>
+                      setSavingsForm(f => ({
+                        ...f,
+                        servingReminderMinutes: Math.max(1, Math.min(60, parseInt(e.target.value) || 10)),
+                      }))
+                    }
+                    className="w-20 p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold text-center"
+                  />
+                  <span className="text-sm text-gray-500 font-medium">min</span>
                 </div>
               </div>
 

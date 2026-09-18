@@ -38,6 +38,7 @@ export interface CompanySettings {
   dailySavingsEnabled?: boolean;
   dailySavingsPercentage?: number;
   dailySavingsPurpose?: string;
+  servingReminderMinutes?: number;
   updateSettings: (settings: Partial<CompanySettings>) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
@@ -73,6 +74,7 @@ export const useSettingsStore = create<CompanySettings>()(
       dailySavingsEnabled: true,
       dailySavingsPercentage: 10,
       dailySavingsPurpose: 'Business Reserve & Emergency Fund',
+      servingReminderMinutes: 10,
       updateSettings: async (newSettings) => {
         set((state) => ({ ...state, ...newSettings }));
         try {
