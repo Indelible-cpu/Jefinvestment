@@ -247,6 +247,7 @@ export default function Settings() {
         storefrontMinOrder: Math.max(0, minOrder),
       });
       toast.success('WhatsApp Storefront settings saved!');
+      handleSelectSection(null);
     } catch (err: any) {
       toast.error('Failed to save storefront settings');
     }
@@ -284,6 +285,7 @@ export default function Settings() {
         servingReminderMinutes: Math.max(1, Math.min(60, reminderMins)),
       });
       toast.success('Daily Savings & Reserve settings saved!');
+      handleSelectSection(null);
     } catch (err: any) {
       toast.error('Failed to save savings settings');
     }
@@ -317,8 +319,13 @@ export default function Settings() {
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateProfile(profileForm.name, profileForm.profilePic);
-    showSuccess('Profile updated and synced to all devices!');
+    try {
+      await updateProfile(profileForm.name, profileForm.profilePic);
+      showSuccess('Profile updated and synced to all devices!');
+      handleSelectSection(null);
+    } catch (err: any) {
+      toast.error('Failed to save profile');
+    }
   };
 
   const handleSecuritySave = async (e: React.FormEvent) => {
@@ -330,9 +337,11 @@ export default function Settings() {
         idleLockMinutes: Math.max(1, Math.min(60, idleMins)),
       });
       showSuccess('Security settings saved!');
+      handleSelectSection(null);
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
         toast.warning('Offline', { description: 'Security settings saved locally and will sync when online.' });
+        handleSelectSection(null);
       } else {
         toast.error('Failed to save security settings');
       }
@@ -418,9 +427,11 @@ export default function Settings() {
         taxRate: taxRateVal,
       });
       showSuccess('Company branding & payment details saved!');
+      handleSelectSection(null);
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
         toast.warning('Offline', { description: 'Settings saved locally and will sync when online.' });
+        handleSelectSection(null);
       } else {
         toast.error('Failed to save settings', { description: err.message });
       }
