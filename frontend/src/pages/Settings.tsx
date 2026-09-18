@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useBranchStore } from '../store/branchStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette, ShoppingBag, ExternalLink, Copy, PiggyBank } from 'lucide-react';
+import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette, ShoppingBag, ExternalLink, Copy, PiggyBank, ChevronRight, ArrowLeft, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { storage, db } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -32,6 +32,40 @@ export default function Settings() {
   const { branches, loadBranches } = useBranchStore();
   const { theme, resolvedTheme, setTheme } = useThemeStore();
   const isAdmin = user?.role === 'ADMIN';
+
+  type SettingsSectionId =
+    | 'profile'
+    | 'branding'
+    | 'storefront'
+    | 'savings'
+    | 'notifications'
+    | 'users'
+    | 'security'
+    | 'theme'
+    | 'updates'
+    | 'data'
+    | 'audit';
+
+  const [activeSection, setActiveSection] = useState<SettingsSectionId | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sec = params.get('section') as SettingsSectionId | null;
+    const valid: SettingsSectionId[] = [
+      'profile', 'branding', 'storefront', 'savings', 'notifications', 'users', 'security', 'theme', 'updates', 'data', 'audit'
+    ];
+    return sec && valid.includes(sec) ? sec : null;
+  });
+
+  const handleSelectSection = (sectionId: SettingsSectionId | null) => {
+    setActiveSection(sectionId);
+    const url = new URL(window.location.href);
+    if (sectionId) {
+      url.searchParams.set('section', sectionId);
+    } else {
+      url.searchParams.delete('section');
+    }
+    window.history.replaceState({}, '', url.toString());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (isAdmin) {
@@ -639,21 +673,157 @@ export default function Settings() {
 
   const showSuccess = (msg: string) => toast.success(msg);
 
+  interface CategoryItem {
+    id: SettingsSectionId;
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    iconBg: string;
+    badge?: string;
+    badgeColor?: string;
+    visible: boolean;
+  }
+
+  interface CategoryGroup {
+    groupTitle: string;
+    items: CategoryItem[];
+  }
+
+  const categoryGroups: CategoryGroup[] = [
+    {
+      groupTitle: 'General & Account',
+      items: [
+        {
+          id: 'profile',
+          title: 'Personal Profile',
+          description: 'Update your display name, profile photo, and view account details',
+          icon: <User size={20} className="text-blue-600" />,
+          iconBg: 'bg-blue-50 text-blue-600 border border-blue-100',
+          badge: user?.role,
+          badgeColor: 'bg-blue-50 text-blue-700 border border-blue-200',
+          visible: true,
+        },
+        {
+          id: 'theme',
+          title: 'Appearance & Display Theme',
+          description: 'Switch between light mode, dark mode, or device system display mode',
+          icon: <Palette size={20} className="text-purple-600" />,
+          iconBg: 'bg-purple-50 text-purple-600 border border-purple-100',
+          badge: theme === 'system' ? `System (${resolvedTheme})` : theme,
+          badgeColor: 'bg-purple-50 text-purple-700 border border-purple-200 capitalize',
+          visible: true,
+        },
+        {
+          id: 'updates',
+          title: 'System Updates',
+          description: 'Check for new application versions, patches, and features',
+          icon: <RefreshCw size={20} className="text-indigo-600" />,
+          iconBg: 'bg-indigo-50 text-indigo-600 border border-indigo-100',
+          visible: true,
+        },
+      ],
+    },
+    {
+      groupTitle: 'Store & Business Operations',
+      items: [
+        {
+          id: 'branding',
+          title: 'Company Branding & Tax',
+          description: 'Company logo, currency, address, MoMo/Bank accounts, and VAT/tax rates',
+          icon: <Briefcase size={20} className="text-amber-600" />,
+          iconBg: 'bg-amber-50 text-amber-600 border border-amber-100',
+          badge: brandForm.currency || 'MWK',
+          badgeColor: 'bg-amber-50 text-amber-800 border border-amber-200 font-bold',
+          visible: isAdmin,
+        },
+        {
+          id: 'storefront',
+          title: 'WhatsApp Storefront & Online Catalog',
+          description: 'Online ordering, delivery fee, announcement banner, and catalog link',
+          icon: <ShoppingBag size={20} className="text-emerald-600" />,
+          iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+          badge: storefrontForm.storefrontEnabled ? 'Enabled' : 'Disabled',
+          badgeColor: storefrontForm.storefrontEnabled ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-gray-100 text-gray-600',
+          visible: isAdmin,
+        },
+        {
+          id: 'savings',
+          title: 'Daily Savings Target & Reserves',
+          description: 'Realized net profit allocation, emergency reserve, and closing reminder timer',
+          icon: <PiggyBank size={20} className="text-teal-600" />,
+          iconBg: 'bg-teal-50 text-teal-600 border border-teal-100',
+          badge: savingsForm.dailySavingsEnabled ? `${savingsForm.dailySavingsPercentage}% Target` : 'Paused',
+          badgeColor: savingsForm.dailySavingsEnabled ? 'bg-teal-50 text-teal-800 border border-teal-200 font-bold' : 'bg-gray-100 text-gray-600',
+          visible: isAdmin,
+        },
+      ],
+    },
+    {
+      groupTitle: 'Staff & Security',
+      items: [
+        {
+          id: 'notifications',
+          title: 'Real-Time Push Notifications',
+          description: 'Push alerts, audio chimes, cashier sale alerts, and customer order triggers',
+          icon: <BellRing size={20} className="text-violet-600" />,
+          iconBg: 'bg-violet-50 text-violet-600 border border-violet-100',
+          visible: isAdmin || user?.role === 'MANAGER',
+        },
+        {
+          id: 'users',
+          title: 'Users & Staff Access',
+          description: 'Manage staff accounts, assign branches, issue warnings, and reset passwords',
+          icon: <Users size={20} className="text-sky-600" />,
+          iconBg: 'bg-sky-50 text-sky-600 border border-sky-100',
+          badge: `${users.length} staff`,
+          badgeColor: 'bg-sky-50 text-sky-800 border border-sky-200',
+          visible: isAdmin,
+        },
+        {
+          id: 'security',
+          title: 'Security & Auto-Lock',
+          description: 'Business operating hours and automatic idle timeout screen lock',
+          icon: <Lock size={20} className="text-rose-600" />,
+          iconBg: 'bg-rose-50 text-rose-600 border border-rose-100',
+          badge: securityForm.autoLockEnabled ? 'Auto-Lock On' : 'Off',
+          badgeColor: securityForm.autoLockEnabled ? 'bg-rose-50 text-rose-800 border border-rose-200' : 'bg-gray-100 text-gray-600',
+          visible: isAdmin,
+        },
+      ],
+    },
+    {
+      groupTitle: 'Data Management & Auditing',
+      items: [
+        {
+          id: 'data',
+          title: 'System Data & Backup',
+          description: 'Export JSON backups, restore data, clear AI cache, and selective reset',
+          icon: <Database size={20} className="text-slate-600" />,
+          iconBg: 'bg-slate-100 text-slate-700 border border-slate-200',
+          visible: isAdmin,
+        },
+        {
+          id: 'audit',
+          title: 'Audit Logs',
+          description: 'Chronological activity history of administrative actions and overrides',
+          icon: <ShieldCheck size={20} className="text-cyan-700" />,
+          iconBg: 'bg-cyan-50 text-cyan-700 border border-cyan-100',
+          visible: isAdmin,
+        },
+      ],
+    },
+  ];
+
+  const currentCategory = categoryGroups
+    .flatMap((g) => g.items)
+    .find((item) => item.id === activeSection);
 
 
-  return (
-    <div className="p-1.5 sm:p-3 md:p-6 max-w-5xl mx-auto pb-24">
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
-          <SettingsIcon size={26} className="sm:w-8 sm:h-8" /> Settings
-        </h1>
-        <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">Manage your profile, users, and company configuration.</p>
-      </div>
-
-      <div className="space-y-4 sm:space-y-6">
-        {/* Row 1: Profile + Branding */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Personal Profile */}
+  // ─── Helpers for Section-level rendering ────────────────────────────────────
+  const renderSectionContent = () => {
+    switch (activeSection) {
+      case 'profile':
+        return (
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
               <User size={18} /> Personal Profile
@@ -692,9 +862,11 @@ export default function Settings() {
               <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Profile</button>
             </form>
           </div>
+        );
 
-          {/* Company Branding */}
-          {isAdmin ? (
+      case 'branding':
+        if (!isAdmin) return null;
+        return (
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
                 <Briefcase size={18} /> Company Branding & Tax
@@ -750,11 +922,11 @@ export default function Settings() {
                 </form>
               </div>
             </div>
-          ) : null}
-        </div>
+        );
 
-        {/* WhatsApp Storefront & E-Commerce Settings */}
-        {isAdmin && (
+      case 'storefront':
+        if (!isAdmin) return null;
+        return (
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 p-4 border-b font-bold text-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-2 text-emerald-800">
@@ -912,10 +1084,11 @@ export default function Settings() {
               </div>
             </form>
           </div>
-        )}
+        );
 
-        {/* Real-Time Push Notifications Section */}
-        {(isAdmin || user?.role === 'MANAGER') && (
+      case 'notifications':
+        if (!isAdmin && user?.role !== 'MANAGER') return null;
+        return (
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-4 border-b font-bold text-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-2 text-primary">
@@ -1075,10 +1248,11 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        )}
+        );
 
-        {/* Daily Savings & Reserve Fund Settings */}
-        {isAdmin && (
+      case 'savings':
+        if (!isAdmin) return null;
+        return (
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 p-4 border-b font-bold text-gray-800 flex items-center justify-between">
               <div className="flex items-center gap-2 text-emerald-800">
@@ -1214,9 +1388,10 @@ export default function Settings() {
               </div>
             </form>
           </div>
-        )}
+        );
 
-        {/* Appearance & Display Theme */}
+      case 'theme':
+        return (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1299,9 +1474,13 @@ export default function Settings() {
             </div>
           </div>
         </div>
+      );
 
-        {/* Password Change Requests (Admin only) */}
-        {isAdmin && passwordRequests && passwordRequests.filter(r => r.status === 'PENDING').length > 0 && (
+      case 'users':
+        if (!isAdmin) return null;
+        return (
+          <div className="space-y-6">
+            {passwordRequests && passwordRequests.filter(r => r.status === 'PENDING').length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-amber-200 overflow-hidden">
             <div className="bg-amber-50 p-4 border-b border-amber-200 flex justify-between items-center">
               <div className="font-bold text-amber-800 flex items-center gap-2">
@@ -1366,10 +1545,7 @@ export default function Settings() {
               </table>
             </div>
           </div>
-        )}
-
-        {/* Row 2: User Management (Admin only) */}
-        {isAdmin && (
+            )}
           <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
             <div className="bg-gray-50 p-4 border-b flex justify-between items-center">
               <div className="font-bold text-gray-700 flex items-center gap-2"><Users size={18} /> User Management</div>
@@ -1529,88 +1705,13 @@ export default function Settings() {
               </table>
             </div>
           </div>
-        )}
-
-        {/* Row 3: Data Management */}
-        {isAdmin && (
-          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-            <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
-              <RefreshCw size={18} /> System Data & Backup
-            </div>
-            <div className="p-6">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
-                <p className="text-sm text-blue-800 font-medium">
-                  This system automatically syncs with the secure cloud for maximum reliability, while keeping offline copies for blazing fast performance. However, downloading manual backups is still highly recommended for your own business records.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                    <Download className="text-blue-600" size={24} />
-                  </div>
-                  <h4 className="font-bold text-gray-700 mb-1">Export Backup</h4>
-                  <p className="text-xs text-gray-500 mb-4">Download a full JSON backup of all sales, inventory, and settings.</p>
-                  <button onClick={handleExportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-auto active:scale-95">Download JSON</button>
-                </div>
-
-                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
-                    <Upload className="text-green-600" size={24} />
-                  </div>
-                  <h4 className="font-bold text-gray-700 mb-1">Import Backup</h4>
-                  <p className="text-xs text-gray-500 mb-4">Restore a previously downloaded JSON backup file.</p>
-                  <label className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer text-center mt-auto block">
-                    Select File
-                    <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
-                  </label>
-                </div>
-
-                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center bg-purple-50/30">
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3">
-                    <Sparkles className="text-purple-600" size={24} />
-                  </div>
-                  <h4 className="font-bold text-gray-700 mb-1">Clear AI Cache</h4>
-                  <p className="text-xs text-gray-500 mb-4">Clear pre-computed AI image embeddings. Forces a full recompute on next page load.</p>
-                  <button onClick={async () => { await clearEmbeddingCache(); toast.success('AI Image Cache cleared!'); }} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 transition mt-auto">Clear AI Cache</button>
-                </div>
-
-                <div className="border border-red-100 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-red-50/30">
-                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
-                    <AlertTriangle className="text-red-600" size={24} />
-                  </div>
-                  <h4 className="font-bold text-red-700 mb-1">Data Reset</h4>
-                  <p className="text-xs text-gray-500 mb-4">Selectively wipe Sales, Expenses, Inventory, or Audit Logs. Irreversible.</p>
-                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition mt-auto active:scale-95">Reset Data...</button>
-                </div>
-              </div>
-            </div>
           </div>
-        )}
+        );
 
-        {/* System Updates — visible to ALL users */}
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
-          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
-            <RefreshCw size={18} /> System Updates
-          </div>
-          <div className="p-6 flex flex-col sm:flex-row items-center gap-4">
-            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
-              <RefreshCw className="text-blue-600" size={26} />
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <h4 className="font-bold text-gray-700 mb-1">Check for Updates</h4>
-              <p className="text-sm text-gray-500">Check for the latest software updates and new features. Your app will reload if a new version is available.</p>
-            </div>
-            <button onClick={() => checkForAppUpdates(true)} className="shrink-0 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition active:scale-95">
-              Check for Updates
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Security & Access Section */}
-      {isAdmin && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
+      case 'security':
+        if (!isAdmin) return null;
+        return (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
             <Lock size={18} /> Security & Access Control
           </div>
@@ -1679,11 +1780,194 @@ export default function Settings() {
             <button type="submit" className="w-full md:w-auto bg-primary text-white font-bold px-6 py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Security Settings</button>
           </form>
         </div>
-      )}
-      
-      {/* Audit Logs Section */}
-      {isAdmin && <AuditLogs />}
+        );
 
+      case 'data':
+        if (!isAdmin) return null;
+        return (
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+              <RefreshCw size={18} /> System Data & Backup
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+                <p className="text-sm text-blue-800 font-medium">
+                  This system automatically syncs with the secure cloud for maximum reliability, while keeping offline copies for blazing fast performance. However, downloading manual backups is still highly recommended for your own business records.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                    <Download className="text-blue-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-700 mb-1">Export Backup</h4>
+                  <p className="text-xs text-gray-500 mb-4">Download a full JSON backup of all sales, inventory, and settings.</p>
+                  <button onClick={handleExportData} className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition mt-auto active:scale-95">Download JSON</button>
+                </div>
+
+                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <Upload className="text-green-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-700 mb-1">Import Backup</h4>
+                  <p className="text-xs text-gray-500 mb-4">Restore a previously downloaded JSON backup file.</p>
+                  <label className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 transition cursor-pointer text-center mt-auto block">
+                    Select File
+                    <input type="file" accept=".json" className="hidden" onChange={handleImportData} />
+                  </label>
+                </div>
+
+                <div className="border rounded-xl p-4 flex flex-col items-center justify-center text-center bg-purple-50/30">
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-3">
+                    <Sparkles className="text-purple-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-gray-700 mb-1">Clear AI Cache</h4>
+                  <p className="text-xs text-gray-500 mb-4">Clear pre-computed AI image embeddings. Forces a full recompute on next page load.</p>
+                  <button onClick={async () => { await clearEmbeddingCache(); toast.success('AI Image Cache cleared!'); }} className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 transition mt-auto">Clear AI Cache</button>
+                </div>
+
+                <div className="border border-red-100 rounded-xl p-4 flex flex-col items-center justify-center text-center bg-red-50/30">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                    <AlertTriangle className="text-red-600" size={24} />
+                  </div>
+                  <h4 className="font-bold text-red-700 mb-1">Data Reset</h4>
+                  <p className="text-xs text-gray-500 mb-4">Selectively wipe Sales, Expenses, Inventory, or Audit Logs. Irreversible.</p>
+                  <button onClick={handleFactoryReset} className="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition mt-auto active:scale-95">Reset Data...</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'updates':
+        return (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
+            <RefreshCw size={18} /> System Updates
+          </div>
+          <div className="p-6 flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+              <RefreshCw className="text-blue-600" size={26} />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <h4 className="font-bold text-gray-700 mb-1">Check for Updates</h4>
+              <p className="text-sm text-gray-500">Check for the latest software updates and new features. Your app will reload if a new version is available.</p>
+            </div>
+            <button onClick={() => checkForAppUpdates(true)} className="shrink-0 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition active:scale-95">
+              Check for Updates
+            </button>
+          </div>
+        </div>
+        );
+
+      case 'audit':
+        if (!isAdmin) return null;
+        return <AuditLogs />;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="p-1.5 sm:p-3 md:p-6 max-w-5xl mx-auto pb-24">
+      {activeSection === null ? (
+        // ── Landing Page: Categories List (NOT cards) ───────────────────────
+        <div>
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
+              <SettingsIcon size={26} className="sm:w-8 sm:h-8" /> Settings
+            </h1>
+            <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
+              Manage your profile, system preferences, users, and business configurations.
+            </p>
+          </div>
+
+          <div className="space-y-5 sm:space-y-6">
+            {categoryGroups.map((group) => {
+              const visibleItems = group.items.filter((item) => item.visible);
+              if (visibleItems.length === 0) return null;
+
+              return (
+                <div key={group.groupTitle} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                  <div className="bg-gray-50/80 px-4 py-3 border-b text-xs font-bold uppercase tracking-wider text-gray-500">
+                    {group.groupTitle}
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {visibleItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleSelectSection(item.id)}
+                        className="w-full flex items-center gap-3 sm:gap-4 px-4 py-3.5 hover:bg-gray-50/80 active:bg-gray-100 transition text-left group cursor-pointer"
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.iconBg}`}>
+                          {item.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-gray-800 text-sm sm:text-base group-hover:text-primary transition flex items-center gap-2">
+                            <span>{item.title}</span>
+                          </div>
+                          <p className="text-xs text-gray-500 line-clamp-1 sm:line-clamp-none mt-0.5">
+                            {item.description}
+                          </p>
+                        </div>
+                        {item.badge && (
+                          <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold shrink-0 hidden sm:inline-block ${item.badgeColor || 'bg-gray-100 text-gray-700'}`}>
+                            {item.badge}
+                          </span>
+                        )}
+                        <ChevronRight size={18} className="text-gray-400 shrink-0 group-hover:text-primary group-hover:translate-x-0.5 transition" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        // ── Active Section Detail View with Back Header ──────────────────────
+        <div>
+          <div className="mb-4 sm:mb-6">
+            <button
+              type="button"
+              onClick={() => handleSelectSection(null)}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-primary transition active:scale-95 py-1.5 px-2.5 -ml-2 rounded-lg hover:bg-gray-100 cursor-pointer mb-2"
+            >
+              <ArrowLeft size={18} />
+              <span>Back to Settings</span>
+            </button>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${currentCategory?.iconBg || 'bg-blue-50 text-blue-600'}`}>
+                  {currentCategory?.icon || <SettingsIcon size={20} />}
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+                    {currentCategory?.title || 'Section Settings'}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                    {currentCategory?.description}
+                  </p>
+                </div>
+              </div>
+              {currentCategory?.badge && (
+                <span className={`text-xs px-3 py-1 rounded-full font-bold shrink-0 hidden sm:inline-block ${currentCategory.badgeColor || 'bg-gray-100 text-gray-700'}`}>
+                  {currentCategory.badge}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {renderSectionContent()}
+          </div>
+        </div>
+      )}
+
+      {/* Global Modals */}
       {/* Reset Password Modal */}
       {resetTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setResetTarget(null)}>
@@ -1928,6 +2212,7 @@ export default function Settings() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
