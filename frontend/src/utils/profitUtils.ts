@@ -66,8 +66,9 @@ export function calcDailyRealizedProfit(
   daySales.forEach(s => {
     const saleProfit = calcSaleProfit(s);
     const profitMargin = s.total > 0 ? Math.max(0, saleProfit / s.total) : 0;
+    const isCreditSale = s.paymentMethod === 'CREDIT' || !!s.isCredit;
 
-    if (s.paymentMethod === 'CREDIT') {
+    if (isCreditSale) {
       const initialPaid = Math.min(s.total, s.amountPaid || 0);
       creditInitialPayments += initialPaid;
       directRealizedGrossProfit += initialPaid * profitMargin;
@@ -90,7 +91,8 @@ export function calcDailyRealizedProfit(
   let repaymentsCount = 0;
 
   completedSales.forEach(s => {
-    if (s.paymentMethod === 'CREDIT' && Array.isArray((s as any).repayments)) {
+    const isCreditSale = s.paymentMethod === 'CREDIT' || !!s.isCredit;
+    if (isCreditSale && Array.isArray((s as any).repayments)) {
       const saleProfit = calcSaleProfit(s);
       const profitMargin = s.total > 0 ? Math.max(0, saleProfit / s.total) : 0;
 

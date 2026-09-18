@@ -90,7 +90,7 @@ export default function Dashboard() {
   let otherIncome = 0;
   
   todaysSales.forEach(sale => {
-    const isCredit = sale.paymentMethod === 'CREDIT';
+    const isCredit = sale.paymentMethod === 'CREDIT' || !!sale.isCredit;
     const collectedRatio = isCredit 
       ? (sale.total > 0 ? Math.min(1, (sale.amountPaid || 0) / sale.total) : 0)
       : 1;

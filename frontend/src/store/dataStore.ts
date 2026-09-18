@@ -201,7 +201,9 @@ export const useSaleStore = create<SaleState>()(
             taxType: s.taxType,
             total: Number(s.total),
             paymentMethod: s.paymentMethod || 'CASH',
-            amountPaid: Number(s.amountPaid) || Number(s.total),
+            amountPaid: (s.amountPaid !== undefined && s.amountPaid !== null) 
+              ? Number(s.amountPaid) 
+              : (s.paymentMethod === 'CREDIT' || s.isCredit ? 0 : Number(s.total)),
             customerName: s.customerName,
             customerPhone: s.customerPhone,
             customerId: s.customerId,
@@ -530,11 +532,11 @@ export const useSaleStore = create<SaleState>()(
     getTodayCashTotal: () => {
       const today = new Date().toISOString().slice(0, 10);
       const daySales = get().getTodaySales();
-      const directCash = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
-      const creditInitialCash = daySales.filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + (s.amountPaid || 0), 0);
+      const directCash = daySales.filter(s => s.paymentMethod === 'CASH' && !s.isCredit).reduce((sum, s) => sum + s.total, 0);
+      const creditInitialCash = daySales.filter(s => s.paymentMethod === 'CREDIT' || s.isCredit).reduce((sum, s) => sum + (s.amountPaid || 0), 0);
       let repaymentCash = 0;
       get().sales.forEach(s => {
-        if (s.paymentMethod === 'CREDIT' && Array.isArray((s as any).repayments)) {
+        if ((s.paymentMethod === 'CREDIT' || s.isCredit) && Array.isArray((s as any).repayments)) {
           (s as any).repayments.forEach((r: any) => {
             if (r.date && r.date.startsWith(today) && (r.method === 'CASH' || !r.method)) {
               repaymentCash += Number(r.amount) || 0;
@@ -547,18 +549,18 @@ export const useSaleStore = create<SaleState>()(
     getTodayCreditTotal: () => {
       // Uncollected credit debt issued today (Accounts Receivable created today)
       return get().getTodaySales()
-        .filter(s => s.paymentMethod === 'CREDIT')
+        .filter(s => s.paymentMethod === 'CREDIT' || s.isCredit)
         .reduce((sum, s) => sum + Math.max(0, s.total - (s.amountPaid || 0)), 0);
     },
     getTodayTransferTotal: () => {
       const today = new Date().toISOString().slice(0, 10);
       const daySales = get().getTodaySales();
       const directTransfers = daySales
-        .filter(s => s.paymentMethod !== 'CASH' && s.paymentMethod !== 'CREDIT')
+        .filter(s => s.paymentMethod !== 'CASH' && s.paymentMethod !== 'CREDIT' && !s.isCredit)
         .reduce((sum, s) => sum + s.total, 0);
       let repaymentTransfers = 0;
       get().sales.forEach(s => {
-        if (s.paymentMethod === 'CREDIT' && Array.isArray((s as any).repayments)) {
+        if ((s.paymentMethod === 'CREDIT' || s.isCredit) && Array.isArray((s as any).repayments)) {
           (s as any).repayments.forEach((r: any) => {
             if (r.date && r.date.startsWith(today) && r.method && r.method !== 'CASH') {
               repaymentTransfers += Number(r.amount) || 0;
@@ -573,13 +575,13 @@ export const useSaleStore = create<SaleState>()(
       const daySales = get().getTodaySales();
       // Cash basis total collections: direct non-credit + credit initial deposits + credit repayments collected today
       let total = daySales.reduce((sum, s) => {
-        if (s.paymentMethod === 'CREDIT') {
+        if (s.paymentMethod === 'CREDIT' || s.isCredit) {
           return sum + (s.amountPaid || 0);
         }
         return sum + s.total;
       }, 0);
       get().sales.forEach(s => {
-        if (s.paymentMethod === 'CREDIT' && Array.isArray((s as any).repayments)) {
+        if ((s.paymentMethod === 'CREDIT' || s.isCredit) && Array.isArray((s as any).repayments)) {
           (s as any).repayments.forEach((r: any) => {
             if (r.date && r.date.startsWith(today)) {
               total += Number(r.amount) || 0;

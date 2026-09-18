@@ -61,18 +61,18 @@ export default function Reports() {
     const daySales = completedSales.filter(s => s.date === reportDate);
     const dayExpenses = expenses.filter(e => e.date === reportDate);
 
-    // 1. Direct fully paid sales for the day
-    const directCashSales = daySales.filter(s => s.paymentMethod === 'CASH').reduce((sum, s) => sum + s.total, 0);
+    // 1. Direct fully paid sales for the day (strictly non-credit)
+    const directCashSales = daySales.filter(s => s.paymentMethod === 'CASH' && !s.isCredit).reduce((sum, s) => sum + s.total, 0);
     const directBankSales = daySales
-      .filter(s => ['BANK_NBS', 'BANK_NBM', 'BANK_TRANSFER'].includes(s.paymentMethod))
+      .filter(s => ['BANK_NBS', 'BANK_NBM', 'BANK_TRANSFER'].includes(s.paymentMethod) && !s.isCredit)
       .reduce((sum, s) => sum + s.total, 0);
     const directMomoSales = daySales
-      .filter(s => ['MOMO_AIRTEL', 'MOMO_MPAMBA', 'AIRTEL_MONEY', 'TNM_MPAMBA'].includes(s.paymentMethod))
+      .filter(s => ['MOMO_AIRTEL', 'MOMO_MPAMBA', 'AIRTEL_MONEY', 'TNM_MPAMBA'].includes(s.paymentMethod) && !s.isCredit)
       .reduce((sum, s) => sum + s.total, 0);
 
     // 2. Initial payments on CREDIT sales created today
     const creditInitialPayments = daySales
-      .filter(s => s.paymentMethod === 'CREDIT')
+      .filter(s => s.paymentMethod === 'CREDIT' || s.isCredit)
       .reduce((sum, s) => sum + (s.amountPaid || 0), 0);
 
     // 3. Repayments made today (on any credit sale from any date)
@@ -82,7 +82,7 @@ export default function Reports() {
     let creditRepaymentsTransactions: any[] = [];
     
     completedSales.forEach(s => {
-      if (s.paymentMethod === 'CREDIT' && (s as any).repayments) {
+      if ((s.paymentMethod === 'CREDIT' || s.isCredit) && (s as any).repayments) {
         (s as any).repayments.forEach((rep: any) => {
           if (rep.date.startsWith(reportDate)) {
              creditRepaymentsTransactions.push({ saleId: s.id, amount: rep.amount, method: rep.method, invoice: s.invoiceNumber, customer: s.customerName });
