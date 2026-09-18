@@ -102,6 +102,12 @@ export default function Settings() {
   };
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', profilePic: user?.profilePic || '' });
+  const [taxRateInput, setTaxRateInput] = useState<string | number>(settings.taxRate ?? 0);
+
+  useEffect(() => {
+    setTaxRateInput(settings.taxRate ?? 0);
+  }, [settings.taxRate]);
+
   const [brandForm, setBrandForm] = useState({ 
     companyName: settings.companyName,
     currency: settings.currency || 'MWK',
@@ -115,14 +121,61 @@ export default function Settings() {
     nbmDetails: settings.nbmDetails || ''
   });
 
-  const [securityForm, setSecurityForm] = useState({
+  useEffect(() => {
+    setBrandForm({
+      companyName: settings.companyName,
+      currency: settings.currency || 'MWK',
+      address: settings.address, 
+      phone: settings.phone, 
+      email: settings.email, 
+      taxNumber: settings.taxNumber,
+      airtelNumber: settings.airtelNumber || '',
+      mpambaNumber: settings.mpambaNumber || '',
+      nbsDetails: settings.nbsDetails || '',
+      nbmDetails: settings.nbmDetails || ''
+    });
+  }, [
+    settings.companyName,
+    settings.currency,
+    settings.address,
+    settings.phone,
+    settings.email,
+    settings.taxNumber,
+    settings.airtelNumber,
+    settings.mpambaNumber,
+    settings.nbsDetails,
+    settings.nbmDetails,
+  ]);
+
+  const [securityForm, setSecurityForm] = useState<{
+    autoLockEnabled: boolean;
+    workTimeStart: string;
+    workTimeEnd: string;
+    idleLockMinutes: number | string;
+  }>({
     autoLockEnabled: settings.autoLockEnabled || false,
     workTimeStart: settings.workTimeStart || '08:00',
     workTimeEnd: settings.workTimeEnd || '20:00',
     idleLockMinutes: settings.idleLockMinutes || 10
   });
 
-  const [storefrontForm, setStorefrontForm] = useState({
+  useEffect(() => {
+    setSecurityForm({
+      autoLockEnabled: settings.autoLockEnabled || false,
+      workTimeStart: settings.workTimeStart || '08:00',
+      workTimeEnd: settings.workTimeEnd || '20:00',
+      idleLockMinutes: settings.idleLockMinutes || 10
+    });
+  }, [settings.autoLockEnabled, settings.workTimeStart, settings.workTimeEnd, settings.idleLockMinutes]);
+
+  const [storefrontForm, setStorefrontForm] = useState<{
+    storefrontEnabled: boolean;
+    storefrontWhatsApp: string;
+    storefrontBanner: string;
+    storefrontDeliveryFee: number | string;
+    storefrontMinOrder: number | string;
+    storefrontAbout: string;
+  }>({
     storefrontEnabled: settings.storefrontEnabled ?? true,
     storefrontWhatsApp: settings.storefrontWhatsApp || settings.phone || '+265 999 123 456',
     storefrontBanner: settings.storefrontBanner || '',
@@ -152,14 +205,25 @@ export default function Settings() {
   const handleStorefrontSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateSettings(storefrontForm);
+      const deliveryFee = storefrontForm.storefrontDeliveryFee === '' ? 0 : (parseFloat(String(storefrontForm.storefrontDeliveryFee)) || 0);
+      const minOrder = storefrontForm.storefrontMinOrder === '' ? 0 : (parseFloat(String(storefrontForm.storefrontMinOrder)) || 0);
+      await updateSettings({
+        ...storefrontForm,
+        storefrontDeliveryFee: Math.max(0, deliveryFee),
+        storefrontMinOrder: Math.max(0, minOrder),
+      });
       toast.success('WhatsApp Storefront settings saved!');
     } catch (err: any) {
       toast.error('Failed to save storefront settings');
     }
   };
 
-  const [savingsForm, setSavingsForm] = useState({
+  const [savingsForm, setSavingsForm] = useState<{
+    dailySavingsEnabled: boolean;
+    dailySavingsPercentage: number | string;
+    dailySavingsPurpose: string;
+    servingReminderMinutes: number | string;
+  }>({
     dailySavingsEnabled: settings.dailySavingsEnabled ?? true,
     dailySavingsPercentage: settings.dailySavingsPercentage ?? 10,
     dailySavingsPurpose: settings.dailySavingsPurpose || 'Business Reserve & Emergency Fund',
@@ -178,7 +242,13 @@ export default function Settings() {
   const handleSavingsSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateSettings(savingsForm);
+      const pct = savingsForm.dailySavingsPercentage === '' ? 10 : (parseFloat(String(savingsForm.dailySavingsPercentage)) || 0);
+      const reminderMins = savingsForm.servingReminderMinutes === '' ? 10 : (parseInt(String(savingsForm.servingReminderMinutes), 10) || 10);
+      await updateSettings({
+        ...savingsForm,
+        dailySavingsPercentage: Math.max(1, Math.min(100, pct)),
+        servingReminderMinutes: Math.max(1, Math.min(60, reminderMins)),
+      });
       toast.success('Daily Savings & Reserve settings saved!');
     } catch (err: any) {
       toast.error('Failed to save savings settings');
@@ -220,7 +290,11 @@ export default function Settings() {
   const handleSecuritySave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateSettings(securityForm);
+      const idleMins = securityForm.idleLockMinutes === '' ? 10 : (parseInt(String(securityForm.idleLockMinutes), 10) || 10);
+      await updateSettings({
+        ...securityForm,
+        idleLockMinutes: Math.max(1, Math.min(60, idleMins)),
+      });
       showSuccess('Security settings saved!');
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
@@ -304,7 +378,11 @@ export default function Settings() {
   const handleBrandSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateSettings(brandForm);
+      const taxRateVal = taxRateInput === '' ? 0 : (parseFloat(String(taxRateInput)) || 0);
+      await updateSettings({
+        ...brandForm,
+        taxRate: taxRateVal,
+      });
       showSuccess('Company branding & payment details saved!');
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
@@ -664,7 +742,7 @@ export default function Settings() {
                     <h4 className="font-bold text-sm text-gray-700 mb-3">Tax Settings</h4>
                     <div className="grid grid-cols-3 gap-3">
                       <div><label className="block text-xs font-semibold text-gray-700 mb-1">Tax Name</label><input type="text" value={settings.taxName} onChange={e => updateSettings({ taxName: e.target.value })} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
-                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Rate (%)</label><input type="number" step="0.1" value={settings.taxRate} onChange={e => updateSettings({ taxRate: parseFloat(e.target.value) || 0 })} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Rate (%)</label><input type="number" step="0.1" value={taxRateInput} onChange={e => setTaxRateInput(e.target.value)} onBlur={() => { const val = taxRateInput === '' ? 0 : (parseFloat(String(taxRateInput)) || 0); setTaxRateInput(val); updateSettings({ taxRate: val }); }} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="0" /></div>
                       <div><label className="block text-xs font-semibold text-gray-700 mb-1">Type</label><select value={settings.taxType} onChange={e => updateSettings({ taxType: e.target.value as 'INCLUSIVE' | 'EXCLUSIVE' })} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white"><option value="EXCLUSIVE">Exclusive</option><option value="INCLUSIVE">Inclusive</option></select></div>
                     </div>
                   </div>
@@ -769,20 +847,20 @@ export default function Settings() {
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     Standard Delivery Fee ({settings.currency || 'MWK'})
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="50"
-                    value={storefrontForm.storefrontDeliveryFee}
-                    onChange={(e) =>
-                      setStorefrontForm((f) => ({
-                        ...f,
-                        storefrontDeliveryFee: parseFloat(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm font-semibold"
-                    placeholder="e.g. 2500"
-                  />
+                    <input
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={storefrontForm.storefrontDeliveryFee}
+                      onChange={(e) =>
+                        setStorefrontForm((f) => ({
+                          ...f,
+                          storefrontDeliveryFee: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
+                        }))
+                      }
+                      className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm font-semibold"
+                      placeholder="e.g. 2500"
+                    />
                   <p className="text-[11px] text-gray-400 mt-1">
                     Added to order when customer selects home/office delivery. Set 0 for free delivery.
                   </p>
@@ -1043,12 +1121,13 @@ export default function Settings() {
                       max="100"
                       step="1"
                       value={savingsForm.dailySavingsPercentage}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value;
                         setSavingsForm(f => ({
                           ...f,
-                          dailySavingsPercentage: Math.max(1, Math.min(100, parseFloat(e.target.value) || 0)),
-                        }))
-                      }
+                          dailySavingsPercentage: val === '' ? '' : (parseFloat(val) || 0),
+                        }));
+                      }}
                       className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold"
                       placeholder="e.g. 10"
                       required
@@ -1097,13 +1176,15 @@ export default function Settings() {
                     max="60"
                     step="1"
                     value={savingsForm.servingReminderMinutes}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = e.target.value;
                       setSavingsForm(f => ({
                         ...f,
-                        servingReminderMinutes: Math.max(1, Math.min(60, parseInt(e.target.value) || 10)),
-                      }))
-                    }
+                        servingReminderMinutes: val === '' ? '' : (parseInt(val, 10) || 0),
+                      }));
+                    }}
                     className="w-20 p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-bold text-center"
+                    placeholder="10"
                   />
                   <span className="text-sm text-gray-500 font-medium">min</span>
                 </div>
@@ -1575,7 +1656,21 @@ export default function Settings() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Admin Idle Lock (mins)</label>
-                  <input type="number" min="1" max="60" value={securityForm.idleLockMinutes} onChange={e => setSecurityForm(f => ({ ...f, idleLockMinutes: parseInt(e.target.value) || 10 }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" />
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={securityForm.idleLockMinutes}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSecurityForm(f => ({
+                        ...f,
+                        idleLockMinutes: val === '' ? '' : (parseInt(val, 10) || 0),
+                      }));
+                    }}
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                    placeholder="10"
+                  />
                 </div>
               </div>
             )}
