@@ -108,6 +108,13 @@ service cloud.firestore {
       allow read, update, delete: if isAuthenticated(); // Staff only
     }
 
+    // Storefront Traffic & Visitor Analytics
+    match /storefrontAnalytics/{docId} {
+      allow read: if isAuthenticated(); // Staff and admin can view analytics
+      allow create, update: if true; // Public visitors can record visits
+      allow delete: if isAdmin();
+    }
+
     // Fallback: Deny everything else
     match /{document=**} {
       allow read, write: if false;

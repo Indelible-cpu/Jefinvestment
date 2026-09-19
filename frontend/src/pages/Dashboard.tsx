@@ -1,5 +1,7 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, PiggyBank, ChevronRight } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, PiggyBank, ChevronRight, Store } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useSaleStore, useCreditStore, useEmployeeStore, useExpenseStore } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -76,8 +78,32 @@ export default function Dashboard() {
   const { user } = useAuthStore();
   const [showCustomize, setShowCustomize] = useState(false);
   const [tempActions, setTempActions] = useState<string[]>(settings.quickActions);
+  const [storefrontTodayVisitors, setStorefrontTodayVisitors] = useState<number | null>(null);
 
   const firstName = user?.name?.split(' ').at(-1) || 'there';
+
+  // Live storefront visitor count for today
+  useEffect(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayKey = `${y}-${m}-${d}`;
+
+    const unsub = onSnapshot(
+      doc(db, 'storefrontAnalytics', todayKey),
+      (snap) => {
+        if (snap.exists()) {
+          setStorefrontTodayVisitors(snap.data()?.uniqueVisitors || 0);
+        } else {
+          setStorefrontTodayVisitors(0);
+        }
+      },
+      () => setStorefrontTodayVisitors(0)
+    );
+
+    return () => unsub();
+  }, []);
 
   const todayTotal = getTodayTotal();
   const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
@@ -276,6 +302,14 @@ export default function Dashboard() {
           </div>
           <div className="text-[10px] text-gray-500 text-center leading-tight">System<br/>Users</div>
         </div>
+
+        <Link to="/orders" className="flex flex-col items-center flex-1 hover:opacity-80 transition cursor-pointer" title="View live storefront visitor traffic & analytics">
+          <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg mb-1"><Store size={18} /></div>
+          <div className="font-bold text-lg leading-tight text-indigo-950">
+            {storefrontTodayVisitors !== null ? storefrontTodayVisitors.toLocaleString() : '0'}
+          </div>
+          <div className="text-[10px] text-indigo-600 font-semibold text-center leading-tight">Storefront<br/>Visitors</div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

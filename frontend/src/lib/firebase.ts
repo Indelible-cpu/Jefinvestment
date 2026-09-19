@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
+import { getAnalytics, isSupported as isAnalyticsSupported, logEvent, type Analytics } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDQx0Jq6BglTBel-IqXAA_lo8BWNMA3IjQ',
@@ -55,5 +56,44 @@ async function getFirebaseMessaging(): Promise<Messaging | null> {
   return null;
 }
 
-export { app, auth, db, storage, secondaryApp, secondaryAuth, getFirebaseMessaging };
+// Safely initialize Firebase Analytics (Google Analytics)
+let analyticsInstance: Analytics | null = null;
+async function getFirebaseAnalytics(): Promise<Analytics | null> {
+  if (typeof window === 'undefined') return null;
+  if (analyticsInstance) return analyticsInstance;
+  try {
+    const supported = await isAnalyticsSupported();
+    if (supported && firebaseConfig.measurementId) {
+      analyticsInstance = getAnalytics(app);
+      return analyticsInstance;
+    }
+  } catch (e) {
+    console.warn('Firebase Analytics is not supported in this environment:', e);
+  }
+  return null;
+}
+
+// Helper to log analytics events safely
+async function trackAnalyticsEvent(eventName: string, eventParams?: Record<string, any>) {
+  try {
+    const analytics = await getFirebaseAnalytics();
+    if (analytics) {
+      logEvent(analytics, eventName, eventParams);
+    }
+  } catch (e) {
+    // Non-blocking fail-safe
+  }
+}
+
+export {
+  app,
+  auth,
+  db,
+  storage,
+  secondaryApp,
+  secondaryAuth,
+  getFirebaseMessaging,
+  getFirebaseAnalytics,
+  trackAnalyticsEvent,
+};
 

@@ -27,6 +27,7 @@ import {
   Receipt,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import StorefrontAnalyticsWidget from '../components/StorefrontAnalyticsWidget';
 
 export interface OnlineOrder {
   id: string;
@@ -291,13 +292,16 @@ export default function OnlineOrders() {
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => window.open('/store', '_blank')}
-            className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition flex items-center gap-1.5 cursor-pointer"
           >
             <ExternalLink size={14} />
             <span>View Public Store</span>
           </button>
         </div>
       </div>
+
+      {/* Live Storefront Visitor Analytics & Growth */}
+      <StorefrontAnalyticsWidget />
 
       {/* Stats / Status Chips */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

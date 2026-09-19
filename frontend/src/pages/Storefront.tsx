@@ -28,6 +28,11 @@ import { useStationeryStore } from '../store/stationeryStore';
 import type { Product } from '../store/cartStore';
 import { toast } from 'sonner';
 import { dispatchSalePushNotification } from '../utils/pushNotifications';
+import {
+  trackStorefrontVisit,
+  trackCartAdd,
+  trackPurchaseInitiated,
+} from '../services/storefrontAnalytics';
 
 export default function Storefront() {
   const settings = useSettingsStore();
@@ -62,10 +67,11 @@ export default function Storefront() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<{ id: string; total: number } | null>(null);
 
-  // Load settings and stationery services on mount
+  // Load settings and stationery services on mount, and record visitor analytics
   useEffect(() => {
     settings.loadSettings();
     loadStationeryServices();
+    trackStorefrontVisit();
   }, []);
 
   // Fetch products in real time directly from Firestore
@@ -317,6 +323,13 @@ export default function Storefront() {
         currency,
         itemCount: cartItems.reduce((s, i) => s + i.quantity, 0),
       }).catch((e) => console.warn('Online order push notification dispatch notice:', e));
+
+      // Record analytics for purchase initiated
+      trackPurchaseInitiated({
+        orderId: orderRefId,
+        total: grandTotal,
+        itemCount: cartItems.reduce((s, i) => s + i.quantity, 0),
+      });
 
       // 4. Clear cart and set completed state
       clearCart();
@@ -688,6 +701,7 @@ export default function Storefront() {
                           onClick={() => {
                             if (!inStock) return;
                             addItem(product, 1);
+                            trackCartAdd(product);
                             toast.success(`Added ${product.name} to cart`);
                           }}
                           disabled={!inStock}
@@ -796,6 +810,7 @@ export default function Storefront() {
                 <button
                   onClick={() => {
                     addItem(selectedProduct, 1);
+                    trackCartAdd(selectedProduct);
                     setSelectedProduct(null);
                     setIsCartOpen(true);
                   }}
