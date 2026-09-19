@@ -94,6 +94,7 @@ export default function StorefrontAnalyticsWidget() {
     uniqueVisitors: 0,
     cartAdds: 0,
     purchasesInitiated: 0,
+    revenuePotential: 0,
   };
 
   const yesterdayStats = dailyData[yesterdayStr] || {
@@ -101,6 +102,7 @@ export default function StorefrontAnalyticsWidget() {
     uniqueVisitors: 0,
     cartAdds: 0,
     purchasesInitiated: 0,
+    revenuePotential: 0,
   };
 
   // Growth calculation vs yesterday
@@ -194,7 +196,7 @@ export default function StorefrontAnalyticsWidget() {
               </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-black text-blue-950">
-                  {isLoading ? '...' : todayStats.uniqueVisitors.toLocaleString()}
+                  {isLoading ? '...' : (todayStats.uniqueVisitors || 0).toLocaleString()}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 text-[11px] font-semibold">
                   {visitorGrowth >= 0 ? (
@@ -220,7 +222,7 @@ export default function StorefrontAnalyticsWidget() {
               </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-black text-indigo-950">
-                  {isLoading ? '...' : todayStats.pageViews.toLocaleString()}
+                  {isLoading ? '...' : (todayStats.pageViews || 0).toLocaleString()}
                 </div>
                 <div className="text-[11px] text-indigo-700 font-medium mt-1">
                   Product catalog views today
@@ -236,7 +238,7 @@ export default function StorefrontAnalyticsWidget() {
               </div>
               <div className="mt-3">
                 <div className="text-2xl sm:text-3xl font-black text-emerald-950">
-                  {isLoading ? '...' : todayStats.purchasesInitiated.toLocaleString()}
+                  {isLoading ? '...' : (todayStats.purchasesInitiated || 0).toLocaleString()}
                 </div>
                 <div className="text-[11px] text-emerald-700 font-medium mt-1">
                   Tapped &quot;Buy via WhatsApp&quot;
@@ -329,19 +331,19 @@ export default function StorefrontAnalyticsWidget() {
                   <div className="flex items-center justify-between text-xs py-1 border-b border-slate-200">
                     <span className="text-slate-600">Total Unique Visitors:</span>
                     <span className="font-black text-slate-900">
-                      {(overview?.totalUniqueVisitors || todayStats.uniqueVisitors).toLocaleString()}
+                      {(overview?.totalUniqueVisitors || todayStats.uniqueVisitors || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs py-1 border-b border-slate-200">
                     <span className="text-slate-600">Total Catalog Views:</span>
                     <span className="font-black text-slate-900">
-                      {(overview?.totalPageViews || todayStats.pageViews).toLocaleString()}
+                      {(overview?.totalPageViews || todayStats.pageViews || 0).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs py-1">
                     <span className="text-slate-600">Total WhatsApp Buys:</span>
                     <span className="font-black text-emerald-700">
-                      {(overview?.totalPurchasesInitiated || todayStats.purchasesInitiated).toLocaleString()}
+                      {(overview?.totalPurchasesInitiated || todayStats.purchasesInitiated || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
