@@ -46,6 +46,8 @@ jobs:
       - name: Deploy Hosting
         run: firebase deploy --only hosting --project jefinvestment-e1fc1
 
-      # Deploy Firestore security rules (separate step so a rules error doesn't block hosting)
+      # Deploy Firestore security rules (non-blocking — if service account lacks
+      # Cloud Datastore Owner role, rules can be published manually via Firebase Console)
       - name: Deploy Firestore Rules
+        continue-on-error: true
         run: firebase deploy --only firestore:rules --project jefinvestment-e1fc1
