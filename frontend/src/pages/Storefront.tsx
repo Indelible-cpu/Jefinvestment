@@ -211,7 +211,7 @@ export default function Storefront() {
     }
 
     if (!agreedToTerms) {
-      toast.error('Please accept the order reservation terms to proceed');
+      toast.error('Please accept the purchase terms to proceed');
       return;
     }
 
@@ -334,7 +334,7 @@ export default function Storefront() {
       setCompletedOrder({ id: orderRefId, total: grandTotal });
 
       openWhatsAppDirectly(whatsappUrl);
-      toast.info('Connecting you to WhatsApp to confirm your order reservation directly...');
+      toast.info('Connecting you to WhatsApp to confirm your purchase directly...');
     } finally {
       setOrderSubmitting(false);
     }
@@ -430,11 +430,11 @@ export default function Storefront() {
             <Store size={14} /> Official Customer Storefront
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Browse Quality Products & Order via WhatsApp
+            Browse Quality Products & Buy via WhatsApp
           </h1>
           <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
             {settings.storefrontAbout ||
-              'Instant stock availability, transparent prices, and fast order processing directly to our sales team.'}
+              'Instant stock availability, transparent prices, and fast purchase processing directly to our sales team.'}
           </p>
 
           {/* Search Bar */}
@@ -557,7 +557,7 @@ export default function Storefront() {
                 className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition flex items-center gap-1.5"
               >
                 <MessageCircle size={14} />
-                <span>Order on WhatsApp</span>
+                <span>Buy on WhatsApp</span>
               </a>
             </div>
           </div>
@@ -1030,7 +1030,7 @@ export default function Storefront() {
 
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Order Instructions / Notes (Optional)
+                          Purchase Notes (Optional)
                         </label>
                         <input
                           type="text"
@@ -1046,7 +1046,7 @@ export default function Storefront() {
                         <div className="flex items-start gap-2">
                           <ShieldCheck size={16} className="text-amber-700 shrink-0 mt-0.5" />
                           <p className="leading-snug">
-                            <strong>Legal & Order Notice:</strong> Submitting creates an order reservation request on WhatsApp. Orders are finalized once stock and payment details are verified with our sales desk.
+                            <strong>Legal Notice:</strong> Submitting creates a purchase reservation request on WhatsApp. Orders are finalized once stock and payment details are verified with our sales desk.
                           </p>
                         </div>
                         <label className="flex items-start gap-2 cursor-pointer pt-1 border-t border-amber-200/80">
@@ -1066,7 +1066,7 @@ export default function Storefront() {
                             <Link to="/privacy" target="_blank" className="underline font-bold hover:text-blue-700">
                               Privacy Policy
                             </Link>
-                            , and agree to be contacted via WhatsApp regarding this order.
+                            , and agree to be contacted via WhatsApp regarding this purchase.
                           </span>
                         </label>
                       </div>
@@ -1103,7 +1103,7 @@ export default function Storefront() {
                   >
                     <MessageCircle size={18} />
                     <span>
-                      {orderSubmitting ? 'Opening WhatsApp...' : `Place Order via WhatsApp`}
+                      {orderSubmitting ? 'Opening WhatsApp...' : `Buy via WhatsApp`}
                     </span>
                   </button>
 
@@ -1124,9 +1124,9 @@ export default function Storefront() {
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle2 size={36} />
             </div>
-            <h3 className="text-xl font-black text-slate-900">Order Request Created!</h3>
+            <h3 className="text-xl font-black text-slate-900">Purchase Confirmed!</h3>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Your order reference is <strong className="text-slate-900 font-mono">#{completedOrder.id}</strong>.
+              Your purchase reference is <strong className="text-slate-900 font-mono">#{completedOrder.id}</strong>.
               WhatsApp has been launched with your itemized breakdown. Please press &quot;Send&quot; in WhatsApp to reach our sales team.
             </p>
 
