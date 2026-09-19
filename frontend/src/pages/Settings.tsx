@@ -909,16 +909,48 @@ export default function Settings() {
                     <div><label className="block text-sm font-semibold text-gray-700 mb-1">TPIN</label><input type="text" value={brandForm.taxNumber} onChange={e => setBrandForm(f => ({ ...f, taxNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
                   </div>
                   <div><label className="block text-sm font-semibold text-gray-700 mb-1">Email</label><input type="email" value={brandForm.email} onChange={e => setBrandForm(f => ({ ...f, email: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
-                  <div><label className="block text-sm font-semibold text-gray-700 mb-1">Address</label><input type="text" value={brandForm.address} onChange={e => setBrandForm(f => ({ ...f, address: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" /></div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Business Physical Address &amp; Location
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={brandForm.address}
+                      onChange={e => setBrandForm(f => ({ ...f, address: e.target.value }))}
+                      className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-primary outline-none text-sm resize-y min-h-[75px]"
+                      placeholder="e.g. Plot 12, Victoria Avenue, Behind Total Filling Station, P.O. Box 123, Blantyre, Malawi"
+                    />
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Printed on customer receipts, invoices, and shown on storefront contact chips.
+                    </p>
+                  </div>
                   <div className="pt-3 border-t">
                     <h4 className="font-bold text-sm text-gray-700 mb-3">Payment Details (MoMo & Bank)</h4>
                     <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Airtel Money Number</label><input type="text" value={brandForm.airtelNumber} onChange={e => setBrandForm(f => ({ ...f, airtelNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. 0999000000" /></div>
-                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">TNM Mpamba Number</label><input type="text" value={brandForm.mpambaNumber} onChange={e => setBrandForm(f => ({ ...f, mpambaNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. 0888000000" /></div>
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">Airtel Money Number</label><input type="text" value={brandForm.airtelNumber} onChange={e => setBrandForm(f => ({ ...f, airtelNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none font-mono" placeholder="e.g. 0999000000" /></div>
+                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">TNM Mpamba Number</label><input type="text" value={brandForm.mpambaNumber} onChange={e => setBrandForm(f => ({ ...f, mpambaNumber: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none font-mono" placeholder="e.g. 0888000000" /></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">NBS Bank Account</label><input type="text" value={brandForm.nbsDetails} onChange={e => setBrandForm(f => ({ ...f, nbsDetails: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Acc: 1234567" /></div>
-                      <div><label className="block text-xs font-semibold text-gray-700 mb-1">National Bank (NBM)</label><input type="text" value={brandForm.nbmDetails} onChange={e => setBrandForm(f => ({ ...f, nbmDetails: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none" placeholder="e.g. Acc: 9876543" /></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">NBS Bank Account Details</label>
+                        <textarea
+                          rows={2}
+                          value={brandForm.nbsDetails}
+                          onChange={e => setBrandForm(f => ({ ...f, nbsDetails: e.target.value }))}
+                          className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm resize-y min-h-[60px]"
+                          placeholder="e.g. NBS Bank - Acc: 1450001234567 - Blantyre Branch"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">National Bank (NBM) Details</label>
+                        <textarea
+                          rows={2}
+                          value={brandForm.nbmDetails}
+                          onChange={e => setBrandForm(f => ({ ...f, nbmDetails: e.target.value }))}
+                          className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm resize-y min-h-[60px]"
+                          placeholder="e.g. National Bank - Acc: 1005678901 - Custom Branch"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="pt-3 border-t">
@@ -983,8 +1015,8 @@ export default function Settings() {
                 </button>
               </div>
 
-              {/* Status Toggle & WhatsApp Number */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Status, WhatsApp & Delivery Fee */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     Storefront Status
@@ -1000,7 +1032,7 @@ export default function Settings() {
                     <option value="false">🔴 Disabled (Under Maintenance)</option>
                   </select>
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Toggle whether customers can browse products and checkout on WhatsApp.
+                    Toggle customer browsing &amp; WhatsApp checkout.
                   </p>
                 </div>
 
@@ -1019,69 +1051,80 @@ export default function Settings() {
                     required
                   />
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Include country code (+265). Customer orders will open WhatsApp to this number.
+                    Include country code (+265).
                   </p>
                 </div>
-              </div>
 
-              {/* Delivery Fee & Tagline */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     Standard Delivery Fee ({settings.currency || 'MWK'})
                   </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="50"
-                      value={storefrontForm.storefrontDeliveryFee}
-                      onChange={(e) =>
-                        setStorefrontForm((f) => ({
-                          ...f,
-                          storefrontDeliveryFee: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
-                        }))
-                      }
-                      className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm font-semibold"
-                      placeholder="e.g. 2500"
-                    />
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    Added to purchase when customer selects home/office delivery. Set 0 for free delivery.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
-                    Top Announcement / Promo Banner
-                  </label>
                   <input
-                    type="text"
-                    value={storefrontForm.storefrontBanner}
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={storefrontForm.storefrontDeliveryFee}
                     onChange={(e) =>
-                      setStorefrontForm((f) => ({ ...f, storefrontBanner: e.target.value }))
+                      setStorefrontForm((f) => ({
+                        ...f,
+                        storefrontDeliveryFee: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0),
+                      }))
                     }
-                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
-                    placeholder="e.g. 🛍️ Free Delivery on Stationery Purchases above MWK 50,000 this week!"
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm font-semibold"
+                    placeholder="e.g. 2500"
                   />
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Optional banner shown at the very top of your storefront.
+                    Added when delivery is selected (0 = free).
                   </p>
                 </div>
               </div>
 
-              {/* Tagline / About */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Store Tagline / About Description
-                </label>
+              {/* Top Announcement / Promo Banner — Spacious Multi-line Window */}
+              <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                    <span>📢 Frontstore Welcome &amp; Top Promo Banner</span>
+                  </label>
+                  <span className="text-[11px] text-gray-400 font-mono">
+                    {storefrontForm.storefrontBanner.length} chars
+                  </span>
+                </div>
                 <textarea
-                  rows={2}
+                  rows={3}
+                  value={storefrontForm.storefrontBanner}
+                  onChange={(e) =>
+                    setStorefrontForm((f) => ({ ...f, storefrontBanner: e.target.value }))
+                  }
+                  className="w-full p-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm leading-relaxed resize-y min-h-[85px]"
+                  placeholder="e.g. 🛍️ Welcome to Jef Investment Online! Buy directly on WhatsApp for fast pickup or delivery."
+                />
+                <p className="text-[11px] text-gray-500">
+                  Displayed as the welcome announcement at the very top of your storefront. Tap and drag the bottom-right corner to expand the window as needed.
+                </p>
+              </div>
+
+              {/* Tagline / About — Spacious Multi-line Window */}
+              <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                    <span>🏪 Store Tagline &amp; About Description</span>
+                  </label>
+                  <span className="text-[11px] text-gray-400 font-mono">
+                    {storefrontForm.storefrontAbout.length} chars
+                  </span>
+                </div>
+                <textarea
+                  rows={4}
                   value={storefrontForm.storefrontAbout}
                   onChange={(e) =>
                     setStorefrontForm((f) => ({ ...f, storefrontAbout: e.target.value }))
                   }
-                  className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
-                  placeholder="Your trusted supplier for quality stationery, phone repairs, printing and electronics."
+                  className="w-full p-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm leading-relaxed resize-y min-h-[110px]"
+                  placeholder="Your trusted supplier for quality stationery, phone repairs, printing and electronics. We guarantee genuine quality, transparent pricing, and rapid delivery across Malawi."
                 />
+                <p className="text-[11px] text-gray-500">
+                  Shown beneath the main storefront heading. Ample space to describe your shop, catalog variety, branches, or customer assurances.
+                </p>
               </div>
 
               <div className="pt-2 flex justify-end">
@@ -1328,14 +1371,14 @@ export default function Settings() {
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     Reserve Purpose / Account Name
                   </label>
-                  <input
-                    type="text"
+                  <textarea
+                    rows={2}
                     value={savingsForm.dailySavingsPurpose}
                     onChange={(e) =>
                       setSavingsForm(f => ({ ...f, dailySavingsPurpose: e.target.value }))
                     }
-                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-                    placeholder="e.g. Business Reserve & Emergency Fund"
+                    className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm resize-y min-h-[65px]"
+                    placeholder="e.g. Business Reserve & Emergency Fund (Deposited to NBM Acc #...)"
                     required
                   />
                   <p className="text-[11px] text-gray-400 mt-1">
