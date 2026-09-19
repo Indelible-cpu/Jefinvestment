@@ -65,9 +65,9 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Stationery Services
+    // Stationery Services - Public read allowed for storefront catalog
     match /stationeryServices/{serviceId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 

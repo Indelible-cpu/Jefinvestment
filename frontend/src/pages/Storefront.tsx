@@ -16,7 +16,9 @@ import {
   ShieldCheck,
   Sparkles,
   MessageCircle,
-  Printer
+  Printer,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { collection, onSnapshot, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -51,6 +53,8 @@ export default function Storefront() {
   // Local state
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -67,6 +71,7 @@ export default function Storefront() {
   // Fetch products in real time directly from Firestore
   useEffect(() => {
     setIsLoading(true);
+    setCatalogError(null);
     const unsub = onSnapshot(
       collection(db, 'products'),
       (snapshot) => {
@@ -92,15 +97,17 @@ export default function Storefront() {
         });
         setProducts(loaded);
         setIsLoading(false);
+        setCatalogError(null);
       },
       (error) => {
         console.error('Failed to load catalog products', error);
+        setCatalogError(error.message || 'Failed to load catalog products from company server');
         setIsLoading(false);
       }
     );
 
     return () => unsub();
-  }, []);
+  }, [retryCount]);
 
   // Combine products and stationery services into a unified storefront catalog
   const catalogItems = useMemo<Product[]>(() => {
@@ -220,33 +227,86 @@ export default function Storefront() {
       minute: '2-digit',
     });
 
+    // 1. Generate structured WhatsApp message first so it is ALWAYS available
+    const targetPhone = (settings.storefrontWhatsApp || settings.phone || '+265999123456')
+      .replace(/[^0-9]/g, '');
+
+    let msg = `🛍️ *NEW ORDER RESERVATION — ${settings.companyName.toUpperCase()}*\n`;
+    msg += `📋 *Order ID:* #${orderRefId}\n`;
+    msg += `📅 *Date:* ${formattedDate}\n`;
+    msg += `────────────────────────\n`;
+    msg += `👤 *Customer:* ${customerName.trim()}\n`;
+    msg += `📞 *Phone:* ${customerPhone.trim()}\n`;
+    msg += `📍 *Fulfillment:* ${deliveryMethod === 'DELIVERY' ? 'Home/Office Delivery' : 'In-Store Pickup'}\n`;
+    if (deliveryMethod === 'DELIVERY') {
+      msg += `🏠 *Address:* ${deliveryAddress.trim()}\n`;
+    }
+    if (notes.trim()) {
+      msg += `💬 *Note:* ${notes.trim()}\n`;
+    }
+    msg += `────────────────────────\n`;
+    msg += `📦 *ITEMS ORDERED:*\n`;
+
+    cartItems.forEach((item, index) => {
+      msg += `${index + 1}. *${item.name}* (x${item.quantity} ${item.unit || 'pcs'})\n`;
+      msg += `   @ ${currency} ${(Number(item.sellingPrice) || 0).toLocaleString()} = ${currency} ${((Number(item.sellingPrice) || 0) * item.quantity).toLocaleString()}\n`;
+    });
+
+    msg += `────────────────────────\n`;
+    msg += `💰 *Subtotal:* ${currency} ${subtotal.toLocaleString()}\n`;
+    if (deliveryMethod === 'DELIVERY') {
+      msg += `🚚 *Delivery Fee:* ${currency} ${deliveryFee.toLocaleString()}\n`;
+    }
+    msg += `🏷️ *TOTAL DUE:* *${currency} ${grandTotal.toLocaleString()}*\n`;
+    if (settings.taxRate) {
+      msg += `ℹ️ _Includes ${settings.taxName || 'VAT'} (${settings.taxRate}%)_\n`;
+    }
+    msg += `────────────────────────\n`;
+    msg += `💳 *Preferred Payment:* Airtel Money / TNM Mpamba / Cash on Pickup\n`;
+    msg += `✅ _Please confirm availability and dispatch terms. Thank you!_`;
+
+    const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`;
+
+    const openWhatsAppDirectly = (url: string) => {
+      try {
+        const win = window.open(url, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+          // Popup was blocked by browser or running on mobile webview
+          window.location.href = url;
+        }
+      } catch {
+        window.location.href = url;
+      }
+    };
+
+    // 2. Build sanitized payload for Cloud Firestore
     const orderPayload = {
       orderId: orderRefId,
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       deliveryMethod,
-      deliveryAddress: deliveryMethod === 'DELIVERY' ? deliveryAddress.trim() : 'Store Pickup',
-      notes: notes.trim(),
+      deliveryAddress: deliveryMethod === 'DELIVERY' ? (deliveryAddress?.trim() || '') : 'Store Pickup',
+      notes: (notes || '').trim(),
       items: cartItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        sellingPrice: item.sellingPrice,
-        quantity: item.quantity,
-        unit: item.unit,
-        lineTotal: item.sellingPrice * item.quantity,
+        id: item.id || '',
+        name: item.name || 'Unnamed Item',
+        category: item.category || 'General',
+        sellingPrice: Number(item.sellingPrice) || 0,
+        quantity: Number(item.quantity) || 1,
+        unit: item.unit || 'pcs',
+        lineTotal: (Number(item.sellingPrice) || 0) * (Number(item.quantity) || 1),
       })),
-      subtotal,
-      deliveryFee: deliveryMethod === 'DELIVERY' ? deliveryFee : 0,
-      total: grandTotal,
-      currency,
+      subtotal: Number(subtotal) || 0,
+      deliveryFee: deliveryMethod === 'DELIVERY' ? (Number(deliveryFee) || 0) : 0,
+      total: Number(grandTotal) || 0,
+      currency: currency || 'MWK',
       status: 'PENDING',
       source: 'STOREFRONT_WHATSAPP',
       createdAt: Date.now(),
     };
 
     try {
-      // 1. Ingest order into Firestore for ERP staff
+      // 3. Ingest order into Firestore for ERP staff
       await addDoc(collection(db, 'onlineOrders'), orderPayload);
 
       // Fire-and-forget push notification to authorized managers/admins (never blocks order)
@@ -258,61 +318,23 @@ export default function Storefront() {
         itemCount: cartItems.reduce((s, i) => s + i.quantity, 0),
       }).catch((e) => console.warn('Online order push notification dispatch notice:', e));
 
-      // 2. Generate structured WhatsApp Message
-      const targetPhone = (settings.storefrontWhatsApp || settings.phone || '+265999123456')
-        .replace(/[^0-9]/g, '');
-
-      let msg = `🛍️ *NEW ORDER RESERVATION — ${settings.companyName.toUpperCase()}*\n`;
-      msg += `📋 *Order ID:* #${orderRefId}\n`;
-      msg += `📅 *Date:* ${formattedDate}\n`;
-      msg += `────────────────────────\n`;
-      msg += `👤 *Customer:* ${customerName.trim()}\n`;
-      msg += `📞 *Phone:* ${customerPhone.trim()}\n`;
-      msg += `📍 *Fulfillment:* ${deliveryMethod === 'DELIVERY' ? 'Home/Office Delivery' : 'In-Store Pickup'}\n`;
-      if (deliveryMethod === 'DELIVERY') {
-        msg += `🏠 *Address:* ${deliveryAddress.trim()}\n`;
-      }
-      if (notes.trim()) {
-        msg += `💬 *Note:* ${notes.trim()}\n`;
-      }
-      msg += `────────────────────────\n`;
-      msg += `📦 *ITEMS ORDERED:*\n`;
-
-      cartItems.forEach((item, index) => {
-        msg += `${index + 1}. *${item.name}* (x${item.quantity} ${item.unit})\n`;
-        msg += `   @ ${currency} ${item.sellingPrice.toLocaleString()} = ${currency} ${(item.sellingPrice * item.quantity).toLocaleString()}\n`;
-      });
-
-      msg += `────────────────────────\n`;
-      msg += `💰 *Subtotal:* ${currency} ${subtotal.toLocaleString()}\n`;
-      if (deliveryMethod === 'DELIVERY') {
-        msg += `🚚 *Delivery Fee:* ${currency} ${deliveryFee.toLocaleString()}\n`;
-      }
-      msg += `🏷️ *TOTAL DUE:* *${currency} ${grandTotal.toLocaleString()}*\n`;
-      if (settings.taxRate) {
-        msg += `ℹ️ _Includes ${settings.taxName || 'VAT'} (${settings.taxRate}%)_\n`;
-      }
-      msg += `────────────────────────\n`;
-      msg += `💳 *Preferred Payment:* Airtel Money / TNM Mpamba / Cash on Pickup\n`;
-      msg += `✅ _Please confirm availability and dispatch terms. Thank you!_`;
-
-      const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`;
-
-      // 3. Clear cart and set completed state
+      // 4. Clear cart and set completed state
       clearCart();
       setIsCartOpen(false);
       setCompletedOrder({ id: orderRefId, total: grandTotal });
 
-      // 4. Open WhatsApp
-      window.open(whatsappUrl, '_blank');
+      // 5. Open WhatsApp with prefilled order
+      openWhatsAppDirectly(whatsappUrl);
       toast.success('Order sent to WhatsApp! Waiting for merchant confirmation.');
     } catch (err) {
-      console.error('Failed to submit online order', err);
-      toast.error('Could not save order details, but opening WhatsApp for you directly...');
-      // Fallback: still open WhatsApp so customer is never blocked
-      const targetPhone = (settings.storefrontWhatsApp || settings.phone || '+265999123456')
-        .replace(/[^0-9]/g, '');
-      window.open(`https://wa.me/${targetPhone}`, '_blank');
+      console.error('Failed to submit online order to Firestore', err);
+      // Even if cloud write was blocked or offline, never block the customer!
+      clearCart();
+      setIsCartOpen(false);
+      setCompletedOrder({ id: orderRefId, total: grandTotal });
+
+      openWhatsAppDirectly(whatsappUrl);
+      toast.info('Connecting you to WhatsApp to confirm your order reservation directly...');
     } finally {
       setOrderSubmitting(false);
     }
@@ -507,6 +529,37 @@ export default function Storefront() {
                 <div className="h-8 bg-slate-200 rounded-xl"></div>
               </div>
             ))}
+          </div>
+        ) : catalogError && catalogItems.length === 0 ? (
+          /* Catalog Connection / Rules Error State */
+          <div className="bg-white rounded-3xl border border-rose-200 p-8 sm:p-12 text-center max-w-md mx-auto my-12 space-y-4 shadow-sm">
+            <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+              <AlertTriangle size={32} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Catalog Currently Unavailable</h3>
+            <p className="text-xs sm:text-sm text-slate-500">
+              We were unable to load the product list from the store database. This can occur if database access rules are still propagating or during a network blip.
+            </p>
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={() => setRetryCount((c) => c + 1)}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+              >
+                <RotateCcw size={14} />
+                <span>Retry Loading</span>
+              </button>
+              <a
+                href={`https://wa.me/${(settings.storefrontWhatsApp || settings.phone || '+265999123456').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                  `Hello ${settings.companyName || ''}! I visited your online storefront, but products are currently loading slowly. Can you assist me with prices and availability?`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition flex items-center gap-1.5"
+              >
+                <MessageCircle size={14} />
+                <span>Order on WhatsApp</span>
+              </a>
+            </div>
           </div>
         ) : filteredProducts.length === 0 ? (
           /* Empty Search State */
