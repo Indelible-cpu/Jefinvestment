@@ -25,6 +25,7 @@ import {
   ExternalLink,
   Trash2,
   Receipt,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import StorefrontAnalyticsWidget from '../components/StorefrontAnalyticsWidget';
@@ -68,6 +69,8 @@ export default function OnlineOrders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<OnlineOrder | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Subscribe to onlineOrders in real time
   useEffect(() => {
@@ -233,14 +236,17 @@ export default function OnlineOrders() {
 
   // Delete an order
   const handleDeleteOrder = async (orderId: string) => {
-    if (!window.confirm('Are you sure you want to permanently delete this purchase record?')) return;
+    setIsDeleting(true);
     try {
       await deleteDoc(doc(db, 'onlineOrders', orderId));
       toast.success('Purchase record deleted');
       if (selectedOrder?.id === orderId) setSelectedOrder(null);
+      setDeleteConfirmId(null);
     } catch (err) {
       console.error('Failed to delete purchase', err);
       toast.error('Failed to delete purchase');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -409,7 +415,10 @@ export default function OnlineOrders() {
               return (
                 <div
                   key={order.id}
-                  onClick={() => setSelectedOrder(order)}
+                  onClick={() => {
+                    setSelectedOrder(order);
+                    setDeleteConfirmId(null);
+                  }}
                   className={`bg-white rounded-2xl border p-4 sm:p-5 transition cursor-pointer ${
                     isSelected
                       ? 'border-blue-600 ring-2 ring-blue-600/10 shadow-md'
@@ -621,15 +630,45 @@ export default function OnlineOrders() {
                     <span>Message Customer on WhatsApp</span>
                   </button>
 
-                  {/* Delete Button */}
+                  {/* Delete Button / In-App Confirmation Card */}
                   {user?.role === 'ADMIN' && (
-                    <button
-                      onClick={() => handleDeleteOrder(selectedOrder.id)}
-                      className="w-full py-1.5 text-gray-400 hover:text-rose-600 font-semibold text-[11px] transition flex items-center justify-center gap-1"
-                    >
-                      <Trash2 size={12} />
-                      <span>Delete purchase record</span>
-                    </button>
+                    <div className="pt-1">
+                      {deleteConfirmId === selectedOrder.id ? (
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-rose-800 font-bold">
+                            <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                            <span>Permanently delete this purchase?</span>
+                          </div>
+                          <p className="text-rose-600 text-[11px] leading-tight">
+                            Record #{selectedOrder.orderId} will be permanently removed.
+                          </p>
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              onClick={() => handleDeleteOrder(selectedOrder.id)}
+                              disabled={isDeleting}
+                              className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs transition cursor-pointer disabled:opacity-50"
+                            >
+                              {isDeleting ? 'Deleting...' : 'Yes, Delete'}
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(null)}
+                              disabled={isDeleting}
+                              className="flex-1 py-1.5 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg font-semibold text-xs transition cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteConfirmId(selectedOrder.id)}
+                          className="w-full py-1.5 text-gray-400 hover:text-rose-600 font-semibold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                          <span>Delete purchase record</span>
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
