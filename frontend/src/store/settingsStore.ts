@@ -67,7 +67,7 @@ export const useSettingsStore = create<CompanySettings>()(
       idleLockMinutes: 10,
       storefrontEnabled: true,
       storefrontWhatsApp: '+265 999 123 456',
-      storefrontBanner: '🛍️ Welcome to Jef Investment Online! Order directly on WhatsApp for fast pickup or delivery.',
+      storefrontBanner: '🛍️ Welcome to Jef Investment Online! Buy directly on WhatsApp for fast pickup or delivery.',
       storefrontDeliveryFee: 2500,
       storefrontMinOrder: 0,
       storefrontAbout: 'Your trusted partner for Stationery, Office Supplies, Printing, Electronics & Tech Services in Malawi.',

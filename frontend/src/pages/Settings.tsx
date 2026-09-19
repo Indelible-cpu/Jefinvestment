@@ -1045,7 +1045,7 @@ export default function Settings() {
                       placeholder="e.g. 2500"
                     />
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Added to order when customer selects home/office delivery. Set 0 for free delivery.
+                    Added to purchase when customer selects home/office delivery. Set 0 for free delivery.
                   </p>
                 </div>
 
@@ -1060,7 +1060,7 @@ export default function Settings() {
                       setStorefrontForm((f) => ({ ...f, storefrontBanner: e.target.value }))
                     }
                     className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
-                    placeholder="e.g. 🛍️ Free Delivery on Stationery Orders above MWK 50,000 this week!"
+                    placeholder="e.g. 🛍️ Free Delivery on Stationery Purchases above MWK 50,000 this week!"
                   />
                   <p className="text-[11px] text-gray-400 mt-1">
                     Optional banner shown at the very top of your storefront.

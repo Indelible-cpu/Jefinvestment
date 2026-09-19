@@ -231,8 +231,8 @@ export default function Storefront() {
     const targetPhone = (settings.storefrontWhatsApp || settings.phone || '+265999123456')
       .replace(/[^0-9]/g, '');
 
-    let msg = `🛍️ *NEW ORDER RESERVATION — ${settings.companyName.toUpperCase()}*\n`;
-    msg += `📋 *Order ID:* #${orderRefId}\n`;
+    let msg = `🛍️ *NEW PURCHASE REQUEST — ${settings.companyName.toUpperCase()}*\n`;
+    msg += `📋 *Purchase Ref:* #${orderRefId}\n`;
     msg += `📅 *Date:* ${formattedDate}\n`;
     msg += `────────────────────────\n`;
     msg += `👤 *Customer:* ${customerName.trim()}\n`;
@@ -245,7 +245,7 @@ export default function Storefront() {
       msg += `💬 *Note:* ${notes.trim()}\n`;
     }
     msg += `────────────────────────\n`;
-    msg += `📦 *ITEMS ORDERED:*\n`;
+    msg += `📦 *ITEMS PURCHASED:*\n`;
 
     cartItems.forEach((item, index) => {
       msg += `${index + 1}. *${item.name}* (x${item.quantity} ${item.unit || 'pcs'})\n`;
@@ -325,7 +325,7 @@ export default function Storefront() {
 
       // 5. Open WhatsApp with prefilled order
       openWhatsAppDirectly(whatsappUrl);
-      toast.success('Order sent to WhatsApp! Waiting for merchant confirmation.');
+      toast.success('Purchase request sent to WhatsApp! Waiting for merchant confirmation.');
     } catch (err) {
       console.error('Failed to submit online order to Firestore', err);
       // Even if cloud write was blocked or offline, never block the customer!
@@ -346,7 +346,7 @@ export default function Storefront() {
       {settings.storefrontBanner && (
         <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white text-xs sm:text-sm py-2 px-4 text-center font-medium shadow-sm flex items-center justify-center gap-2">
           <Sparkles size={16} className="text-amber-300 animate-pulse shrink-0" />
-          <span>{settings.storefrontBanner}</span>
+          <span>{settings.storefrontBanner.replace(/\bOrder\b/g, 'Buy').replace(/\border\b/g, 'buy')}</span>
         </div>
       )}
 
@@ -1046,7 +1046,7 @@ export default function Storefront() {
                         <div className="flex items-start gap-2">
                           <ShieldCheck size={16} className="text-amber-700 shrink-0 mt-0.5" />
                           <p className="leading-snug">
-                            <strong>Legal Notice:</strong> Submitting creates a purchase reservation request on WhatsApp. Orders are finalized once stock and payment details are verified with our sales desk.
+                            <strong>Legal Notice:</strong> Submitting creates a purchase reservation request on WhatsApp. Purchases are finalized once stock and payment details are verified with our sales desk.
                           </p>
                         </div>
                         <label className="flex items-start gap-2 cursor-pointer pt-1 border-t border-amber-200/80">
