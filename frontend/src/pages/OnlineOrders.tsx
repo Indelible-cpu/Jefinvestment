@@ -132,13 +132,13 @@ export default function OnlineOrders() {
         updatedAt: Date.now(),
         updatedBy: user?.name || 'Staff',
       });
-      toast.success(`Order marked as ${nextStatus}`);
+      toast.success(`Purchase marked as ${nextStatus}`);
       if (selectedOrder && selectedOrder.id === orderId) {
         setSelectedOrder({ ...selectedOrder, status: nextStatus });
       }
     } catch (err) {
       console.error('Failed to update status', err);
-      toast.error('Failed to update order status');
+      toast.error('Failed to update purchase status');
     }
   };
 
@@ -227,20 +227,20 @@ export default function OnlineOrders() {
   // Direct WhatsApp follow up with customer
   const handleWhatsAppCustomer = (order: OnlineOrder) => {
     const cleanPhone = order.customerPhone.replace(/[^0-9]/g, '');
-    const msg = `Hello ${order.customerName}! 👋 This is ${settings.companyName || 'MsikaFlo'}. We have received your order request #${order.orderId} (Total: ${order.currency} ${order.total.toLocaleString()}). How would you like to proceed with payment and fulfillment?`;
+    const msg = `Hello ${order.customerName}! 👋 This is ${settings.companyName || 'MsikaFlo'}. We have received your purchase request #${order.orderId} (Total: ${order.currency} ${order.total.toLocaleString()}). How would you like to proceed with payment and fulfillment?`;
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   // Delete an order
   const handleDeleteOrder = async (orderId: string) => {
-    if (!window.confirm('Are you sure you want to permanently delete this order?')) return;
+    if (!window.confirm('Are you sure you want to permanently delete this purchase record?')) return;
     try {
       await deleteDoc(doc(db, 'onlineOrders', orderId));
-      toast.success('Order deleted');
+      toast.success('Purchase record deleted');
       if (selectedOrder?.id === orderId) setSelectedOrder(null);
     } catch (err) {
-      console.error('Failed to delete order', err);
-      toast.error('Failed to delete order');
+      console.error('Failed to delete purchase', err);
+      toast.error('Failed to delete purchase');
     }
   };
 
@@ -282,10 +282,10 @@ export default function OnlineOrders() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 flex items-center gap-3">
             <ShoppingBag className="text-blue-600" />
-            <span>WhatsApp Online Orders</span>
+            <span>WhatsApp Online Purchases</span>
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Real-time incoming orders placed by customers through your public online storefront.
+            Real-time incoming purchases placed by customers through your public online storefront.
           </p>
         </div>
 
@@ -304,22 +304,22 @@ export default function OnlineOrders() {
       <StorefrontAnalyticsWidget />
 
       {/* Stats / Status Chips */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <button
           onClick={() => setStatusFilter('ALL')}
-          className={`p-3.5 rounded-2xl border text-left transition ${
+          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
             statusFilter === 'ALL'
               ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
               : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
           }`}
         >
-          <div className="text-[11px] font-bold uppercase opacity-80">All Orders</div>
+          <div className="text-[11px] font-bold uppercase opacity-80">All Purchases</div>
           <div className="text-xl font-black mt-0.5">{counts.all}</div>
         </button>
 
         <button
           onClick={() => setStatusFilter('PENDING')}
-          className={`p-3.5 rounded-2xl border text-left transition ${
+          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
             statusFilter === 'PENDING'
               ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
               : 'bg-white text-amber-700 border-gray-200 hover:bg-amber-50/50'
@@ -331,7 +331,7 @@ export default function OnlineOrders() {
 
         <button
           onClick={() => setStatusFilter('CONFIRMED')}
-          className={`p-3.5 rounded-2xl border text-left transition ${
+          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
             statusFilter === 'CONFIRMED'
               ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
               : 'bg-white text-blue-700 border-gray-200 hover:bg-blue-50/50'
@@ -343,7 +343,7 @@ export default function OnlineOrders() {
 
         <button
           onClick={() => setStatusFilter('COMPLETED')}
-          className={`p-3.5 rounded-2xl border text-left transition ${
+          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
             statusFilter === 'COMPLETED'
               ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
               : 'bg-white text-emerald-700 border-gray-200 hover:bg-emerald-50/50'
@@ -352,6 +352,18 @@ export default function OnlineOrders() {
           <div className="text-[11px] font-bold uppercase opacity-80">Completed</div>
           <div className="text-xl font-black mt-0.5">{counts.completed}</div>
         </button>
+
+        <button
+          onClick={() => setStatusFilter('CANCELLED')}
+          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer col-span-2 sm:col-span-1 ${
+            statusFilter === 'CANCELLED'
+              ? 'bg-slate-700 text-white border-slate-700 shadow-sm'
+              : 'bg-white text-slate-700 border-gray-200 hover:bg-slate-50'
+          }`}
+        >
+          <div className="text-[11px] font-bold uppercase opacity-80">Cancelled</div>
+          <div className="text-xl font-black mt-0.5">{counts.cancelled}</div>
+        </button>
       </div>
 
       {/* Search Input */}
@@ -359,26 +371,26 @@ export default function OnlineOrders() {
         <Search className="absolute left-3.5 top-3 text-gray-400" size={18} />
         <input
           type="text"
-          placeholder="Search orders by customer name, phone number, or Order ID..."
+          placeholder="Search purchases by customer name, phone number, or Purchase ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 bg-white rounded-xl border border-gray-200 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-600 outline-none"
         />
       </div>
 
-      {/* Orders Table & Cards */}
+      {/* Purchases Table & Cards */}
       {isLoading ? (
-        <div className="p-12 text-center text-gray-400">Loading incoming orders...</div>
+        <div className="p-12 text-center text-gray-400">Loading incoming purchases...</div>
       ) : filteredOrders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center max-w-md mx-auto space-y-3">
           <div className="w-14 h-14 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto">
             <ShoppingBag size={28} />
           </div>
-          <h3 className="font-bold text-gray-800 text-base">No online orders found</h3>
+          <h3 className="font-bold text-gray-800 text-base">No online purchases found</h3>
           <p className="text-xs text-gray-500">
             {searchTerm || statusFilter !== 'ALL'
               ? 'Try adjusting your search or filters.'
-              : 'When customers place orders on your WhatsApp storefront, they will appear here in real time.'}
+              : 'When customers make purchases on your WhatsApp storefront, they will appear here in real time.'}
           </p>
         </div>
       ) : (
@@ -472,7 +484,7 @@ export default function OnlineOrders() {
               <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-5 sticky top-6 shadow-sm">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                   <div>
-                    <span className="text-xs font-mono font-bold text-gray-400">Order Details</span>
+                    <span className="text-xs font-mono font-bold text-gray-400">Purchase Details</span>
                     <h3 className="text-lg font-black text-gray-900">#{selectedOrder.orderId}</h3>
                   </div>
                   {getStatusBadge(selectedOrder.status)}
@@ -579,7 +591,7 @@ export default function OnlineOrders() {
                         onClick={() => handleUpdateStatus(selectedOrder.id, 'CONFIRMED')}
                         className="py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition"
                       >
-                        Confirm Order
+                        Confirm Purchase
                       </button>
                     )}
                     {selectedOrder.status !== 'COMPLETED' && (
@@ -595,7 +607,7 @@ export default function OnlineOrders() {
                         onClick={() => handleUpdateStatus(selectedOrder.id, 'CANCELLED')}
                         className="py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition"
                       >
-                        Cancel Order
+                        Cancel Purchase
                       </button>
                     )}
                   </div>
@@ -616,14 +628,14 @@ export default function OnlineOrders() {
                       className="w-full py-1.5 text-gray-400 hover:text-rose-600 font-semibold text-[11px] transition flex items-center justify-center gap-1"
                     >
                       <Trash2 size={12} />
-                      <span>Delete order record</span>
+                      <span>Delete purchase record</span>
                     </button>
                   )}
                 </div>
               </div>
             ) : (
               <div className="bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-8 text-center text-xs text-gray-400">
-                Select an order from the list to view complete details, items, and fulfillment options.
+                Select a purchase from the list to view complete details, items, and fulfillment options.
               </div>
             )}
           </div>

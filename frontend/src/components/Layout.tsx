@@ -136,15 +136,15 @@ export default function Layout() {
           if (prefs && prefs.notifyOnlineOrders === false) return;
 
           const amountFormatted = Number(order.total || 0).toLocaleString();
-          const orderTitle = '🔔 New Online Order';
-          const orderBody = `Order #: #${order.orderId || docId.slice(-5)}\nAmount: ${currency || 'MWK'} ${amountFormatted}`;
+          const orderTitle = '🔔 New Online Purchase';
+          const orderBody = `Purchase #: #${order.orderId || docId.slice(-5)}\nAmount: ${currency || 'MWK'} ${amountFormatted}`;
 
           // 1. In-app toast
           toast.info(orderTitle, {
             description: orderBody,
             duration: 8000,
             action: {
-              label: 'View Order',
+              label: 'View Purchase',
               onClick: () => navigate('/online-orders'),
             },
           });
@@ -985,7 +985,7 @@ export default function Layout() {
 
           <Link to="/online-orders" className={navLinkClass('/online-orders')}>
             <ShoppingBag size={20} /> 
-            <span className="flex-1">Online Orders</span>
+            <span className="flex-1">Online Purchases</span>
             {pendingOnlineOrdersCount > 0 && (
               <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow-xs animate-pulse">
                 {pendingOnlineOrdersCount}
