@@ -303,7 +303,7 @@ export default function Dashboard() {
           <div className="text-[10px] text-gray-500 text-center leading-tight">System<br/>Users</div>
         </div>
 
-        <Link to="/orders" className="flex flex-col items-center flex-1 hover:opacity-80 transition cursor-pointer" title="View live storefront visitor traffic & analytics">
+        <Link to="/online-orders" className="flex flex-col items-center flex-1 hover:opacity-80 transition cursor-pointer" title="View live storefront visitor traffic & analytics">
           <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg mb-1"><Store size={18} /></div>
           <div className="font-bold text-lg leading-tight text-indigo-950">
             {storefrontTodayVisitors !== null ? storefrontTodayVisitors.toLocaleString() : '0'}
