@@ -12,6 +12,7 @@ import { useThemeStore } from '../store/themeStore';
 import { toast } from 'sonner';
 import { initForegroundNotificationListener, dispatchSalePushNotification } from '../utils/pushNotifications';
 import { calcDailyRealizedProfit } from '../utils/profitUtils';
+import ProfilePhotoModal from './ProfilePhotoModal';
 
 export default function Layout() {
 
@@ -32,6 +33,7 @@ export default function Layout() {
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfilePhotoModal, setShowProfilePhotoModal] = useState(false);
   const [isSystemLocked, setIsSystemLocked] = useState(false);
   const [pendingOnlineOrdersCount, setPendingOnlineOrdersCount] = useState(0);
   const location = useLocation();
@@ -792,13 +794,18 @@ export default function Layout() {
                </div>
              )}
            </div>
-           <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm">
+           <button
+              type="button"
+              onClick={() => setShowProfilePhotoModal(true)}
+              className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-[#004bb4] overflow-hidden shadow-sm hover:ring-2 hover:ring-white/80 active:scale-95 transition cursor-pointer"
+              title="Click to view or change profile photo"
+            >
              {user?.profilePic ? (
                <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
              ) : (
                <User size={22} />
              )}
-           </div>
+           </button>
         </div>
       </div>
 
@@ -1061,8 +1068,12 @@ export default function Layout() {
             </button>
           </div>
           <div className="flex items-center justify-between p-3 bg-blue-950/50 rounded-lg mb-2">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="hidden md:flex w-8 h-8 bg-white rounded-full items-center justify-center text-[#004bb4] overflow-hidden shadow-sm shrink-0">
+            <div
+              onClick={() => setShowProfilePhotoModal(true)}
+              className="flex items-center gap-3 overflow-hidden cursor-pointer group flex-1 hover:opacity-90 transition"
+              title="Click to view or change profile photo"
+            >
+              <div className="hidden md:flex w-8 h-8 bg-white rounded-full items-center justify-center text-[#004bb4] overflow-hidden shadow-sm shrink-0 group-hover:ring-2 group-hover:ring-blue-400 transition">
                 {user?.profilePic ? (
                   <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
@@ -1153,6 +1164,11 @@ export default function Layout() {
           </div>
         </div>
       )}
+      {/* Profile Photo Modal */}
+      <ProfilePhotoModal
+        isOpen={showProfilePhotoModal}
+        onClose={() => setShowProfilePhotoModal(false)}
+      />
     </div>
   )
 }

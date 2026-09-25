@@ -2,12 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useBranchStore } from '../store/branchStore';
-import { Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette, ShoppingBag, ExternalLink, Copy, PiggyBank, ChevronRight, ArrowLeft, Database } from 'lucide-react';
+import { Camera, Settings as SettingsIcon, User, Briefcase, Upload, Users, KeyRound, Trash2, Plus, Eye, EyeOff, ShieldCheck, Download, RefreshCw, AlertTriangle, Loader2, Lock, CheckCircle2, Edit2, Ban, BellRing, UserX, UserCheck, Sun, Moon, Laptop, Palette, ShoppingBag, ExternalLink, Copy, PiggyBank, ChevronRight, ArrowLeft, Database } from 'lucide-react';
 import { toast } from 'sonner';
-import { storage, db } from '../lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db } from '../lib/firebase';
 import { collection, getDocs, writeBatch } from 'firebase/firestore';
 import AuditLogs from '../components/AuditLogs';
+import ProfilePhotoModal from '../components/ProfilePhotoModal';
 import { useAuditStore } from '../store/auditStore';
 import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
@@ -136,6 +136,13 @@ export default function Settings() {
   };
 
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', profilePic: user?.profilePic || '' });
+  const [showProfilePhotoModal, setShowProfilePhotoModal] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({ name: user.name || '', profilePic: user.profilePic || '' });
+    }
+  }, [user?.name, user?.profilePic]);
   const [taxRateInput, setTaxRateInput] = useState<string | number>(settings.taxRate ?? 0);
 
   useEffect(() => {
@@ -310,7 +317,6 @@ export default function Settings() {
   const [isSendingWarn, setIsSendingWarn] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadingPic, setUploadingPic] = useState(false);
 
   // Data Reset State
   const [showResetModal, setShowResetModal] = useState(false);
@@ -345,76 +351,6 @@ export default function Settings() {
       } else {
         toast.error('Failed to save security settings');
       }
-    }
-  };
-
-  const compressImageToBase64 = (file: File, maxSize = 160): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          if (width > height) {
-            if (width > maxSize) {
-              height = Math.round((height * maxSize) / width);
-              width = maxSize;
-            }
-          } else {
-            if (height > maxSize) {
-              width = Math.round((width * maxSize) / height);
-              height = maxSize;
-            }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.82));
-        };
-        img.onerror = reject;
-        img.src = event.target?.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image too large', { description: 'Please choose an image under 5MB.' });
-      return;
-    }
-    setUploadingPic(true);
-    try {
-      const currentUser = useAuthStore.getState().user;
-      if (!currentUser) throw new Error('Not logged in');
-
-      let finalURL = '';
-      try {
-        const storageRef = ref(storage, `profile-pictures/${currentUser.id}`);
-        await uploadBytes(storageRef, file);
-        finalURL = await getDownloadURL(storageRef);
-      } catch (storageErr) {
-        console.warn('Firebase Storage upload failed, using local/Firestore compressed avatar:', storageErr);
-        finalURL = await compressImageToBase64(file, 160);
-      }
-
-      // Save URL or compressed photo to Firestore immediately so it syncs across devices
-      await useAuthStore.getState().updateProfile(
-        profileForm.name,
-        finalURL
-      );
-      setProfileForm(f => ({ ...f, profilePic: finalURL }));
-      toast.success('Profile picture updated!', { description: 'Synced to all your devices.' });
-    } catch (err: any) {
-      toast.error('Upload failed', { description: err.message || 'Could not update profile picture.' });
-    } finally {
-      setUploadingPic(false);
     }
   };
 
@@ -841,20 +777,31 @@ export default function Settings() {
             </div>
             <form onSubmit={handleProfileSave} className="p-6 space-y-4">
               <div className="flex items-center gap-6 pb-4 border-b mb-4">
-                {profileForm.profilePic ? (
-                  <img src={profileForm.profilePic} alt="Profile" className="w-16 h-16 object-cover rounded-full shadow-sm" />
-                ) : (
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400">
-                    <User size={24} />
+                <div 
+                  onClick={() => setShowProfilePhotoModal(true)}
+                  className="cursor-pointer group relative"
+                  title="Click to view or change profile photo"
+                >
+                  {profileForm.profilePic ? (
+                    <img src={profileForm.profilePic} alt="Profile" className="w-16 h-16 object-cover rounded-full shadow-sm group-hover:ring-2 group-hover:ring-primary transition" />
+                  ) : (
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 group-hover:ring-2 group-hover:ring-primary transition">
+                      <User size={24} />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/30 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition">
+                    <Camera size={18} />
                   </div>
-                )}
+                </div>
                 <div>
                   <h3 className="text-sm font-bold text-gray-700 mb-1">Profile Picture</h3>
-                  <label className={`text-sm bg-gray-100 border hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded flex items-center gap-1 transition w-max ${uploadingPic ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
-                    {uploadingPic ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                    {uploadingPic ? 'Uploading...' : 'Upload New'}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleProfilePicUpload} disabled={uploadingPic} />
-                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowProfilePhotoModal(true)}
+                    className="text-sm bg-gray-100 border hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded flex items-center gap-1.5 transition cursor-pointer font-medium"
+                  >
+                    <Upload size={14} /> View / Change Photo
+                  </button>
                 </div>
               </div>
               <div>
@@ -2267,6 +2214,12 @@ export default function Settings() {
         </div>
       )}
 
+      {showProfilePhotoModal && (
+        <ProfilePhotoModal
+          isOpen={showProfilePhotoModal}
+          onClose={() => setShowProfilePhotoModal(false)}
+        />
+      )}
     </div>
   );
 }
