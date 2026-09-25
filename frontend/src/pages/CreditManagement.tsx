@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, DollarSign, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { CreditCard, DollarSign, Calendar, CheckCircle2, Clock, ChevronDown, ChevronUp, History, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreditStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -8,6 +8,7 @@ export default function CreditManagement() {
   const { credits, isLoading, loadCredits, recordRepayment } = useCreditStore();
   const settings = useSettingsStore();
   const [selectedRecord, setSelectedRecord] = useState<string | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [repayAmount, setRepayAmount] = useState('');
   const [repayMethod, setRepayMethod] = useState('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,14 +32,25 @@ export default function CreditManagement() {
     if (!selectedRecord || !repayAmount) return;
 
     const amountNum = parseFloat(repayAmount);
-    if (isNaN(amountNum) || amountNum <= 0) return;
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid payment amount greater than 0.');
+      return;
+    }
+
+    if (selectedCreditRecord) {
+      const remainingBalance = Math.max(0, selectedCreditRecord.totalAmount - selectedCreditRecord.paidAmount);
+      if (amountNum > remainingBalance) {
+        toast.error(`Payment cannot exceed outstanding balance of ${settings.currency} ${remainingBalance.toLocaleString()}`);
+        return;
+      }
+    }
 
     setIsSubmitting(true);
     try {
       await recordRepayment(selectedRecord, amountNum, repayMethod);
       setSelectedRecord(null);
       setRepayAmount('');
-      toast.success(`Repayment of ${settings.currency} ${amountNum.toLocaleString()} recorded.`);
+      toast.success(`Repayment of ${settings.currency} ${amountNum.toLocaleString()} recorded successfully.`);
     } catch (err: any) {
       if (err.message === 'OFFLINE_QUEUED') {
         toast.warning('Offline', { description: 'Repayment saved locally and will sync when online.' });
@@ -108,11 +120,13 @@ export default function CreditManagement() {
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-600 text-sm font-semibold">
+              <th className="p-4 w-10"></th>
               <th className="p-4">Invoice #</th>
               <th className="p-4">Customer Name</th>
               <th className="p-4">Phone Number</th>
               <th className="p-4">Due Date</th>
               <th className="p-4">Total ({settings.currency})</th>
+              <th className="p-4">Paid ({settings.currency})</th>
               <th className="p-4">Balance Due ({settings.currency})</th>
               <th className="p-4">Status</th>
               <th className="p-4 text-right">Action</th>
@@ -121,7 +135,7 @@ export default function CreditManagement() {
           <tbody className="divide-y text-sm">
             {isLoading ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-gray-500">
+                <td colSpan={10} className="p-8 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
                     <p className="text-lg font-medium text-gray-600">Loading credits...</p>
@@ -131,7 +145,7 @@ export default function CreditManagement() {
               </tr>
             ) : displayCredits.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-gray-500">
+                <td colSpan={10} className="p-8 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <CreditCard size={48} className="text-gray-300 mb-3" />
                     <p className="text-lg font-medium text-gray-600">No credit records found</p>
@@ -141,38 +155,158 @@ export default function CreditManagement() {
               </tr>
             ) : (
               displayCredits.map(c => {
-                const balance = c.totalAmount - c.paidAmount;
+                const balance = Math.max(0, c.totalAmount - c.paidAmount);
+                const isExpanded = expandedRowId === c.id;
+                const hasHistory = (c.initialDeposit > 0) || (c.repayments && c.repayments.length > 0);
+
                 return (
-                  <tr key={c.id} className="hover:bg-gray-50 transition">
-                    <td className="p-4 font-mono font-bold text-primary">{c.invoiceNumber}</td>
-                    <td className="p-4 font-medium">{c.customerName}</td>
-                    <td className="p-4 text-gray-600">{c.customerPhone}</td>
-                    <td className="p-4 flex items-center gap-1.5 text-gray-600">
-                      <Calendar size={15} />
-                      {c.dueDate}
-                    </td>
-                    <td className="p-4 font-mono">{settings.currency} {c.totalAmount.toLocaleString()}</td>
-                    <td className="p-4 font-mono font-bold text-red-600">{settings.currency} {balance.toLocaleString()}</td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                        c.status === 'FULLY_PAID' ? 'bg-green-100 text-green-800' :
-                        c.status === 'OVERDUE' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      {c.status !== 'FULLY_PAID' && (
-                         <button 
-                          onClick={() => setSelectedRecord(c.id)}
-                          className="flex items-center gap-1 text-xs bg-primary text-white hover:bg-blue-700 px-3 py-1.5 rounded font-medium transition ml-auto"
-                        >
-                          <DollarSign size={14} />
-                          Record Repayment
+                  <tbody key={c.id} className="divide-y border-b last:border-b-0">
+                    <tr className={`hover:bg-gray-50 transition cursor-pointer ${isExpanded ? 'bg-blue-50/20' : ''}`}>
+                      <td className="p-3 text-center" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        <button className="text-gray-400 hover:text-gray-600 p-1">
+                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="p-4 font-mono font-bold text-primary" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        {c.invoiceNumber}
+                      </td>
+                      <td className="p-4 font-medium" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        {c.customerName}
+                      </td>
+                      <td className="p-4 text-gray-600" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        {c.customerPhone || '—'}
+                      </td>
+                      <td className="p-4 text-gray-600" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={15} />
+                          {c.dueDate || '—'}
+                        </div>
+                      </td>
+                      <td className="p-4 font-mono" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        {settings.currency} {c.totalAmount.toLocaleString()}
+                      </td>
+                      <td className="p-4 font-mono font-semibold text-green-700" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        {settings.currency} {c.paidAmount.toLocaleString()}
+                      </td>
+                      <td className="p-4 font-mono font-bold text-red-600" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        {settings.currency} {balance.toLocaleString()}
+                      </td>
+                      <td className="p-4" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          c.status === 'FULLY_PAID' ? 'bg-green-100 text-green-800' :
+                          c.status === 'OVERDUE' ? 'bg-red-100 text-red-800' :
+                          c.status === 'PARTIALLY_PAID' ? 'bg-blue-100 text-blue-800' :
+                          'bg-amber-100 text-amber-800'
+                        }`}>
+                          {c.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        {c.status !== 'FULLY_PAID' ? (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRecord(c.id);
+                              setRepayAmount('');
+                            }}
+                            className="flex items-center gap-1 text-xs bg-primary text-white hover:bg-blue-700 px-3 py-1.5 rounded font-medium transition ml-auto"
+                          >
+                            <DollarSign size={14} />
+                            Record Repayment
+                          </button>
+                        ) : (
+                          <span className="text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
+                            ✓ Settled
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Expandable Payment History Row */}
+                    {isExpanded && (
+                      <tr className="bg-gray-50/70">
+                        <td colSpan={10} className="p-4 sm:p-6">
+                          <div className="bg-white rounded-lg border p-4 shadow-xs">
+                            <div className="flex items-center justify-between mb-3 border-b pb-2">
+                              <div className="flex items-center gap-2 font-bold text-gray-800 text-sm">
+                                <History size={16} className="text-primary" />
+                                <span>Payment &amp; Settlement History for {c.invoiceNumber}</span>
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Total: {settings.currency} {c.totalAmount.toLocaleString()} &bull; Balance: {settings.currency} {balance.toLocaleString()}
+                              </div>
+                            </div>
+
+                            {!hasHistory ? (
+                              <div className="text-xs text-gray-500 py-3 text-center">
+                                No repayments recorded yet. The customer has {settings.currency} {balance.toLocaleString()} outstanding.
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b bg-gray-50 text-gray-600">
+                                      <th className="p-2 text-left">Type / Transaction</th>
+                                      <th className="p-2 text-left">Date &amp; Time</th>
+                                      <th className="p-2 text-left">Method</th>
+                                      <th className="p-2 text-left">Received By</th>
+                                      <th className="p-2 text-right">Amount</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y text-gray-700">
+                                    {c.initialDeposit > 0 && (
+                                      <tr className="hover:bg-gray-50/50">
+                                        <td className="p-2 font-medium text-blue-700">Initial Deposit (at POS checkout)</td>
+                                        <td className="p-2 text-gray-500">{c.date}</td>
+                                        <td className="p-2">
+                                          <span className="bg-gray-100 px-2 py-0.5 rounded font-mono">CREDIT_DEPOSIT</span>
+                                        </td>
+                                        <td className="p-2 text-gray-500">POS Cashier</td>
+                                        <td className="p-2 text-right font-mono font-bold text-green-700">
+                                          {settings.currency} {c.initialDeposit.toLocaleString()}
+                                        </td>
+                                      </tr>
+                                    )}
+
+                                    {c.repayments && c.repayments.map((rep, idx) => (
+                                      <tr key={idx} className="hover:bg-gray-50/50">
+                                        <td className="p-2 font-medium">Repayment #{idx + 1}</td>
+                                        <td className="p-2 text-gray-500">
+                                          {rep.date ? new Date(rep.date).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                                        </td>
+                                        <td className="p-2">
+                                          <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded text-[11px] font-semibold">
+                                            {rep.method || 'CASH'}
+                                          </span>
+                                        </td>
+                                        <td className="p-2 text-gray-600">
+                                          <div className="flex items-center gap-1">
+                                            <User size={12} className="text-gray-400" />
+                                            <span>{rep.cashier || 'Staff'}</span>
+                                          </div>
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-bold text-green-700">
+                                          {settings.currency} {Number(rep.amount).toLocaleString()}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="border-t bg-gray-50/80 font-bold">
+                                      <td colSpan={4} className="p-2 text-right text-gray-600">Total Settled:</td>
+                                      <td className="p-2 text-right font-mono text-green-700">
+                                        {settings.currency} {c.paidAmount.toLocaleString()}
+                                      </td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
                 );
               })
             )}
@@ -198,22 +332,36 @@ export default function CreditManagement() {
               </div>
               <div className="flex justify-between font-bold text-red-600 pt-1 border-t">
                 <span>Remaining Balance:</span>
-                <span className="font-mono">{settings.currency} {((selectedCreditRecord?.totalAmount || 0) - (selectedCreditRecord?.paidAmount || 0)).toLocaleString()}</span>
+                <span className="font-mono">{settings.currency} {Math.max(0, (selectedCreditRecord?.totalAmount || 0) - (selectedCreditRecord?.paidAmount || 0)).toLocaleString()}</span>
               </div>
             </div>
 
             <form onSubmit={handleRepay} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold mb-1">Payment Amount ({settings.currency}) *</label>
-                <input 
-                  type="number" 
-                  required 
-                  className="w-full p-2 border rounded font-mono font-bold"
-                  placeholder="Enter amount paid"
-                  value={repayAmount}
-                  onFocus={(e) => e.target.select()}
-                  onChange={e => setRepayAmount(e.target.value)}
-                />
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    required 
+                    min="1"
+                    max={Math.max(0, (selectedCreditRecord?.totalAmount || 0) - (selectedCreditRecord?.paidAmount || 0))}
+                    className="w-full p-2 border rounded font-mono font-bold pr-20"
+                    placeholder="Enter amount paid"
+                    value={repayAmount}
+                    onFocus={(e) => e.target.select()}
+                    onChange={e => setRepayAmount(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rem = Math.max(0, (selectedCreditRecord?.totalAmount || 0) - (selectedCreditRecord?.paidAmount || 0));
+                      setRepayAmount(rem.toString());
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded font-semibold transition"
+                  >
+                    Pay Full
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -224,7 +372,11 @@ export default function CreditManagement() {
                   onChange={e => setRepayMethod(e.target.value)}
                 >
                   <option value="CASH">Cash</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="MOMO_AIRTEL">Airtel Money</option>
+                  <option value="MOMO_MPAMBA">TNM Mpamba</option>
+                  <option value="BANK_NBS">NBS Bank</option>
+                  <option value="BANK_NBM">National Bank (NBM)</option>
+                  <option value="BANK_TRANSFER">Other Bank Transfer</option>
                   <option value="OTHER">Other</option>
                 </select>
               </div>

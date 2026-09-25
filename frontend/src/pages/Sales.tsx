@@ -167,10 +167,89 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
           </div>
 
           {/* Customer info if credit */}
-          {sale.customerName && (
-            <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 text-gray-900 dark:text-gray-100 rounded-xl p-4 text-sm">
-              <div className="font-bold text-orange-700 dark:text-orange-400 mb-1">Credit Sale Customer</div>
-              <div>{sale.customerName} &bull; {sale.customerPhone}</div>
+          {(sale.isCredit || sale.paymentMethod === 'CREDIT' || sale.customerName) && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-gray-900 dark:text-gray-100 rounded-xl p-4 text-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-amber-800 dark:text-amber-400">Credit Customer Account</div>
+                  <div className="text-gray-700 dark:text-gray-300 font-medium">
+                    {sale.customerName || 'Customer'} {sale.customerPhone ? `• ${sale.customerPhone}` : ''}
+                  </div>
+                  {sale.dueDate && (
+                    <div className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Due Date: {sale.dueDate}</div>
+                  )}
+                </div>
+                {(() => {
+                  const repList = Array.isArray(sale.repayments) ? sale.repayments : [];
+                  const repSum = repList.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0);
+                  const credPaid = Number(sale.creditPaid) || 0;
+                  const totalPaid = Math.min(sale.total, (Number(sale.amountPaid) || 0) + (repSum > 0 ? repSum : credPaid));
+                  const balance = Math.max(0, sale.total - totalPaid);
+                  const isSettled = balance === 0 && sale.total > 0;
+                  return (
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      isSettled ? 'bg-green-100 text-green-800 border border-green-200' :
+                      totalPaid > 0 ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                      'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}>
+                      {isSettled ? 'CREDIT: FULLY PAID' : totalPaid > 0 ? 'CREDIT: PARTIALLY PAID' : 'CREDIT: UNPAID'}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              {/* Settlement summary */}
+              {(() => {
+                const repList = Array.isArray(sale.repayments) ? sale.repayments : [];
+                const repSum = repList.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0);
+                const credPaid = Number(sale.creditPaid) || 0;
+                const totalPaid = Math.min(sale.total, (Number(sale.amountPaid) || 0) + (repSum > 0 ? repSum : credPaid));
+                const balance = Math.max(0, sale.total - totalPaid);
+
+                return (
+                  <div className="border-t border-amber-200/70 dark:border-amber-800/70 pt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <div className="text-gray-500">Original Credit</div>
+                      <div className="font-mono font-bold">{settings.currency} {sale.total.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Total Settled</div>
+                      <div className="font-mono font-bold text-green-600 dark:text-green-400">{settings.currency} {totalPaid.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Remaining Due</div>
+                      <div className={`font-mono font-bold ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {settings.currency} {balance.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Repayments History Breakdown */}
+              {Array.isArray(sale.repayments) && sale.repayments.length > 0 && (
+                <div className="border-t border-amber-200/70 dark:border-amber-800/70 pt-2">
+                  <div className="font-semibold text-xs text-amber-900 dark:text-amber-300 mb-1.5">Recorded Payments:</div>
+                  <div className="space-y-1 bg-white/70 dark:bg-zinc-800/70 rounded-lg p-2 text-xs">
+                    {sale.amountPaid > 0 && (
+                      <div className="flex justify-between items-center text-gray-600 dark:text-gray-300 py-0.5 border-b border-gray-100 dark:border-zinc-700">
+                        <span>Initial deposit ({sale.date})</span>
+                        <span className="font-mono font-bold text-green-600">{settings.currency} {sale.amountPaid.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {sale.repayments.map((rep, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-gray-600 dark:text-gray-300 py-0.5">
+                        <span className="flex items-center gap-1.5">
+                          <span className="font-medium">Repayment #{idx + 1}</span>
+                          <span className="text-[10px] text-gray-400">({rep.method || 'CASH'}{rep.cashier ? ` by ${rep.cashier}` : ''})</span>
+                          <span className="text-[10px] text-gray-400">&bull; {rep.date ? new Date(rep.date).toLocaleDateString('en-GB') : ''}</span>
+                        </span>
+                        <span className="font-mono font-bold text-green-600">{settings.currency} {Number(rep.amount).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -266,23 +345,24 @@ export default function Sales() {
 
     base.forEach(s => {
       expanded.push(s);
-      if (s.paymentMethod === 'CREDIT' && (s as any).repayments) {
+      if ((s.paymentMethod === 'CREDIT' || s.isCredit) && (s as any).repayments) {
         (s as any).repayments.forEach((rep: any, idx: number) => {
-           const [rDate, rTimeStr] = rep.date.split('T');
+           const [rDate, rTimeStr] = (rep.date || '').split('T');
            const rTime = rTimeStr ? rTimeStr.substring(0, 5) : s.time;
            expanded.push({
              ...s,
              id: `${s.id}-rep-${idx}`,
              invoiceNumber: `${s.invoiceNumber}-REP${idx+1}`,
-             date: rDate,
+             date: rDate || s.date,
              time: rTime,
-             total: rep.amount,
-             amountPaid: rep.amount,
+             total: Number(rep.amount) || 0,
+             amountPaid: Number(rep.amount) || 0,
              paymentMethod: rep.method || 'CASH',
+             cashier: rep.cashier || s.cashier,
              items: [{
                name: `Credit Repayment (Inv: ${s.invoiceNumber})`,
                quantity: 1,
-               unitPrice: rep.amount,
+               unitPrice: Number(rep.amount) || 0,
                productId: 'REPAYMENT',
                isService: true
              }],
@@ -579,9 +659,50 @@ export default function Sales() {
                         )}
                       </td>
                       <td className="p-4 text-center">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${StatusCfg.cls}`}>
-                          <StatusCfg.icon size={11} /> {StatusCfg.label}
-                        </span>
+                        {sale.paymentMethod === 'CREDIT' || sale.isCredit ? (
+                          (() => {
+                            const repList = Array.isArray(sale.repayments) ? sale.repayments : [];
+                            const repSum = repList.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0);
+                            const credPaid = Number(sale.creditPaid) || 0;
+                            const totalPaid = Math.min(sale.total, (Number(sale.amountPaid) || 0) + (repSum > 0 ? repSum : credPaid));
+                            const balance = Math.max(0, sale.total - totalPaid);
+                            const isSettled = balance === 0 && sale.total > 0;
+
+                            if (saleStatus !== 'completed') {
+                              return (
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${StatusCfg.cls}`}>
+                                  <StatusCfg.icon size={11} /> {StatusCfg.label}
+                                </span>
+                              );
+                            }
+
+                            if (isSettled) {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">
+                                  <CheckCircle2 size={11} /> Credit: Paid
+                                </span>
+                              );
+                            }
+
+                            if (totalPaid > 0) {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                  <Clock size={11} /> Partial Paid
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <Clock size={11} /> Credit: Due
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${StatusCfg.cls}`}>
+                            <StatusCfg.icon size={11} /> {StatusCfg.label}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-center">
                         <div className="relative inline-block">

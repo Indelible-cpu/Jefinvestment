@@ -126,6 +126,8 @@ export interface SaleRecord {
   branch?: string;
   dueDate?: string;
   isCredit?: boolean;
+  creditPaid?: number;
+  repayments?: Array<{ amount: number; method: string; date: string; cashier?: string }>;
   // Stationery service fields
   isStationeryService?: boolean;
   stationeryServiceId?: string;
@@ -209,6 +211,8 @@ export const useSaleStore = create<SaleState>()(
             customerId: s.customerId,
             isCredit: s.isCredit || false,
             dueDate: s.dueDate,
+            creditPaid: s.creditPaid !== undefined && s.creditPaid !== null ? Number(s.creditPaid) : undefined,
+            repayments: Array.isArray(s.repayments) ? s.repayments : undefined,
             status: rawStatus,
             syncStatus: isPending ? 'pending' : 'synced',
             branch: s.branch || s.branchId,
@@ -501,11 +505,11 @@ export const useSaleStore = create<SaleState>()(
         // Filter out unpaid credit sales so they are not deleted
         const docsToDelete = snapshot.docs.filter(doc => {
           const data = doc.data();
-          // If it's a credit sale, only delete it if it's fully paid (creditPaid >= total)
+          // If it's a credit sale, only delete it if it's fully settled
           if (data.isCredit) {
-            const paid = Number(data.creditPaid) || 0;
             const total = Number(data.total) || 0;
-            return paid >= total; // Delete only if fully paid
+            const paid = (Number(data.creditPaid) || 0) + (Number(data.amountPaid) || 0);
+            return total > 0 && paid >= total; // Delete only if fully settled
           }
           return true; // Not a credit sale, safe to delete
         });
@@ -595,6 +599,13 @@ export const useSaleStore = create<SaleState>()(
 );
 
 // ─── Credit Store ──────────────────────────────────────────────────────────────
+export interface CreditRepaymentEntry {
+  amount: number;
+  method: string;
+  date: string;
+  cashier?: string;
+}
+
 export interface CreditRecord {
   id: string;
   invoiceNumber: string;
@@ -602,17 +613,19 @@ export interface CreditRecord {
   customerPhone: string;
   totalAmount: number;
   paidAmount: number;
+  initialDeposit: number;
+  repayments: CreditRepaymentEntry[];
   dueDate: string;
   date: string;
-  status: 'PENDING' | 'OVERDUE' | 'FULLY_PAID';
+  status: 'PENDING' | 'PARTIALLY_PAID' | 'OVERDUE' | 'FULLY_PAID';
 }
 
 interface CreditState {
   credits: CreditRecord[];
   isLoading: boolean;
   loadCredits: () => Promise<void>;
-  addCredit: (credit: Omit<CreditRecord, 'id' | 'status' | 'paidAmount' | 'date'>) => void;
-  recordRepayment: (id: string, amount: number, method: string) => void;
+  addCredit: (credit: Omit<CreditRecord, 'id' | 'status' | 'paidAmount' | 'date' | 'initialDeposit' | 'repayments'>) => void;
+  recordRepayment: (id: string, amount: number, method: string, cashierName?: string) => Promise<void>;
   getTotalOutstanding: () => number;
 }
 
@@ -635,13 +648,28 @@ export const useCreditStore = create<CreditState>()(
         const today = new Date().toISOString().slice(0, 10);
         const mapped = snapshot.docs.map(doc => {
           const c = doc.data();
-          const totalAmount = Number(c.total);
-          const paidAmount = Number(c.creditPaid) || 0;
+          const totalAmount = Number(c.total) || 0;
+          // Calculate repayments total from repayments array if present, fallback to creditPaid
+          const repaymentsList: CreditRepaymentEntry[] = Array.isArray(c.repayments) ? c.repayments : [];
+          const repaymentsSum = repaymentsList.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+          const creditPaidField = Number(c.creditPaid) || 0;
+          const subsequentPaid = repaymentsSum > 0 ? repaymentsSum : creditPaidField;
+          
+          // Initial deposit collected when the credit invoice was created at POS
+          const initialDeposit = Number(c.amountPaid) || 0;
+          
+          // Total paid = initial deposit + subsequent repayments
+          const paidAmount = Math.min(totalAmount, initialDeposit + subsequentPaid);
           const dueDate = c.dueDate || '';
           
           let status: CreditRecord['status'] = 'PENDING';
-          if (paidAmount >= totalAmount) status = 'FULLY_PAID';
-          else if (dueDate && dueDate < today) status = 'OVERDUE';
+          if (paidAmount >= totalAmount && totalAmount > 0) {
+            status = 'FULLY_PAID';
+          } else if (dueDate && dueDate < today) {
+            status = 'OVERDUE';
+          } else if (paidAmount > 0) {
+            status = 'PARTIALLY_PAID';
+          }
           
           return {
             id: doc.id,
@@ -650,6 +678,8 @@ export const useCreditStore = create<CreditState>()(
             customerPhone: c.customerPhone || '',
             totalAmount,
             paidAmount,
+            initialDeposit,
+            repayments: repaymentsList,
             dueDate,
             date: new Date(c.createdAt || Date.now()).toISOString().slice(0, 10),
             status,
@@ -678,18 +708,40 @@ export const useCreditStore = create<CreditState>()(
       };
       addDoc(collection(db, 'sales'), newCredit).catch(e => console.warn('Offline write deferred or failed:', e));
     },
-    recordRepayment: async (id, amount, method = 'CASH') => {
-      updateDoc(doc(db, 'sales', id), {
-        creditPaid: increment(amount),
-        repayments: arrayUnion({
-          amount,
-          method,
-          date: new Date().toISOString()
-        })
-      }).catch(e => console.warn('Offline write deferred or failed:', e));
+    recordRepayment: async (id, amount, method = 'CASH', cashierName?: string) => {
+      const creditRecord = get().credits.find(c => c.id === id);
+      if (creditRecord) {
+        const remaining = Math.max(0, creditRecord.totalAmount - creditRecord.paidAmount);
+        if (remaining <= 0) {
+          throw new Error('This credit is already fully paid.');
+        }
+        if (amount > remaining) {
+          throw new Error(`Amount exceeds remaining balance. Max payable is ${remaining.toLocaleString()}.`);
+        }
+      }
+
+      const activeCashier = cashierName || useAuthStore.getState().user?.name || 'Staff';
+      const repaymentPayload: CreditRepaymentEntry = {
+        amount,
+        method,
+        date: new Date().toISOString(),
+        cashier: activeCashier,
+      };
+
+      try {
+        await updateDoc(doc(db, 'sales', id), {
+          creditPaid: increment(amount),
+          repayments: arrayUnion(repaymentPayload)
+        });
+      } catch (err: any) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          throw new Error('OFFLINE_QUEUED');
+        }
+        throw err;
+      }
     },
     getTotalOutstanding: () =>
-      get().credits.filter(c => c.status !== 'FULLY_PAID').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0),
+      get().credits.filter(c => c.status !== 'FULLY_PAID').reduce((sum, c) => sum + Math.max(0, c.totalAmount - c.paidAmount), 0),
   })
 );
 
