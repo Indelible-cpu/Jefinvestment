@@ -115,13 +115,14 @@ export default function Dashboard() {
   let productsIncome = 0;
   let otherIncome = 0;
   
+  // 1. Direct cash/transfer sales and initial credit deposits received today
   todaysSales.forEach(sale => {
     const isCredit = sale.paymentMethod === 'CREDIT' || !!sale.isCredit;
     const collectedRatio = isCredit 
       ? (sale.total > 0 ? Math.min(1, (sale.amountPaid || 0) / sale.total) : 0)
       : 1;
 
-    sale.items.forEach((item: any) => {
+    sale.items?.forEach((item: any) => {
       const itemTotal = (item.quantity * item.unitPrice) * collectedRatio;
       const product = products.find(p => p.name === item.name || p.id === item.productId);
       if (item.isOther || item.category === 'Other' || item.productId?.startsWith('other_') || item.sku === 'OTHER') {
@@ -132,6 +133,36 @@ export default function Dashboard() {
         productsIncome += itemTotal;
       }
     });
+  });
+
+  // 2. Credit repayments collected today (recovering product and service revenue from credit sales)
+  sales.forEach(sale => {
+    if ((sale.paymentMethod === 'CREDIT' || sale.isCredit) && Array.isArray((sale as any).repayments)) {
+      (sale as any).repayments.forEach((rep: any) => {
+        if (rep.date && rep.date.startsWith(today)) {
+          const repAmount = Number(rep.amount) || 0;
+          if (repAmount > 0) {
+            const saleTotal = sale.total || 0;
+            if (saleTotal > 0 && Array.isArray(sale.items) && sale.items.length > 0) {
+              const repRatio = repAmount / saleTotal;
+              sale.items.forEach((item: any) => {
+                const itemTotal = (item.quantity * item.unitPrice) * repRatio;
+                const product = products.find(p => p.name === item.name || p.id === item.productId);
+                if (item.isOther || item.category === 'Other' || item.productId?.startsWith('other_') || item.sku === 'OTHER') {
+                  otherIncome += itemTotal;
+                } else if (item.isService || product?.isService) {
+                  serviceIncome += itemTotal;
+                } else {
+                  productsIncome += itemTotal;
+                }
+              });
+            } else {
+              productsIncome += repAmount;
+            }
+          }
+        }
+      });
+    }
   });
 
   const { expenses } = useExpenseStore();
