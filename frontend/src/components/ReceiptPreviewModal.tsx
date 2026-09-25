@@ -19,13 +19,17 @@ interface ReceiptPreviewModalProps {
   customerId?: string;
   invoiceNumber: string;
   dueDate?: string;
+  repayments?: Array<{ amount: number; method: string; date: string; cashier?: string }>;
+  isSettledCredit?: boolean;
   onClose: () => void;
   onNewSale?: () => void;
 }
 
 export default function ReceiptPreviewModal({
   items, subtotal, discount, taxAmount, taxName, taxType, total,
-  paymentMethod, amountPaid, customerName, customerPhone, customerId, invoiceNumber, dueDate, onClose, onNewSale
+  paymentMethod, amountPaid, customerName, customerPhone, customerId, invoiceNumber, dueDate,
+  repayments, isSettledCredit,
+  onClose, onNewSale
 }: ReceiptPreviewModalProps) {
   const [view, setView] = useState<'receipt' | 'invoice'>('receipt');
   const [sharing, setSharing] = useState(false);
@@ -178,11 +182,50 @@ export default function ReceiptPreviewModal({
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#111827' }}><span>Change</span><span>{settings.currency} {change.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
                     </>
                   )}
-                  {paymentMethod === 'CREDIT' && (
+                  {paymentMethod === 'CREDIT' && !isSettledCredit && (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#111827' }}><span>Paid</span><span>{settings.currency} {amountPaid.toLocaleString()}</span></div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#b45309' }}><span>Balance Due</span><span>{settings.currency} {(total - amountPaid).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
                       <div style={{ color: '#b45309', fontWeight: 'bold', textAlign: 'center', marginTop: '4px' }}>⚠ CREDIT SALE</div>
+                    </>
+                  )}
+                  {paymentMethod === 'CREDIT' && isSettledCredit && (
+                    <>
+                      <div style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', padding: '8px 10px', marginTop: '6px', textAlign: 'center' }}>
+                        <div style={{ color: '#15803d', fontWeight: 'bold', fontSize: '13px' }}>✓ CREDIT FULLY SETTLED</div>
+                        <div style={{ color: '#166534', fontSize: '11px', marginTop: '2px' }}>Balance Due: {settings.currency} 0.00</div>
+                      </div>
+                      {repayments && repayments.length > 0 && (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '11px', color: '#374151', marginBottom: '4px', borderBottom: '1px dashed #d1d5db', paddingBottom: '2px' }}>Payment History</div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', color: '#111827' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                <th style={{ textAlign: 'left', padding: '2px 4px', color: '#6b7280' }}>#</th>
+                                <th style={{ textAlign: 'left', padding: '2px 4px', color: '#6b7280' }}>Date</th>
+                                <th style={{ textAlign: 'left', padding: '2px 4px', color: '#6b7280' }}>Method</th>
+                                <th style={{ textAlign: 'right', padding: '2px 4px', color: '#6b7280' }}>Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {repayments.map((r, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                  <td style={{ padding: '2px 4px', color: '#374151' }}>{i + 1}</td>
+                                  <td style={{ padding: '2px 4px', color: '#374151' }}>{r.date ? new Date(r.date).toLocaleDateString('en-GB') : '—'}</td>
+                                  <td style={{ padding: '2px 4px', color: '#374151' }}>{r.method}</td>
+                                  <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 'bold', color: '#15803d' }}>{settings.currency} {Number(r.amount).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr style={{ borderTop: '1px dashed #d1d5db' }}>
+                                <td colSpan={3} style={{ padding: '3px 4px', fontWeight: 'bold', textAlign: 'right', color: '#111827' }}>Total Paid:</td>
+                                <td style={{ padding: '3px 4px', textAlign: 'right', fontWeight: 'bold', color: '#15803d' }}>{settings.currency} {repayments.reduce((s, r) => s + Number(r.amount), 0).toLocaleString()}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
                     </>
                   )}
                   {paymentMethod === 'BANK_NBS' && settings.nbsDetails && <div style={{ marginTop: '4px', textAlign: 'center', fontSize: '11px', padding: '4px', border: '1px dashed #9ca3af', color: '#111827' }}>NBS Bank: {settings.nbsDetails}</div>}
@@ -255,12 +298,18 @@ export default function ReceiptPreviewModal({
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#374151' }}><span style={{ color: '#374151' }}>Subtotal</span><span style={{ fontWeight: '600', color: '#111827' }}>{settings.currency} {subtotal.toLocaleString()}</span></div>
                   {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#dc2626' }}><span>Discount</span><span style={{ fontWeight: '600' }}>- {settings.currency} {discount.toLocaleString()}</span></div>}
                   {taxAmount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#374151' }}><span style={{ color: '#374151' }}>{taxType === 'INCLUSIVE' ? `Includes ${taxName}` : taxName}</span><span style={{ fontWeight: '600', color: '#111827' }}>{settings.currency} {taxAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#1d4ed8', color: '#ffffff', borderRadius: '6px', marginTop: '6px', fontWeight: 'bold', fontSize: '14px' }}>
-                    <span>TOTAL DUE</span><span>{settings.currency} {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: isSettledCredit ? '#15803d' : '#1d4ed8', color: '#ffffff', borderRadius: '6px', marginTop: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                    <span>{isSettledCredit ? 'TOTAL PAID (SETTLED)' : 'TOTAL DUE'}</span><span>{settings.currency} {total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                   </div>
-                  <div style={{ marginTop: '6px', padding: '5px 12px', background: '#fef9c3', borderRadius: '6px', fontSize: '11px', color: '#92400e', textAlign: 'center', fontWeight: '600' }}>
-                    Payment Due Upon Receipt
-                  </div>
+                  {isSettledCredit ? (
+                    <div style={{ marginTop: '6px', padding: '5px 12px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', fontSize: '11px', color: '#15803d', textAlign: 'center', fontWeight: 'bold' }}>
+                      ✓ FULLY SETTLED &amp; PAID IN FULL
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: '6px', padding: '5px 12px', background: '#fef9c3', borderRadius: '6px', fontSize: '11px', color: '#92400e', textAlign: 'center', fontWeight: '600' }}>
+                      Payment Due Upon Receipt
+                    </div>
+                  )}
                 </div>
               </div>
               

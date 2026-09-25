@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
-import { CreditCard, DollarSign, Calendar, CheckCircle2, Clock, ChevronDown, ChevronUp, History, User } from 'lucide-react';
+import { useState, useEffect, Fragment } from 'react';
+import { CreditCard, DollarSign, Calendar, CheckCircle2, Clock, ChevronDown, ChevronUp, History, User, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCreditStore } from '../store/dataStore';
+import { useCreditStore, type CreditRecord } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
+import type { CartItem } from '../store/cartStore';
+import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 
 export default function CreditManagement() {
   const { credits, isLoading, loadCredits, recordRepayment } = useCreditStore();
@@ -13,10 +15,77 @@ export default function CreditManagement() {
   const [repayMethod, setRepayMethod] = useState('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPaid, setShowPaid] = useState(false);
+  const [settlementReceiptData, setSettlementReceiptData] = useState<any | null>(null);
 
   useEffect(() => {
     loadCredits();
   }, []);
+
+  const openSettledReceipt = (c: CreditRecord) => {
+    // Build complete payment history for receipt: initial deposit + all repayments
+    const paymentHistory: Array<{ amount: number; method: string; date: string; cashier?: string }> = [];
+
+    if (c.initialDeposit > 0) {
+      paymentHistory.push({
+        amount: c.initialDeposit,
+        method: 'DEPOSIT (POS)',
+        date: c.date,
+        cashier: 'POS Cashier',
+      });
+    }
+
+    if (c.repayments && c.repayments.length > 0) {
+      c.repayments.forEach(r => {
+        paymentHistory.push({
+          amount: Number(r.amount),
+          method: r.method || 'CASH',
+          date: r.date,
+          cashier: r.cashier || 'Staff',
+        });
+      });
+    }
+
+    const items: CartItem[] = (c.items && c.items.length > 0)
+      ? c.items.map((i: any, idx: number) => ({
+          id: i.productId || i.id || `${c.invoiceNumber}-${idx}`,
+          name: i.name || 'Item',
+          quantity: i.quantity || 1,
+          unitPrice: i.unitPrice || 0,
+          sku: i.sku || '',
+          discount: i.discount || 0,
+          isService: !!i.isService,
+        }))
+      : [
+          {
+            id: c.invoiceNumber,
+            name: `Credit Sale Settlement - ${c.customerName}`,
+            quantity: 1,
+            unitPrice: c.totalAmount,
+            sku: '',
+            discount: 0,
+            isService: true,
+          }
+        ];
+
+    setSettlementReceiptData({
+      items,
+      subtotal: c.subtotal || c.totalAmount,
+      discount: c.discount || 0,
+      taxAmount: c.taxAmount || 0,
+      taxName: c.taxName || settings.taxName || 'VAT',
+      taxType: c.taxType || settings.taxType || 'INCLUSIVE',
+      total: c.totalAmount,
+      paymentMethod: 'CREDIT',
+      amountPaid: c.paidAmount,
+      customerName: c.customerName,
+      customerPhone: c.customerPhone,
+      customerId: c.customerId,
+      invoiceNumber: c.invoiceNumber,
+      dueDate: c.dueDate,
+      repayments: paymentHistory,
+      isSettledCredit: true,
+    });
+  };
 
   const totalOutstanding = credits.filter(c => c.status !== 'FULLY_PAID').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0);
   const totalOverdue = credits.filter(c => c.status === 'OVERDUE').reduce((sum, c) => sum + (c.totalAmount - c.paidAmount), 0);
@@ -120,7 +189,6 @@ export default function CreditManagement() {
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className="bg-gray-50 border-b text-gray-600 text-sm font-semibold">
-              <th className="p-4 w-10"></th>
               <th className="p-4">Invoice #</th>
               <th className="p-4">Customer Name</th>
               <th className="p-4">Phone Number</th>
@@ -128,14 +196,14 @@ export default function CreditManagement() {
               <th className="p-4">Total ({settings.currency})</th>
               <th className="p-4">Paid ({settings.currency})</th>
               <th className="p-4">Balance Due ({settings.currency})</th>
-              <th className="p-4">Status</th>
+              <th className="p-4 text-center">Status</th>
               <th className="p-4 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y text-sm">
             {isLoading ? (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-gray-500">
+                <td colSpan={9} className="p-8 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
                     <p className="text-lg font-medium text-gray-600">Loading credits...</p>
@@ -145,7 +213,7 @@ export default function CreditManagement() {
               </tr>
             ) : displayCredits.length === 0 ? (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-gray-500">
+                <td colSpan={9} className="p-8 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <CreditCard size={48} className="text-gray-300 mb-3" />
                     <p className="text-lg font-medium text-gray-600">No credit records found</p>
@@ -160,39 +228,50 @@ export default function CreditManagement() {
                 const hasHistory = (c.initialDeposit > 0) || (c.repayments && c.repayments.length > 0);
 
                 return (
-                  <tbody key={c.id} className="divide-y border-b last:border-b-0">
-                    <tr className={`hover:bg-gray-50 transition cursor-pointer ${isExpanded ? 'bg-blue-50/20' : ''}`}>
-                      <td className="p-3 text-center" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
-                        <button className="text-gray-400 hover:text-gray-600 p-1">
-                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
+                  <Fragment key={c.id}>
+                    <tr 
+                      onClick={() => setExpandedRowId(isExpanded ? null : c.id)}
+                      className={`hover:bg-gray-50 transition cursor-pointer ${isExpanded ? 'bg-blue-50/20' : ''}`}
+                    >
+                      <td className="p-4 font-mono font-bold text-primary">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedRowId(isExpanded ? null : c.id);
+                            }}
+                            className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition"
+                            title={isExpanded ? 'Collapse' : 'Expand payment history'}
+                          >
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                          <span>{c.invoiceNumber}</span>
+                        </div>
                       </td>
-                      <td className="p-4 font-mono font-bold text-primary" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
-                        {c.invoiceNumber}
-                      </td>
-                      <td className="p-4 font-medium" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                      <td className="p-4 font-medium">
                         {c.customerName}
                       </td>
-                      <td className="p-4 text-gray-600" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                      <td className="p-4 text-gray-600">
                         {c.customerPhone || '—'}
                       </td>
-                      <td className="p-4 text-gray-600" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                      <td className="p-4 text-gray-600">
                         <div className="flex items-center gap-1.5">
                           <Calendar size={15} />
                           {c.dueDate || '—'}
                         </div>
                       </td>
-                      <td className="p-4 font-mono" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                      <td className="p-4 font-mono">
                         {settings.currency} {c.totalAmount.toLocaleString()}
                       </td>
-                      <td className="p-4 font-mono font-semibold text-green-700" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                      <td className="p-4 font-mono font-semibold text-green-700">
                         {settings.currency} {c.paidAmount.toLocaleString()}
                       </td>
-                      <td className="p-4 font-mono font-bold text-red-600" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
+                      <td className="p-4 font-mono font-bold text-red-600">
                         {settings.currency} {balance.toLocaleString()}
                       </td>
-                      <td className="p-4" onClick={() => setExpandedRowId(isExpanded ? null : c.id)}>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      <td className="p-4 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${
                           c.status === 'FULLY_PAID' ? 'bg-green-100 text-green-800' :
                           c.status === 'OVERDUE' ? 'bg-red-100 text-red-800' :
                           c.status === 'PARTIALLY_PAID' ? 'bg-blue-100 text-blue-800' :
@@ -209,15 +288,29 @@ export default function CreditManagement() {
                               setSelectedRecord(c.id);
                               setRepayAmount('');
                             }}
-                            className="flex items-center gap-1 text-xs bg-primary text-white hover:bg-blue-700 px-3 py-1.5 rounded font-medium transition ml-auto"
+                            className="flex items-center gap-1 text-xs bg-primary text-white hover:bg-blue-700 px-3 py-1.5 rounded font-medium transition ml-auto shadow-xs"
                           >
                             <DollarSign size={14} />
                             Record Repayment
                           </button>
                         ) : (
-                          <span className="text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
-                            ✓ Settled
-                          </span>
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
+                              ✓ Settled
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSettledReceipt(c);
+                              }}
+                              className="flex items-center gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white px-2.5 py-1.5 rounded-md font-medium transition shadow-xs"
+                              title="View printable & shareable settlement receipt"
+                            >
+                              <FileText size={13} />
+                              <span>Receipt</span>
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -225,7 +318,7 @@ export default function CreditManagement() {
                     {/* Expandable Payment History Row */}
                     {isExpanded && (
                       <tr className="bg-gray-50/70">
-                        <td colSpan={10} className="p-4 sm:p-6">
+                        <td colSpan={9} className="p-4 sm:p-6">
                           <div className="bg-white rounded-lg border p-4 shadow-xs">
                             <div className="flex items-center justify-between mb-3 border-b pb-2">
                               <div className="flex items-center gap-2 font-bold text-gray-800 text-sm">
@@ -306,7 +399,7 @@ export default function CreditManagement() {
                         </td>
                       </tr>
                     )}
-                  </tbody>
+                  </Fragment>
                 );
               })
             )}
@@ -400,6 +493,14 @@ export default function CreditManagement() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Settled Credit Receipt Modal */}
+      {settlementReceiptData && (
+        <ReceiptPreviewModal
+          {...settlementReceiptData}
+          onClose={() => setSettlementReceiptData(null)}
+        />
       )}
     </div>
   );

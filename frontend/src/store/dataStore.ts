@@ -611,6 +611,7 @@ export interface CreditRecord {
   invoiceNumber: string;
   customerName: string;
   customerPhone: string;
+  customerId?: string;
   totalAmount: number;
   paidAmount: number;
   initialDeposit: number;
@@ -618,6 +619,12 @@ export interface CreditRecord {
   dueDate: string;
   date: string;
   status: 'PENDING' | 'PARTIALLY_PAID' | 'OVERDUE' | 'FULLY_PAID';
+  items?: any[];
+  subtotal?: number;
+  discount?: number;
+  taxAmount?: number;
+  taxName?: string;
+  taxType?: string;
 }
 
 interface CreditState {
@@ -683,6 +690,13 @@ export const useCreditStore = create<CreditState>()(
             dueDate,
             date: new Date(c.createdAt || Date.now()).toISOString().slice(0, 10),
             status,
+            items: c.items || [],
+            subtotal: Number(c.subtotal) || totalAmount,
+            discount: Number(c.discount) || 0,
+            taxAmount: Number(c.taxAmount) || 0,
+            taxName: c.taxName || 'VAT',
+            taxType: c.taxType || 'INCLUSIVE',
+            customerId: c.customerId || '',
           };
         });
         // Exclude voided or refunded credit sales from debt management
