@@ -415,7 +415,7 @@ Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleStrin
   };
 
   return (
-    <div className="p-3 sm:p-6 md:p-8 max-w-5xl mx-auto space-y-6 pb-24">
+    <div className="p-1.5 sm:p-3 md:p-8 bg-background min-h-full pb-24 space-y-6 w-full">
       {/* Top Navigation Bar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">

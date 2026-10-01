@@ -54,7 +54,7 @@ export default function EmployeeProfile() {
   }
 
   return (
-    <div className="p-3 sm:p-6 md:p-8 max-w-4xl mx-auto space-y-6 pb-24">
+    <div className="p-1.5 sm:p-3 md:p-8 bg-background min-h-full pb-24 space-y-6 w-full">
       {/* Top Navigation Bar */}
       <div className="flex items-center justify-between gap-4">
         <button
@@ -139,79 +139,81 @@ export default function EmployeeProfile() {
 
         {/* Profile Details Sections */}
         <div className="p-5 sm:p-7 space-y-6">
-          {/* Contact & Personal Details */}
-          <div className="bg-muted/30 border rounded-2xl p-5 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
-              <Users size={16} className="text-primary" /> Contact &amp; Particulars
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div className="flex items-center gap-2.5">
-                <Phone size={16} className="text-gray-400 shrink-0" />
-                <span className="text-gray-500">Phone:</span>
-                {emp.phone ? (
-                  <a href={`tel:${emp.phone}`} className="font-semibold text-primary hover:underline">
-                    {emp.phone}
-                  </a>
-                ) : (
-                  <span className="text-gray-400 italic">Not set</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Mail size={16} className="text-gray-400 shrink-0" />
-                <span className="text-gray-500">Email:</span>
-                {emp.email ? (
-                  <a href={`mailto:${emp.email}`} className="font-semibold text-primary hover:underline">
-                    {emp.email}
-                  </a>
-                ) : (
-                  <span className="text-gray-400 italic">Not set</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2.5">
-                <MapPin size={16} className="text-gray-400 shrink-0" />
-                <span className="text-gray-500">Address:</span>
-                <span className="font-medium text-gray-900">{emp.address || 'Not set'}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Calendar size={16} className="text-gray-400 shrink-0" />
-                <span className="text-gray-500">Date Joined:</span>
-                <span className="font-medium text-gray-900">{emp.dateJoined || 'Not set'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Next of Kin */}
-          <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-5 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-rose-800 flex items-center gap-2">
-              <HeartHandshake size={16} className="text-rose-600" /> Next of Kin (Emergency Contact)
-            </h3>
-            {emp.nextOfKinName ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Contact & Personal Details */}
+            <div className="bg-muted/30 border rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                <Users size={16} className="text-primary" /> Contact &amp; Particulars
+              </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-500 text-xs block mb-0.5">Contact Name</span>
-                  <span className="font-bold text-gray-900 text-base">{emp.nextOfKinName}</span>
-                  <span className="text-xs text-rose-700 font-semibold ml-2">({emp.nextOfKinRelationship || 'Kin'})</span>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs block mb-0.5">Emergency Phone</span>
-                  {emp.nextOfKinPhone ? (
-                    <a href={`tel:${emp.nextOfKinPhone}`} className="inline-flex items-center gap-1.5 font-bold text-rose-700 hover:underline">
-                      <Phone size={14} /> {emp.nextOfKinPhone}
+                <div className="flex items-center gap-2.5">
+                  <Phone size={16} className="text-gray-400 shrink-0" />
+                  <span className="text-gray-500">Phone:</span>
+                  {emp.phone ? (
+                    <a href={`tel:${emp.phone}`} className="font-semibold text-primary hover:underline">
+                      {emp.phone}
                     </a>
                   ) : (
-                    <span className="text-gray-400 italic">None</span>
+                    <span className="text-gray-400 italic">Not set</span>
                   )}
                 </div>
-                {emp.nextOfKinAddress && (
-                  <div className="sm:col-span-2">
-                    <span className="text-gray-500 text-xs block mb-0.5">Location / Notes</span>
-                    <span className="text-gray-800">{emp.nextOfKinAddress}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2.5">
+                  <Mail size={16} className="text-gray-400 shrink-0" />
+                  <span className="text-gray-500">Email:</span>
+                  {emp.email ? (
+                    <a href={`mailto:${emp.email}`} className="font-semibold text-primary hover:underline">
+                      {emp.email}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400 italic">Not set</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <MapPin size={16} className="text-gray-400 shrink-0" />
+                  <span className="text-gray-500">Address:</span>
+                  <span className="font-medium text-gray-900">{emp.address || 'Not set'}</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Calendar size={16} className="text-gray-400 shrink-0" />
+                  <span className="text-gray-500">Date Joined:</span>
+                  <span className="font-medium text-gray-900">{emp.dateJoined || 'Not set'}</span>
+                </div>
               </div>
-            ) : (
-              <p className="text-xs text-gray-500 italic">No Next of Kin details recorded yet.</p>
-            )}
+            </div>
+
+            {/* Next of Kin */}
+            <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-rose-800 flex items-center gap-2">
+                <HeartHandshake size={16} className="text-rose-600" /> Next of Kin (Emergency Contact)
+              </h3>
+              {emp.nextOfKinName ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500 text-xs block mb-0.5">Contact Name</span>
+                    <span className="font-bold text-gray-900 text-base">{emp.nextOfKinName}</span>
+                    <span className="text-xs text-rose-700 font-semibold ml-2">({emp.nextOfKinRelationship || 'Kin'})</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs block mb-0.5">Emergency Phone</span>
+                    {emp.nextOfKinPhone ? (
+                      <a href={`tel:${emp.nextOfKinPhone}`} className="inline-flex items-center gap-1.5 font-bold text-rose-700 hover:underline">
+                        <Phone size={14} /> {emp.nextOfKinPhone}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 italic">None</span>
+                    )}
+                  </div>
+                  {emp.nextOfKinAddress && (
+                    <div className="sm:col-span-2">
+                      <span className="text-gray-500 text-xs block mb-0.5">Location / Notes</span>
+                      <span className="text-gray-800">{emp.nextOfKinAddress}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 italic">No Next of Kin details recorded yet.</p>
+              )}
+            </div>
           </div>
 
           {/* National ID Scan */}
