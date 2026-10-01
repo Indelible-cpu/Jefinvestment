@@ -31,9 +31,12 @@ export interface Expense {
   id: string;
   date: string;
   category: string;
+  title?: string;
   description: string;
   loggedBy: string;
   amount: number;
+  employeeId?: string;
+  createdAt?: number;
 }
 
 interface ExpenseState {
@@ -66,13 +69,18 @@ export const useExpenseStore = create<ExpenseState>()(
       const unsub = onSnapshot(q, (snapshot) => {
         const mapped = snapshot.docs.map(doc => {
           const data = doc.data();
+          const rawTitle = data.title || '';
+          const rawDesc = data.description || '';
           return {
             id: doc.id,
             date: data.date || new Date().toISOString().slice(0, 10),
             category: data.category || 'General',
-            description: data.description,
+            title: rawTitle,
+            description: rawDesc,
             loggedBy: data.loggedBy || 'Admin',
             amount: Number(data.amount) || 0,
+            employeeId: data.employeeId || '',
+            createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
           };
         });
         set({ expenses: mapped, isLoading: false });
@@ -932,6 +940,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         date: dateStr,
         loggedBy: currentUser,
         branchId,
+        employeeId: id,
         createdAt: now,
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
@@ -977,6 +986,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         date: dateStr,
         loggedBy: currentUser,
         branchId,
+        employeeId: id,
         createdAt: now,
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },

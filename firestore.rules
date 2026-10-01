@@ -76,6 +76,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create, delete: if isAdmin() || isManager();
       allow update: if isAdmin() || isManager();
+
+      match /{subcollection=**} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
     }
     
     // Held Carts (POS — per-user subcollection, cross-device sync)

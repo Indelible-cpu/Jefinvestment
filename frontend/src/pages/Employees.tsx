@@ -19,11 +19,12 @@ export default function Employees() {
     updateStatus, recordAdvancePay, recordSalaryPay, clearAdvancePay,
     deleteEmployee, getTotalAdvancePay, loadAdvanceHistory, loadSalaryHistory
   } = useEmployeeStore();
+  const { expenses, loadExpenses } = useExpenseStore();
   const settings = useSettingsStore();
 
   useEffect(() => {
     loadEmployees();
-    useExpenseStore.getState().loadExpenses();
+    loadExpenses();
   }, []);
 
   // Filter / Search state
