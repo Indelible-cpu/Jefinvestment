@@ -984,19 +984,17 @@ export const useEmployeeStore = create<EmployeeState>()(
     getTotalAdvancePay: () => get().employees.reduce((sum, e) => sum + (e.advancePay || 0), 0),
     loadAdvanceHistory: async (id) => {
       try {
-        const q = query(
-          collection(db, 'employees', id, 'advanceHistory'),
-          orderBy('createdAt', 'asc')
-        );
-        const snapshot = await getDocs(q);
-        const records: AdvancePayRecord[] = snapshot.docs.map(d => ({
-          id: d.id,
-          amount: d.data().amount || 0,
-          date: d.data().date || '',
-          notes: d.data().notes || '',
-          loggedBy: d.data().loggedBy || 'System',
-          createdAt: d.data().createdAt || 0,
-        }));
+        const snapshot = await getDocs(collection(db, 'employees', id, 'advanceHistory'));
+        const records: AdvancePayRecord[] = snapshot.docs
+          .map(d => ({
+            id: d.id,
+            amount: d.data().amount || 0,
+            date: d.data().date || '',
+            notes: d.data().notes || '',
+            loggedBy: d.data().loggedBy || 'System',
+            createdAt: d.data().createdAt || 0,
+          }))
+          .sort((a, b) => a.createdAt - b.createdAt);
         set(state => ({
           employees: state.employees.map(e =>
             e.id === id ? { ...e, advanceHistory: records } : e
@@ -1004,25 +1002,29 @@ export const useEmployeeStore = create<EmployeeState>()(
         }));
       } catch (err) {
         console.warn('Failed to load advance history:', err);
+        // Set to empty array so spinner doesn't show indefinitely
+        set(state => ({
+          employees: state.employees.map(e =>
+            e.id === id ? { ...e, advanceHistory: e.advanceHistory ?? [] } : e
+          )
+        }));
       }
     },
     loadSalaryHistory: async (id) => {
       try {
-        const q = query(
-          collection(db, 'employees', id, 'salaryHistory'),
-          orderBy('createdAt', 'asc')
-        );
-        const snapshot = await getDocs(q);
-        const records: SalaryPayRecord[] = snapshot.docs.map(d => ({
-          id: d.id,
-          grossSalary: d.data().grossSalary || 0,
-          advanceDeducted: d.data().advanceDeducted || 0,
-          netPaid: d.data().netPaid || 0,
-          date: d.data().date || '',
-          notes: d.data().notes || '',
-          loggedBy: d.data().loggedBy || 'System',
-          createdAt: d.data().createdAt || 0,
-        }));
+        const snapshot = await getDocs(collection(db, 'employees', id, 'salaryHistory'));
+        const records: SalaryPayRecord[] = snapshot.docs
+          .map(d => ({
+            id: d.id,
+            grossSalary: d.data().grossSalary || 0,
+            advanceDeducted: d.data().advanceDeducted || 0,
+            netPaid: d.data().netPaid || 0,
+            date: d.data().date || '',
+            notes: d.data().notes || '',
+            loggedBy: d.data().loggedBy || 'System',
+            createdAt: d.data().createdAt || 0,
+          }))
+          .sort((a, b) => a.createdAt - b.createdAt);
         set(state => ({
           employees: state.employees.map(e =>
             e.id === id ? { ...e, salaryHistory: records } : e
@@ -1030,6 +1032,12 @@ export const useEmployeeStore = create<EmployeeState>()(
         }));
       } catch (err) {
         console.warn('Failed to load salary history:', err);
+        // Set to empty array so spinner doesn't show indefinitely
+        set(state => ({
+          employees: state.employees.map(e =>
+            e.id === id ? { ...e, salaryHistory: e.salaryHistory ?? [] } : e
+          )
+        }));
       }
     },
   })

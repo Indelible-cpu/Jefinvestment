@@ -74,6 +74,10 @@ export default function Employees() {
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [dossierTab, setDossierTab] = useState<'profile' | 'advances' | 'salaries'>('profile');
   const [isSharingPayroll, setIsSharingPayroll] = useState(false);
+  // History filters (shared between advance & salary tabs)
+  const [historyMonthFilter, setHistoryMonthFilter] = useState(''); // 'YYYY-MM' or ''
+  const [historyStartDate, setHistoryStartDate] = useState('');
+  const [historyEndDate, setHistoryEndDate] = useState('');
 
   // Zoom ID Card modal
   const [zoomedIdImageUrl, setZoomedIdImageUrl] = useState<string | null>(null);
@@ -389,6 +393,9 @@ export default function Employees() {
   const openDossier = (emp: Employee, initialTab: 'profile' | 'advances' | 'salaries' = 'profile') => {
     setViewingEmployee(emp);
     setDossierTab(initialTab);
+    setHistoryMonthFilter('');
+    setHistoryStartDate('');
+    setHistoryEndDate('');
     loadAdvanceHistory(emp.id);
     loadSalaryHistory(emp.id);
   };
@@ -1622,130 +1629,258 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
                 )}
 
                 {/* ── ADVANCE HISTORY TAB ── */}
-                {dossierTab === 'advances' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                        <Banknote size={16} className="text-amber-600" /> Advance Pay History
-                      </h4>
-                      <span className="text-xs text-gray-500">
-                        Total: <span className="font-bold text-amber-800 font-mono">
-                          {settings.currency} {(emp.advanceHistory || []).reduce((s, r) => s + r.amount, 0).toLocaleString()}
-                        </span>
-                      </span>
-                    </div>
-
-                    {emp.advanceHistory === undefined ? (
-                      <div className="text-center py-8 text-gray-400">
-                        <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                        <p className="text-xs">Loading history...</p>
-                      </div>
-                    ) : emp.advanceHistory.length === 0 ? (
-                      <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
-                        <History size={30} className="mx-auto mb-2 opacity-40" />
-                        <p className="text-sm font-medium">No advance records yet.</p>
-                        <p className="text-xs mt-1">Advances recorded via the "Pay Advance" button will appear here.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {[...emp.advanceHistory].reverse().map((rec, i) => (
-                          <div key={rec.id} className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                            <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                              {emp.advanceHistory!.length - i}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <span className="font-bold text-amber-900 font-mono text-sm">
-                                  {settings.currency} {rec.amount.toLocaleString()}
-                                </span>
-                                <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
-                              </div>
-                              {rec.notes && (
-                                <p className="text-xs text-gray-700 mt-0.5 italic">"{rec.notes}"</p>
-                              )}
-                              <p className="text-[11px] text-gray-400 mt-1">Logged by: {rec.loggedBy}</p>
-                            </div>
-                          </div>
-                        ))}
-                        {/* Running total footer */}
-                        <div className="flex justify-between items-center bg-amber-100 border border-amber-300 rounded-xl px-4 py-2.5 mt-2">
-                          <span className="text-xs font-semibold text-amber-900">Total Advances Given</span>
-                          <span className="font-bold font-mono text-amber-900">
-                            {settings.currency} {emp.advanceHistory.reduce((s, r) => s + r.amount, 0).toLocaleString()}
+                {dossierTab === 'advances' && (() => {
+                  const allAdv = emp.advanceHistory;
+                  const filtered = allAdv ? [...allAdv].reverse().filter(r => {
+                    if (historyMonthFilter && !r.date.startsWith(historyMonthFilter)) return false;
+                    if (historyStartDate && r.date < historyStartDate) return false;
+                    if (historyEndDate && r.date > historyEndDate) return false;
+                    return true;
+                  }) : null;
+                  const filteredTotal = filtered ? filtered.reduce((s, r) => s + r.amount, 0) : 0;
+                  const allTotal = (allAdv || []).reduce((s, r) => s + r.amount, 0);
+                  const hasFilter = !!(historyMonthFilter || historyStartDate || historyEndDate);
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                          <Banknote size={16} className="text-amber-600" /> Advance Pay History
+                        </h4>
+                        <span className="text-xs text-gray-500">
+                          Total: <span className="font-bold text-amber-800 font-mono">
+                            {settings.currency} {(hasFilter ? filteredTotal : allTotal).toLocaleString()}
                           </span>
-                        </div>
+                          {hasFilter && <span className="text-gray-400"> (filtered)</span>}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
+
+                      {/* Filter bar */}
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 mb-1">
+                          <Search size={12} /> Filter Records
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-gray-500 block mb-0.5">Month</label>
+                            <input
+                              type="month"
+                              value={historyMonthFilter}
+                              onChange={e => { setHistoryMonthFilter(e.target.value); setHistoryStartDate(''); setHistoryEndDate(''); }}
+                              className="w-full border border-amber-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-500 block mb-0.5">From Date</label>
+                            <input
+                              type="date"
+                              value={historyStartDate}
+                              onChange={e => { setHistoryStartDate(e.target.value); setHistoryMonthFilter(''); }}
+                              className="w-full border border-amber-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-500 block mb-0.5">To Date</label>
+                            <input
+                              type="date"
+                              value={historyEndDate}
+                              onChange={e => { setHistoryEndDate(e.target.value); setHistoryMonthFilter(''); }}
+                              className="w-full border border-amber-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            />
+                          </div>
+                        </div>
+                        {hasFilter && (
+                          <button
+                            type="button"
+                            onClick={() => { setHistoryMonthFilter(''); setHistoryStartDate(''); setHistoryEndDate(''); }}
+                            className="text-[10px] text-amber-700 hover:text-amber-900 underline"
+                          >
+                            Clear filter
+                          </button>
+                        )}
+                      </div>
+
+                      {allAdv === undefined ? (
+                        <div className="text-center py-8 text-gray-400">
+                          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                          <p className="text-xs">Loading history...</p>
+                          <button
+                            type="button"
+                            onClick={() => loadAdvanceHistory(emp.id)}
+                            className="mt-2 text-xs text-amber-600 hover:underline"
+                          >
+                            Tap to retry
+                          </button>
+                        </div>
+                      ) : filtered!.length === 0 ? (
+                        <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                          <History size={30} className="mx-auto mb-2 opacity-40" />
+                          <p className="text-sm font-medium">{hasFilter ? 'No records match filter.' : 'No advance records yet.'}</p>
+                          {!hasFilter && <p className="text-xs mt-1">Advances recorded via the "Pay Advance" button will appear here.</p>}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {filtered!.map((rec, i) => (
+                            <div key={rec.id} className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                              <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                                {filtered!.length - i}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <span className="font-bold text-amber-900 font-mono text-sm">
+                                    {settings.currency} {rec.amount.toLocaleString()}
+                                  </span>
+                                  <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
+                                </div>
+                                {rec.notes && (
+                                  <p className="text-xs text-gray-700 mt-0.5 italic">"{rec.notes}"</p>
+                                )}
+                                <p className="text-[11px] text-gray-400 mt-1">Logged by: {rec.loggedBy}</p>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex justify-between items-center bg-amber-100 border border-amber-300 rounded-xl px-4 py-2.5 mt-2">
+                            <span className="text-xs font-semibold text-amber-900">{hasFilter ? 'Filtered Total' : 'Total Advances Given'}</span>
+                            <span className="font-bold font-mono text-amber-900">
+                              {settings.currency} {filteredTotal.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* ── SALARY HISTORY TAB ── */}
-                {dossierTab === 'salaries' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                        <CheckCircle size={16} className="text-green-600" /> Salary Pay History
-                      </h4>
-                      <span className="text-xs text-gray-500">
-                        Total Paid: <span className="font-bold text-green-800 font-mono">
-                          {settings.currency} {(emp.salaryHistory || []).reduce((s, r) => s + r.netPaid, 0).toLocaleString()}
-                        </span>
-                      </span>
-                    </div>
-
-                    {emp.salaryHistory === undefined ? (
-                      <div className="text-center py-8 text-gray-400">
-                        <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                        <p className="text-xs">Loading history...</p>
-                      </div>
-                    ) : emp.salaryHistory.length === 0 ? (
-                      <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
-                        <History size={30} className="mx-auto mb-2 opacity-40" />
-                        <p className="text-sm font-medium">No salary records yet.</p>
-                        <p className="text-xs mt-1">Salaries recorded via the "Pay Salary" button will appear here.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {[...emp.salaryHistory].reverse().map((rec, i) => (
-                          <div key={rec.id} className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                  {emp.salaryHistory!.length - i}
-                                </div>
-                                <span className="font-bold text-green-900 font-mono text-sm">
-                                  Net: {settings.currency} {rec.netPaid.toLocaleString()}
-                                </span>
-                              </div>
-                              <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs ml-8">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Gross Salary:</span>
-                                <span className="font-mono font-semibold">{settings.currency} {rec.grossSalary.toLocaleString()}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Advance Deducted:</span>
-                                <span className="font-mono font-semibold text-amber-700">-{settings.currency} {rec.advanceDeducted.toLocaleString()}</span>
-                              </div>
-                            </div>
-                            {rec.notes && (
-                              <p className="text-xs text-gray-700 ml-8 italic">"{rec.notes}"</p>
-                            )}
-                            <p className="text-[11px] text-gray-400 ml-8">Logged by: {rec.loggedBy}</p>
-                          </div>
-                        ))}
-                        {/* Running total footer */}
-                        <div className="flex justify-between items-center bg-green-100 border border-green-300 rounded-xl px-4 py-2.5 mt-2">
-                          <span className="text-xs font-semibold text-green-900">Total Net Salaries Paid</span>
-                          <span className="font-bold font-mono text-green-900">
-                            {settings.currency} {emp.salaryHistory.reduce((s, r) => s + r.netPaid, 0).toLocaleString()}
+                {dossierTab === 'salaries' && (() => {
+                  const allSal = emp.salaryHistory;
+                  const filtered = allSal ? [...allSal].reverse().filter(r => {
+                    if (historyMonthFilter && !r.date.startsWith(historyMonthFilter)) return false;
+                    if (historyStartDate && r.date < historyStartDate) return false;
+                    if (historyEndDate && r.date > historyEndDate) return false;
+                    return true;
+                  }) : null;
+                  const filteredTotal = filtered ? filtered.reduce((s, r) => s + r.netPaid, 0) : 0;
+                  const allTotal = (allSal || []).reduce((s, r) => s + r.netPaid, 0);
+                  const hasFilter = !!(historyMonthFilter || historyStartDate || historyEndDate);
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                          <CheckCircle size={16} className="text-green-600" /> Salary Pay History
+                        </h4>
+                        <span className="text-xs text-gray-500">
+                          Total Paid: <span className="font-bold text-green-800 font-mono">
+                            {settings.currency} {(hasFilter ? filteredTotal : allTotal).toLocaleString()}
                           </span>
-                        </div>
+                          {hasFilter && <span className="text-gray-400"> (filtered)</span>}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
+
+                      {/* Filter bar */}
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-green-800 mb-1">
+                          <Search size={12} /> Filter Records
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-[10px] text-gray-500 block mb-0.5">Month</label>
+                            <input
+                              type="month"
+                              value={historyMonthFilter}
+                              onChange={e => { setHistoryMonthFilter(e.target.value); setHistoryStartDate(''); setHistoryEndDate(''); }}
+                              className="w-full border border-green-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-500 block mb-0.5">From Date</label>
+                            <input
+                              type="date"
+                              value={historyStartDate}
+                              onChange={e => { setHistoryStartDate(e.target.value); setHistoryMonthFilter(''); }}
+                              className="w-full border border-green-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-gray-500 block mb-0.5">To Date</label>
+                            <input
+                              type="date"
+                              value={historyEndDate}
+                              onChange={e => { setHistoryEndDate(e.target.value); setHistoryMonthFilter(''); }}
+                              className="w-full border border-green-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
+                            />
+                          </div>
+                        </div>
+                        {hasFilter && (
+                          <button
+                            type="button"
+                            onClick={() => { setHistoryMonthFilter(''); setHistoryStartDate(''); setHistoryEndDate(''); }}
+                            className="text-[10px] text-green-700 hover:text-green-900 underline"
+                          >
+                            Clear filter
+                          </button>
+                        )}
+                      </div>
+
+                      {allSal === undefined ? (
+                        <div className="text-center py-8 text-gray-400">
+                          <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                          <p className="text-xs">Loading history...</p>
+                          <button
+                            type="button"
+                            onClick={() => loadSalaryHistory(emp.id)}
+                            className="mt-2 text-xs text-green-600 hover:underline"
+                          >
+                            Tap to retry
+                          </button>
+                        </div>
+                      ) : filtered!.length === 0 ? (
+                        <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                          <History size={30} className="mx-auto mb-2 opacity-40" />
+                          <p className="text-sm font-medium">{hasFilter ? 'No records match filter.' : 'No salary records yet.'}</p>
+                          {!hasFilter && <p className="text-xs mt-1">Salaries recorded via the "Pay Salary" button will appear here.</p>}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {filtered!.map((rec, i) => (
+                            <div key={rec.id} className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                    {filtered!.length - i}
+                                  </div>
+                                  <span className="font-bold text-green-900 font-mono text-sm">
+                                    Net: {settings.currency} {rec.netPaid.toLocaleString()}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs ml-8">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Gross Salary:</span>
+                                  <span className="font-mono font-semibold">{settings.currency} {rec.grossSalary.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Advance Deducted:</span>
+                                  <span className="font-mono font-semibold text-amber-700">-{settings.currency} {rec.advanceDeducted.toLocaleString()}</span>
+                                </div>
+                              </div>
+                              {rec.notes && (
+                                <p className="text-xs text-gray-700 ml-8 italic">"{rec.notes}"</p>
+                              )}
+                              <p className="text-[11px] text-gray-400 ml-8">Logged by: {rec.loggedBy}</p>
+                            </div>
+                          ))}
+                          <div className="flex justify-between items-center bg-green-100 border border-green-300 rounded-xl px-4 py-2.5 mt-2">
+                            <span className="text-xs font-semibold text-green-900">{hasFilter ? 'Filtered Total' : 'Total Net Salaries Paid'}</span>
+                            <span className="font-bold font-mono text-green-900">
+                              {settings.currency} {filteredTotal.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
               </div>
 
