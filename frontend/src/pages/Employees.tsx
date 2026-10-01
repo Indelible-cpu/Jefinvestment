@@ -3,9 +3,9 @@ import {
   Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle,
   Trash2, Edit, Camera, Upload, Eye, X, Phone, Mail, MapPin,
   Calendar, ShieldCheck, HeartHandshake, FileText, Search, ZoomIn,
-  AlertCircle, Image as ImageIcon
+  AlertCircle, Image as ImageIcon, Share2, Printer, History
 } from 'lucide-react';
-import { useEmployeeStore, type Employee } from '../store/dataStore';
+import { useEmployeeStore, type Employee, type AdvancePayRecord, type SalaryPayRecord } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { storage } from '../lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -16,7 +16,7 @@ export default function Employees() {
   const {
     employees, isLoading, loadEmployees, addEmployee, updateEmployee,
     updateStatus, recordAdvancePay, recordSalaryPay, clearAdvancePay,
-    deleteEmployee, getTotalAdvancePay
+    deleteEmployee, getTotalAdvancePay, loadAdvanceHistory, loadSalaryHistory
   } = useEmployeeStore();
   const settings = useSettingsStore();
 
@@ -71,6 +71,7 @@ export default function Employees() {
 
   // Full Employee Dossier Modal
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+  const [dossierTab, setDossierTab] = useState<'profile' | 'advances' | 'salaries'>('profile');
 
   // Zoom ID Card modal
   const [zoomedIdImageUrl, setZoomedIdImageUrl] = useState<string | null>(null);
@@ -382,6 +383,150 @@ export default function Employees() {
     });
   };
 
+  // Open dossier and load both histories in parallel
+  const openDossier = (emp: Employee) => {
+    setViewingEmployee(emp);
+    setDossierTab('profile');
+    loadAdvanceHistory(emp.id);
+    loadSalaryHistory(emp.id);
+  };
+
+  // WhatsApp share: full payroll history summary for an employee
+  const handleWhatsAppShare = (emp: Employee) => {
+    const advHistory = emp.advanceHistory || [];
+    const salHistory = emp.salaryHistory || [];
+    const cur = settings.currency;
+
+    const advLines = advHistory.length
+      ? advHistory.map((r, i) =>
+          `  ${i + 1}. ${r.date} — ${cur} ${r.amount.toLocaleString()}${r.notes ? ` (${r.notes})` : ''} [by ${r.loggedBy}]`
+        ).join('\n')
+      : '  No advance records.';
+
+    const salLines = salHistory.length
+      ? salHistory.map((r, i) =>
+          `  ${i + 1}. ${r.date} — Gross: ${cur} ${r.grossSalary.toLocaleString()}, Advance: -${cur} ${r.advanceDeducted.toLocaleString()}, Net Paid: ${cur} ${r.netPaid.toLocaleString()}${r.notes ? ` (${r.notes})` : ''} [by ${r.loggedBy}]`
+        ).join('\n')
+      : '  No salary records.';
+
+    const totalAdvances = advHistory.reduce((s, r) => s + r.amount, 0);
+    const totalSalaries = salHistory.reduce((s, r) => s + r.netPaid, 0);
+
+    const message =
+`*PAYROLL HISTORY — ${emp.firstName} ${emp.lastName}*
+Role: ${emp.role} | ID: ${emp.idNumber || 'N/A'}
+Monthly Salary: ${cur} ${emp.salary.toLocaleString()}
+Current Advance Balance: ${cur} ${(emp.advancePay || 0).toLocaleString()}
+
+*ADVANCE PAY RECORDS (${advHistory.length})*
+${advLines}
+Total Advanced: ${cur} ${totalAdvances.toLocaleString()}
+
+*SALARY PAY RECORDS (${salHistory.length})*
+${salLines}
+Total Salaries Paid: ${cur} ${totalSalaries.toLocaleString()}
+
+_Generated: ${new Date().toLocaleString()}_`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
+  // Print payroll history for an employee
+  const handlePrintPayrollHistory = (emp: Employee) => {
+    const advHistory = emp.advanceHistory || [];
+    const salHistory = emp.salaryHistory || [];
+    const cur = settings.currency;
+    const totalAdvances = advHistory.reduce((s, r) => s + r.amount, 0);
+    const totalSalaries = salHistory.reduce((s, r) => s + r.netPaid, 0);
+
+    const advRows = advHistory.length
+      ? advHistory.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${r.date}</td>
+          <td style="text-align:right">${cur} ${r.amount.toLocaleString()}</td>
+          <td>${r.notes || '—'}</td>
+          <td>${r.loggedBy}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:#888">No advance records.</td></tr>';
+
+    const salRows = salHistory.length
+      ? salHistory.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${r.date}</td>
+          <td style="text-align:right">${cur} ${r.grossSalary.toLocaleString()}</td>
+          <td style="text-align:right;color:#b45309">-${cur} ${r.advanceDeducted.toLocaleString()}</td>
+          <td style="text-align:right;font-weight:700">${cur} ${r.netPaid.toLocaleString()}</td>
+          <td>${r.notes || '—'}</td>
+          <td>${r.loggedBy}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="7" style="text-align:center;color:#888">No salary records.</td></tr>';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Payroll History — ${emp.firstName} ${emp.lastName}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 24px; }
+    h1 { font-size: 20px; margin-bottom: 2px; }
+    .meta { color: #555; font-size: 12px; margin-bottom: 20px; }
+    .badge { display:inline-block; background:#dbeafe; color:#1e40af; border-radius:4px; padding:2px 8px; font-size:11px; margin-left:6px; }
+    h2 { font-size: 15px; margin-top: 24px; margin-bottom: 6px; border-bottom: 2px solid #e5e7eb; padding-bottom: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    th { background: #f3f4f6; text-align: left; padding: 6px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+    td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .total-row { font-weight: 700; background: #f9fafb; }
+    .footer { margin-top: 32px; font-size: 11px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 8px; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>Payroll History <span class="badge">${emp.role}</span></h1>
+  <div class="meta">
+    <strong>${emp.firstName} ${emp.lastName}</strong> &nbsp;|&nbsp;
+    ID: ${emp.idNumber || 'N/A'} &nbsp;|&nbsp;
+    Monthly Salary: ${cur} ${emp.salary.toLocaleString()} &nbsp;|&nbsp;
+    Current Advance Balance: ${cur} ${(emp.advancePay || 0).toLocaleString()}
+  </div>
+
+  <h2>💵 Advance Pay Records</h2>
+  <table>
+    <thead><tr><th>#</th><th>Date</th><th>Amount</th><th>Reason / Notes</th><th>Logged By</th></tr></thead>
+    <tbody>${advRows}</tbody>
+    <tfoot><tr class="total-row">
+      <td colspan="2">TOTAL ADVANCED</td>
+      <td style="text-align:right">${cur} ${totalAdvances.toLocaleString()}</td>
+      <td colspan="2"></td>
+    </tr></tfoot>
+  </table>
+
+  <h2>✅ Salary Pay Records</h2>
+  <table>
+    <thead><tr><th>#</th><th>Date</th><th>Gross Salary</th><th>Advance Deducted</th><th>Net Paid</th><th>Notes</th><th>Logged By</th></tr></thead>
+    <tbody>${salRows}</tbody>
+    <tfoot><tr class="total-row">
+      <td colspan="4">TOTAL NET SALARIES PAID</td>
+      <td style="text-align:right">${cur} ${totalSalaries.toLocaleString()}</td>
+      <td colspan="2"></td>
+    </tr></tfoot>
+  </table>
+
+  <div class="footer">Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; MsikaFlo Payroll System</div>
+  <script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
   return (
     <div className="p-1.5 sm:p-3 md:p-8 bg-background min-h-full pb-24">
       {/* Hidden File Inputs */}
@@ -519,7 +664,7 @@ export default function Employees() {
               <div className="flex items-start sm:items-center gap-4 min-w-0">
                 {/* Photo / Avatar */}
                 <div
-                  onClick={() => setViewingEmployee(emp)}
+                  onClick={() => openDossier(emp)}
                   className="relative cursor-pointer group flex-shrink-0"
                   title="Click to view full dossier"
                 >
@@ -548,7 +693,7 @@ export default function Employees() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
-                      onClick={() => setViewingEmployee(emp)}
+                      onClick={() => openDossier(emp)}
                       className="font-bold text-base text-foreground hover:text-primary transition text-left"
                     >
                       {emp.firstName} {emp.lastName}
@@ -598,7 +743,7 @@ export default function Employees() {
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap border-t md:border-t-0 pt-3 md:pt-0">
                 <button
-                  onClick={() => setViewingEmployee(emp)}
+                  onClick={() => openDossier(emp)}
                   className="flex items-center gap-1 text-xs bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-xl font-semibold transition border shadow-xs"
                   title="View Full Profile Dossier"
                 >
@@ -1085,218 +1230,402 @@ export default function Employees() {
       )}
 
       {/* Full Employee Profile / Dossier Modal */}
-      {viewingEmployee && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50"
-          onClick={() => setViewingEmployee(null)}
-        >
+      {viewingEmployee && (() => {
+        const emp = employees.find(e => e.id === viewingEmployee.id) || viewingEmployee;
+        return (
           <div
-            className="bg-card w-full max-w-2xl rounded-2xl shadow-2xl border overflow-hidden max-h-[92vh] flex flex-col"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50"
+            onClick={() => setViewingEmployee(null)}
           >
-            {/* Header banner */}
-            <div className="relative bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-6">
-              <button
-                type="button"
-                onClick={() => setViewingEmployee(null)}
-                className="absolute top-4 right-4 p-1.5 rounded-lg bg-black/20 hover:bg-black/40 text-white transition"
-              >
-                <X size={20} />
-              </button>
+            <div
+              className="bg-card w-full max-w-2xl rounded-2xl shadow-2xl border overflow-hidden max-h-[92vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header banner */}
+              <div className="relative bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-5 sm:p-6">
+                <button
+                  type="button"
+                  onClick={() => setViewingEmployee(null)}
+                  className="absolute top-4 right-4 p-1.5 rounded-lg bg-black/20 hover:bg-black/40 text-white transition"
+                >
+                  <X size={20} />
+                </button>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                {viewingEmployee.photoUrl ? (
-                  <img
-                    src={viewingEmployee.photoUrl}
-                    alt={viewingEmployee.firstName}
-                    className="w-20 h-20 rounded-2xl object-cover border-4 border-white/20 shadow-lg"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/20 flex items-center justify-center text-2xl font-black">
-                    {viewingEmployee.firstName?.[0]}{viewingEmployee.lastName?.[0]}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  {emp.photoUrl ? (
+                    <img
+                      src={emp.photoUrl}
+                      alt={emp.firstName}
+                      className="w-20 h-20 rounded-2xl object-cover border-4 border-white/20 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-white/20 border-4 border-white/20 flex items-center justify-center text-2xl font-black">
+                      {emp.firstName?.[0]}{emp.lastName?.[0]}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-2xl font-bold">{emp.firstName} {emp.lastName}</h2>
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white border border-white/30">
+                        {emp.status}
+                      </span>
+                    </div>
+                    <p className="text-blue-100 font-medium text-sm mt-0.5">{emp.role}</p>
+                    {emp.idNumber && (
+                      <p className="text-xs font-mono text-blue-200 mt-1">ID: {emp.idNumber}</p>
+                    )}
                   </div>
-                )}
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-2xl font-bold">{viewingEmployee.firstName} {viewingEmployee.lastName}</h2>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white border border-white/30">
-                      {viewingEmployee.status}
+                  {/* Share & Print buttons in header */}
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleWhatsAppShare(emp)}
+                      title="Share payroll history via WhatsApp"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition shadow-sm"
+                    >
+                      <Share2 size={14} /> WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintPayrollHistory(emp)}
+                      title="Print payroll history"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/30 text-white rounded-xl text-xs font-semibold transition"
+                    >
+                      <Printer size={14} /> Print
+                    </button>
+                  </div>
+                </div>
+
+                {/* Financial summary strips */}
+                <div className="grid grid-cols-3 gap-2 mt-4">
+                  <div className="bg-white/10 rounded-xl px-3 py-2">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Salary</span>
+                    <span className="font-bold font-mono text-sm">{settings.currency} {emp.salary.toLocaleString()}</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl px-3 py-2">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Advance</span>
+                    <span className={`font-bold font-mono text-sm ${(emp.advancePay || 0) > 0 ? 'text-amber-300' : ''}`}>
+                      {settings.currency} {(emp.advancePay || 0).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-blue-100 font-medium text-sm mt-0.5">{viewingEmployee.role}</p>
-                  {viewingEmployee.idNumber && (
-                    <p className="text-xs font-mono text-blue-200 mt-1">National ID: {viewingEmployee.idNumber}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Dossier Body */}
-            <div className="p-6 overflow-y-auto space-y-6">
-              {/* Financial / Compensation Overview */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="bg-muted/40 border rounded-xl p-3">
-                  <span className="text-xs text-gray-500 font-medium">Monthly Salary</span>
-                  <p className="text-base font-bold font-mono text-gray-900 mt-0.5">
-                    {settings.currency} {viewingEmployee.salary.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-muted/40 border rounded-xl p-3">
-                  <span className="text-xs text-gray-500 font-medium">Advance Balance</span>
-                  <p className={`text-base font-bold font-mono mt-0.5 ${(viewingEmployee.advancePay || 0) > 0 ? 'text-amber-800 font-black' : 'text-gray-900'}`}>
-                    {settings.currency} {(viewingEmployee.advancePay || 0).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-muted/40 border rounded-xl p-3 col-span-2 sm:col-span-1">
-                  <span className="text-xs text-gray-500 font-medium">Net Due This Month</span>
-                  <p className="text-base font-bold font-mono text-emerald-800 mt-0.5">
-                    {settings.currency} {(viewingEmployee.salary - (viewingEmployee.advancePay || 0)).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              {/* Contact & Personal Details */}
-              <div className="bg-card border rounded-2xl p-4 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                  <Users size={14} className="text-primary" /> Contact &amp; Particulars
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Phone size={15} className="text-gray-400" />
-                    <span className="text-gray-600">Phone:</span>
-                    {viewingEmployee.phone ? (
-                      <a href={`tel:${viewingEmployee.phone}`} className="font-semibold text-primary hover:underline">
-                        {viewingEmployee.phone}
-                      </a>
-                    ) : (
-                      <span className="text-gray-400 italic">Not set</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail size={15} className="text-gray-400" />
-                    <span className="text-gray-600">Email:</span>
-                    {viewingEmployee.email ? (
-                      <a href={`mailto:${viewingEmployee.email}`} className="font-semibold text-primary hover:underline">
-                        {viewingEmployee.email}
-                      </a>
-                    ) : (
-                      <span className="text-gray-400 italic">Not set</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin size={15} className="text-gray-400" />
-                    <span className="text-gray-600">Address:</span>
-                    <span className="font-medium text-gray-900">{viewingEmployee.address || 'Not set'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar size={15} className="text-gray-400" />
-                    <span className="text-gray-600">Date Joined:</span>
-                    <span className="font-medium text-gray-900">{viewingEmployee.dateJoined || 'Not set'}</span>
+                  <div className="bg-white/10 rounded-xl px-3 py-2">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Net Due</span>
+                    <span className="font-bold font-mono text-sm text-emerald-300">
+                      {settings.currency} {(emp.salary - (emp.advancePay || 0)).toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Next of Kin Card */}
-              <div className="bg-rose-50/50 border border-rose-200 rounded-2xl p-4 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
-                  <HeartHandshake size={15} className="text-rose-600" /> Next of Kin (Emergency Contact)
-                </h4>
-                {viewingEmployee.nextOfKinName ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-500 text-xs block">Contact Name</span>
-                      <span className="font-bold text-gray-900">{viewingEmployee.nextOfKinName}</span>
-                      <span className="text-xs text-rose-700 font-semibold ml-2">({viewingEmployee.nextOfKinRelationship || 'Kin'})</span>
+              {/* Tabs */}
+              <div className="flex border-b bg-muted/20 px-5 gap-1">
+                {([
+                  { key: 'profile', label: 'Profile', Icon: Users },
+                  { key: 'advances', label: `Advances (${(emp.advanceHistory || []).length})`, Icon: Banknote },
+                  { key: 'salaries', label: `Salaries (${(emp.salaryHistory || []).length})`, Icon: CheckCircle },
+                ] as const).map(({ key, label, Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setDossierTab(key as any)}
+                    className={`py-3 px-3 font-semibold text-xs border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
+                      dossierTab === key
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon size={14} /> {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Tab Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+                {/* ── PROFILE TAB ── */}
+                {dossierTab === 'profile' && (
+                  <>
+                    {/* Contact & Personal Details */}
+                    <div className="bg-card border rounded-2xl p-4 space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                        <Users size={14} className="text-primary" /> Contact &amp; Particulars
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Phone size={15} className="text-gray-400" />
+                          <span className="text-gray-600">Phone:</span>
+                          {emp.phone ? (
+                            <a href={`tel:${emp.phone}`} className="font-semibold text-primary hover:underline">
+                              {emp.phone}
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 italic">Not set</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail size={15} className="text-gray-400" />
+                          <span className="text-gray-600">Email:</span>
+                          {emp.email ? (
+                            <a href={`mailto:${emp.email}`} className="font-semibold text-primary hover:underline">
+                              {emp.email}
+                            </a>
+                          ) : (
+                            <span className="text-gray-400 italic">Not set</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={15} className="text-gray-400" />
+                          <span className="text-gray-600">Address:</span>
+                          <span className="font-medium text-gray-900">{emp.address || 'Not set'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar size={15} className="text-gray-400" />
+                          <span className="text-gray-600">Date Joined:</span>
+                          <span className="font-medium text-gray-900">{emp.dateJoined || 'Not set'}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-500 text-xs block">Emergency Phone</span>
-                      {viewingEmployee.nextOfKinPhone ? (
-                        <a
-                          href={`tel:${viewingEmployee.nextOfKinPhone}`}
-                          className="inline-flex items-center gap-1 font-bold text-rose-700 hover:underline"
-                        >
-                          <Phone size={13} /> {viewingEmployee.nextOfKinPhone}
-                        </a>
+
+                    {/* Next of Kin */}
+                    <div className="bg-rose-50/50 border border-rose-200 rounded-2xl p-4 space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
+                        <HeartHandshake size={15} className="text-rose-600" /> Next of Kin (Emergency Contact)
+                      </h4>
+                      {emp.nextOfKinName ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500 text-xs block">Contact Name</span>
+                            <span className="font-bold text-gray-900">{emp.nextOfKinName}</span>
+                            <span className="text-xs text-rose-700 font-semibold ml-2">({emp.nextOfKinRelationship || 'Kin'})</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 text-xs block">Emergency Phone</span>
+                            {emp.nextOfKinPhone ? (
+                              <a href={`tel:${emp.nextOfKinPhone}`} className="inline-flex items-center gap-1 font-bold text-rose-700 hover:underline">
+                                <Phone size={13} /> {emp.nextOfKinPhone}
+                              </a>
+                            ) : (
+                              <span className="text-gray-400 italic">None</span>
+                            )}
+                          </div>
+                          {emp.nextOfKinAddress && (
+                            <div className="sm:col-span-2">
+                              <span className="text-gray-500 text-xs block">Location / Notes</span>
+                              <span className="text-gray-800">{emp.nextOfKinAddress}</span>
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <span className="text-gray-400 italic">None</span>
+                        <p className="text-xs text-gray-500 italic">No Next of Kin details recorded yet.</p>
                       )}
                     </div>
-                    {viewingEmployee.nextOfKinAddress && (
-                      <div className="sm:col-span-2">
-                        <span className="text-gray-500 text-xs block">Location / Notes</span>
-                        <span className="text-gray-800">{viewingEmployee.nextOfKinAddress}</span>
+
+                    {/* ID Document */}
+                    <div className="bg-card border rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                          <ShieldCheck size={15} className="text-emerald-600" /> National ID Document
+                        </h4>
+                        {emp.idCardUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setZoomedIdImageUrl(emp.idCardUrl || null)}
+                            className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                          >
+                            <ZoomIn size={13} /> Enlarge Scan
+                          </button>
+                        )}
+                      </div>
+                      {emp.idCardUrl ? (
+                        <div
+                          onClick={() => setZoomedIdImageUrl(emp.idCardUrl || null)}
+                          className="cursor-pointer group relative w-full h-48 bg-muted rounded-xl border overflow-hidden flex items-center justify-center hover:opacity-95 transition"
+                        >
+                          <img src={emp.idCardUrl} alt="ID Scan" className="w-full h-full object-contain" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold gap-1.5">
+                            <ZoomIn size={16} /> Click to View Full Resolution
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center p-6 bg-muted/20 border border-dashed rounded-xl text-gray-400">
+                          <AlertCircle size={28} className="mx-auto mb-1 opacity-50" />
+                          <p className="text-xs">No physical ID card scan attached to this profile.</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* ── ADVANCE HISTORY TAB ── */}
+                {dossierTab === 'advances' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <Banknote size={16} className="text-amber-600" /> Advance Pay History
+                      </h4>
+                      <span className="text-xs text-gray-500">
+                        Total: <span className="font-bold text-amber-800 font-mono">
+                          {settings.currency} {(emp.advanceHistory || []).reduce((s, r) => s + r.amount, 0).toLocaleString()}
+                        </span>
+                      </span>
+                    </div>
+
+                    {emp.advanceHistory === undefined ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                        <p className="text-xs">Loading history...</p>
+                      </div>
+                    ) : emp.advanceHistory.length === 0 ? (
+                      <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                        <History size={30} className="mx-auto mb-2 opacity-40" />
+                        <p className="text-sm font-medium">No advance records yet.</p>
+                        <p className="text-xs mt-1">Advances recorded via the "Pay Advance" button will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {[...emp.advanceHistory].reverse().map((rec, i) => (
+                          <div key={rec.id} className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                            <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                              {emp.advanceHistory!.length - i}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className="font-bold text-amber-900 font-mono text-sm">
+                                  {settings.currency} {rec.amount.toLocaleString()}
+                                </span>
+                                <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
+                              </div>
+                              {rec.notes && (
+                                <p className="text-xs text-gray-700 mt-0.5 italic">"{rec.notes}"</p>
+                              )}
+                              <p className="text-[11px] text-gray-400 mt-1">Logged by: {rec.loggedBy}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {/* Running total footer */}
+                        <div className="flex justify-between items-center bg-amber-100 border border-amber-300 rounded-xl px-4 py-2.5 mt-2">
+                          <span className="text-xs font-semibold text-amber-900">Total Advances Given</span>
+                          <span className="font-bold font-mono text-amber-900">
+                            {settings.currency} {emp.advanceHistory.reduce((s, r) => s + r.amount, 0).toLocaleString()}
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-500 italic">No Next of Kin details recorded yet.</p>
                 )}
-              </div>
 
-              {/* ID Document Card */}
-              <div className="bg-card border rounded-2xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                    <ShieldCheck size={15} className="text-emerald-600" /> National ID Document
-                  </h4>
-                  {viewingEmployee.idCardUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setZoomedIdImageUrl(viewingEmployee.idCardUrl || null)}
-                      className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
-                    >
-                      <ZoomIn size={13} /> Enlarge Scan
-                    </button>
-                  )}
-                </div>
-
-                {viewingEmployee.idCardUrl ? (
-                  <div
-                    onClick={() => setZoomedIdImageUrl(viewingEmployee.idCardUrl || null)}
-                    className="cursor-pointer group relative w-full h-48 bg-muted rounded-xl border overflow-hidden flex items-center justify-center hover:opacity-95 transition"
-                  >
-                    <img
-                      src={viewingEmployee.idCardUrl}
-                      alt="ID Scan"
-                      className="w-full h-full object-contain"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold gap-1.5">
-                      <ZoomIn size={16} /> Click to View Full Resolution
+                {/* ── SALARY HISTORY TAB ── */}
+                {dossierTab === 'salaries' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                        <CheckCircle size={16} className="text-green-600" /> Salary Pay History
+                      </h4>
+                      <span className="text-xs text-gray-500">
+                        Total Paid: <span className="font-bold text-green-800 font-mono">
+                          {settings.currency} {(emp.salaryHistory || []).reduce((s, r) => s + r.netPaid, 0).toLocaleString()}
+                        </span>
+                      </span>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center p-6 bg-muted/20 border border-dashed rounded-xl text-gray-400">
-                    <AlertCircle size={28} className="mx-auto mb-1 opacity-50" />
-                    <p className="text-xs">No physical ID card scan attached to this profile.</p>
+
+                    {emp.salaryHistory === undefined ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                        <p className="text-xs">Loading history...</p>
+                      </div>
+                    ) : emp.salaryHistory.length === 0 ? (
+                      <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                        <History size={30} className="mx-auto mb-2 opacity-40" />
+                        <p className="text-sm font-medium">No salary records yet.</p>
+                        <p className="text-xs mt-1">Salaries recorded via the "Pay Salary" button will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {[...emp.salaryHistory].reverse().map((rec, i) => (
+                          <div key={rec.id} className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                  {emp.salaryHistory!.length - i}
+                                </div>
+                                <span className="font-bold text-green-900 font-mono text-sm">
+                                  Net: {settings.currency} {rec.netPaid.toLocaleString()}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs ml-8">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Gross Salary:</span>
+                                <span className="font-mono font-semibold">{settings.currency} {rec.grossSalary.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Advance Deducted:</span>
+                                <span className="font-mono font-semibold text-amber-700">-{settings.currency} {rec.advanceDeducted.toLocaleString()}</span>
+                              </div>
+                            </div>
+                            {rec.notes && (
+                              <p className="text-xs text-gray-700 ml-8 italic">"{rec.notes}"</p>
+                            )}
+                            <p className="text-[11px] text-gray-400 ml-8">Logged by: {rec.loggedBy}</p>
+                          </div>
+                        ))}
+                        {/* Running total footer */}
+                        <div className="flex justify-between items-center bg-green-100 border border-green-300 rounded-xl px-4 py-2.5 mt-2">
+                          <span className="text-xs font-semibold text-green-900">Total Net Salaries Paid</span>
+                          <span className="font-bold font-mono text-green-900">
+                            {settings.currency} {emp.salaryHistory.reduce((s, r) => s + r.netPaid, 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Dossier Footer */}
-            <div className="p-4 bg-muted/40 border-t flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const emp = viewingEmployee;
-                  setViewingEmployee(null);
-                  openEditModal(emp);
-                }}
-                className="px-4 py-2 border rounded-xl text-xs font-semibold text-gray-700 hover:bg-muted transition flex items-center gap-1.5"
-              >
-                <Edit size={14} /> Edit Record
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewingEmployee(null)}
-                className="px-5 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition"
-              >
-                Close
-              </button>
+              </div>
+
+              {/* Dossier Footer */}
+              <div className="p-4 bg-muted/40 border-t flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleWhatsAppShare(emp)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-xl text-xs font-semibold hover:bg-green-700 transition shadow-sm"
+                  >
+                    <Share2 size={13} /> Share via WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePrintPayrollHistory(emp)}
+                    className="flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-semibold text-gray-700 hover:bg-muted transition"
+                  >
+                    <Printer size={13} /> Print Report
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewingEmployee(null);
+                      openEditModal(emp);
+                    }}
+                    className="px-4 py-2 border rounded-xl text-xs font-semibold text-gray-700 hover:bg-muted transition flex items-center gap-1.5"
+                  >
+                    <Edit size={14} /> Edit Record
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewingEmployee(null)}
+                    className="px-5 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ID Card Zoom Lightbox Modal */}
       {zoomedIdImageUrl && (

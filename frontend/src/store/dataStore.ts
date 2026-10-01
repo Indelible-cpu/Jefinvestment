@@ -760,6 +760,27 @@ export const useCreditStore = create<CreditState>()(
 );
 
 // ─── Employee Store ─────────────────────────────────────────────────────────────
+
+export interface AdvancePayRecord {
+  id: string;
+  amount: number;
+  date: string;         // ISO date string YYYY-MM-DD
+  notes?: string;
+  loggedBy: string;
+  createdAt: number;    // epoch ms for sorting
+}
+
+export interface SalaryPayRecord {
+  id: string;
+  grossSalary: number;
+  advanceDeducted: number;
+  netPaid: number;
+  date: string;         // ISO date string YYYY-MM-DD
+  notes?: string;
+  loggedBy: string;
+  createdAt: number;    // epoch ms for sorting
+}
+
 export interface Employee {
   id: string;
   firstName: string;
@@ -782,6 +803,9 @@ export interface Employee {
   dateOfBirth?: string;
   dateJoined?: string;
   createdAt?: number;
+  // In-memory history caches — loaded on demand
+  advanceHistory?: AdvancePayRecord[];
+  salaryHistory?: SalaryPayRecord[];
 }
 
 interface EmployeeState {
@@ -795,6 +819,8 @@ interface EmployeeState {
   recordAdvancePay: (id: string, amount: number, notes?: string) => Promise<void>;
   recordSalaryPay: (id: string, netAmount: number, notes?: string) => Promise<void>;
   clearAdvancePay: (id: string) => Promise<void>;
+  loadAdvanceHistory: (id: string) => Promise<void>;
+  loadSalaryHistory: (id: string) => Promise<void>;
   getActiveCount: () => number;
   getTotalAdvancePay: () => number;
 }
@@ -875,25 +901,38 @@ export const useEmployeeStore = create<EmployeeState>()(
       const emp = get().employees.find(e => e.id === id);
       if (!emp) return;
 
-      // Update employee advance pay total
+      const branchId = useAuthStore.getState().user?.branchId || 'main';
+      const currentUser = useAuthStore.getState().user?.name || 'System';
+      const now = Date.now();
+      const dateStr = new Date().toISOString().slice(0, 10);
+
+      // Update employee advance pay running total
       updateDoc(doc(db, 'employees', id), {
         advancePay: increment(amount)
       }).catch(e => console.warn('Offline write deferred or failed:', e));
 
+      // ── Save to advance history subcollection (permanent record) ──
+      const historyRecord = {
+        amount: Number(amount),
+        date: dateStr,
+        notes: notes || '',
+        loggedBy: currentUser,
+        createdAt: now,
+      };
+      addDoc(collection(db, 'employees', id, 'advanceHistory'), historyRecord)
+        .catch(e => console.warn('Offline write deferred or failed (advance history):', e));
+
       // Automatically record as an expense for accounting
-      const branchId = useAuthStore.getState().user?.branchId || 'main';
-      const currentUser = useAuthStore.getState().user?.name || 'System';
-      
       addDoc(collection(db, 'expenses'), {
         title: `Salary Advance: ${emp.firstName} ${emp.lastName}`,
         amount: Number(amount),
         category: 'Salary / Advance Pay',
         description: notes ? `Notes: ${notes}` : `Advance payment to ${emp.firstName} ${emp.lastName}`,
         paymentMethod: 'CASH',
-        date: new Date().toISOString().slice(0, 10),
+        date: dateStr,
         loggedBy: currentUser,
         branchId,
-        createdAt: Date.now()
+        createdAt: now,
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     clearAdvancePay: async (id) => {
@@ -905,28 +944,93 @@ export const useEmployeeStore = create<EmployeeState>()(
       const emp = get().employees.find(e => e.id === id);
       if (!emp) return;
 
+      const branchId = useAuthStore.getState().user?.branchId || 'main';
+      const currentUser = useAuthStore.getState().user?.name || 'System';
+      const now = Date.now();
+      const dateStr = new Date().toISOString().slice(0, 10);
+
       // Reset advance pay since salary is settled
       updateDoc(doc(db, 'employees', id), {
         advancePay: 0
       }).catch(e => console.warn('Offline write deferred or failed:', e));
 
+      // ── Save to salary history subcollection (permanent record) ──
+      const salaryRecord = {
+        grossSalary: emp.salary,
+        advanceDeducted: emp.advancePay || 0,
+        netPaid: Number(netAmount),
+        date: dateStr,
+        notes: notes || '',
+        loggedBy: currentUser,
+        createdAt: now,
+      };
+      addDoc(collection(db, 'employees', id, 'salaryHistory'), salaryRecord)
+        .catch(e => console.warn('Offline write deferred or failed (salary history):', e));
+
       // Automatically record as an expense
-      const branchId = useAuthStore.getState().user?.branchId || 'main';
-      const currentUser = useAuthStore.getState().user?.name || 'System';
-      
       addDoc(collection(db, 'expenses'), {
         title: `Salary Payment: ${emp.firstName} ${emp.lastName}`,
         amount: Number(netAmount),
         category: 'Salary / Advance Pay',
         description: notes ? `Notes: ${notes}` : `Net salary payment to ${emp.firstName} ${emp.lastName}`,
         paymentMethod: 'CASH',
-        date: new Date().toISOString().slice(0, 10),
+        date: dateStr,
         loggedBy: currentUser,
         branchId,
-        createdAt: Date.now()
+        createdAt: now,
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
     getTotalAdvancePay: () => get().employees.reduce((sum, e) => sum + (e.advancePay || 0), 0),
+    loadAdvanceHistory: async (id) => {
+      try {
+        const q = query(
+          collection(db, 'employees', id, 'advanceHistory'),
+          orderBy('createdAt', 'asc')
+        );
+        const snapshot = await getDocs(q);
+        const records: AdvancePayRecord[] = snapshot.docs.map(d => ({
+          id: d.id,
+          amount: d.data().amount || 0,
+          date: d.data().date || '',
+          notes: d.data().notes || '',
+          loggedBy: d.data().loggedBy || 'System',
+          createdAt: d.data().createdAt || 0,
+        }));
+        set(state => ({
+          employees: state.employees.map(e =>
+            e.id === id ? { ...e, advanceHistory: records } : e
+          )
+        }));
+      } catch (err) {
+        console.warn('Failed to load advance history:', err);
+      }
+    },
+    loadSalaryHistory: async (id) => {
+      try {
+        const q = query(
+          collection(db, 'employees', id, 'salaryHistory'),
+          orderBy('createdAt', 'asc')
+        );
+        const snapshot = await getDocs(q);
+        const records: SalaryPayRecord[] = snapshot.docs.map(d => ({
+          id: d.id,
+          grossSalary: d.data().grossSalary || 0,
+          advanceDeducted: d.data().advanceDeducted || 0,
+          netPaid: d.data().netPaid || 0,
+          date: d.data().date || '',
+          notes: d.data().notes || '',
+          loggedBy: d.data().loggedBy || 'System',
+          createdAt: d.data().createdAt || 0,
+        }));
+        set(state => ({
+          employees: state.employees.map(e =>
+            e.id === id ? { ...e, salaryHistory: records } : e
+          )
+        }));
+      } catch (err) {
+        console.warn('Failed to load salary history:', err);
+      }
+    },
   })
 );
