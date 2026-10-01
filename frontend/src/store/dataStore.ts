@@ -984,20 +984,63 @@ export const useEmployeeStore = create<EmployeeState>()(
     getTotalAdvancePay: () => get().employees.reduce((sum, e) => sum + (e.advancePay || 0), 0),
     loadAdvanceHistory: async (id) => {
       try {
+        const emp = get().employees.find(e => e.id === id);
         const snapshot = await getDocs(collection(db, 'employees', id, 'advanceHistory'));
-        const records: AdvancePayRecord[] = snapshot.docs
-          .map(d => ({
+        const subRecords: AdvancePayRecord[] = snapshot.docs.map(d => {
+          const data = d.data();
+          let created = 0;
+          if (typeof data.createdAt === 'number') created = data.createdAt;
+          else if (data.createdAt?.seconds) created = data.createdAt.seconds * 1000;
+          else if (data.createdAt?.toDate) created = data.createdAt.toDate().getTime();
+
+          let dateStr = data.date || '';
+          if (!dateStr && created > 0) {
+            dateStr = new Date(created).toISOString().slice(0, 10);
+          }
+          return {
             id: d.id,
-            amount: d.data().amount || 0,
-            date: d.data().date || '',
-            notes: d.data().notes || '',
-            loggedBy: d.data().loggedBy || 'System',
-            createdAt: d.data().createdAt || 0,
-          }))
-          .sort((a, b) => a.createdAt - b.createdAt);
+            amount: Number(data.amount) || 0,
+            date: dateStr,
+            notes: data.notes || '',
+            loggedBy: data.loggedBy || 'System',
+            createdAt: created || Date.now(),
+          };
+        });
+
+        // Fallback: Check if there are legacy advance records logged as expenses
+        const legacyRecords: AdvancePayRecord[] = [];
+        if (emp) {
+          const fullName = `${emp.firstName} ${emp.lastName}`.trim().toLowerCase();
+          const firstName = emp.firstName.trim().toLowerCase();
+          const allExpenses = useExpenseStore.getState().expenses || [];
+          allExpenses.forEach(exp => {
+            const desc = (exp.description || '').toLowerCase();
+            const cat = (exp.category || '').toLowerCase();
+            const isAdvance = (cat.includes('salary') || cat.includes('advance')) && desc.includes('advance');
+            const matchesEmp = desc.includes(fullName) || desc.includes(firstName);
+            if (isAdvance && matchesEmp) {
+              const expDate = exp.date || '';
+              // Avoid duplicate if already exists with same date and amount
+              const alreadyHas = subRecords.some(r => r.date === expDate && r.amount === exp.amount);
+              if (!alreadyHas) {
+                legacyRecords.push({
+                  id: `exp_${exp.id}`,
+                  amount: exp.amount,
+                  date: expDate,
+                  notes: exp.description || 'Salary Advance',
+                  loggedBy: exp.loggedBy || 'System',
+                  createdAt: new Date(expDate || Date.now()).getTime(),
+                });
+              }
+            }
+          });
+        }
+
+        const merged = [...subRecords, ...legacyRecords].sort((a, b) => a.createdAt - b.createdAt);
+
         set(state => ({
           employees: state.employees.map(e =>
-            e.id === id ? { ...e, advanceHistory: records } : e
+            e.id === id ? { ...e, advanceHistory: merged } : e
           )
         }));
       } catch (err) {
@@ -1012,22 +1055,66 @@ export const useEmployeeStore = create<EmployeeState>()(
     },
     loadSalaryHistory: async (id) => {
       try {
+        const emp = get().employees.find(e => e.id === id);
         const snapshot = await getDocs(collection(db, 'employees', id, 'salaryHistory'));
-        const records: SalaryPayRecord[] = snapshot.docs
-          .map(d => ({
+        const subRecords: SalaryPayRecord[] = snapshot.docs.map(d => {
+          const data = d.data();
+          let created = 0;
+          if (typeof data.createdAt === 'number') created = data.createdAt;
+          else if (data.createdAt?.seconds) created = data.createdAt.seconds * 1000;
+          else if (data.createdAt?.toDate) created = data.createdAt.toDate().getTime();
+
+          let dateStr = data.date || '';
+          if (!dateStr && created > 0) {
+            dateStr = new Date(created).toISOString().slice(0, 10);
+          }
+          return {
             id: d.id,
-            grossSalary: d.data().grossSalary || 0,
-            advanceDeducted: d.data().advanceDeducted || 0,
-            netPaid: d.data().netPaid || 0,
-            date: d.data().date || '',
-            notes: d.data().notes || '',
-            loggedBy: d.data().loggedBy || 'System',
-            createdAt: d.data().createdAt || 0,
-          }))
-          .sort((a, b) => a.createdAt - b.createdAt);
+            grossSalary: Number(data.grossSalary) || 0,
+            advanceDeducted: Number(data.advanceDeducted) || 0,
+            netPaid: Number(data.netPaid) || 0,
+            date: dateStr,
+            notes: data.notes || '',
+            loggedBy: data.loggedBy || 'System',
+            createdAt: created || Date.now(),
+          };
+        });
+
+        // Fallback: Check if there are legacy salary payment records logged as expenses
+        const legacyRecords: SalaryPayRecord[] = [];
+        if (emp) {
+          const fullName = `${emp.firstName} ${emp.lastName}`.trim().toLowerCase();
+          const firstName = emp.firstName.trim().toLowerCase();
+          const allExpenses = useExpenseStore.getState().expenses || [];
+          allExpenses.forEach(exp => {
+            const desc = (exp.description || '').toLowerCase();
+            const cat = (exp.category || '').toLowerCase();
+            const isSalary = (cat.includes('salary') || desc.includes('salary payment')) && !desc.includes('advance');
+            const matchesEmp = desc.includes(fullName) || desc.includes(firstName);
+            if (isSalary && matchesEmp) {
+              const expDate = exp.date || '';
+              const alreadyHas = subRecords.some(r => r.date === expDate && r.netPaid === exp.amount);
+              if (!alreadyHas) {
+                legacyRecords.push({
+                  id: `exp_${exp.id}`,
+                  grossSalary: emp.salary,
+                  advanceDeducted: 0,
+                  netPaid: exp.amount,
+                  date: expDate,
+                  notes: exp.description || 'Salary Payment',
+                  loggedBy: exp.loggedBy || 'System',
+                  createdAt: new Date(expDate || Date.now()).getTime(),
+                });
+              }
+            }
+          });
+        }
+
+        const merged = [...subRecords, ...legacyRecords].sort((a, b) => a.createdAt - b.createdAt);
+
         set(state => ({
           employees: state.employees.map(e =>
-            e.id === id ? { ...e, salaryHistory: records } : e
+            e.id === id ? { ...e, salaryHistory: merged } : e
           )
         }));
       } catch (err) {

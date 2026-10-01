@@ -3,10 +3,10 @@ import {
   Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle,
   Trash2, Edit, Camera, Upload, Eye, X, Phone, Mail, MapPin,
   Calendar, ShieldCheck, HeartHandshake, FileText, Search, ZoomIn,
-  AlertCircle, Image as ImageIcon, Share2, Printer, History, Loader2
+  AlertCircle, Image as ImageIcon, Share2, Printer, History, Loader2, ArrowRight
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { useEmployeeStore, type Employee } from '../store/dataStore';
+import { useEmployeeStore, useExpenseStore, type Employee } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { storage } from '../lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -23,6 +23,7 @@ export default function Employees() {
 
   useEffect(() => {
     loadEmployees();
+    useExpenseStore.getState().loadExpenses();
   }, []);
 
   // Filter / Search state
@@ -70,14 +71,17 @@ export default function Employees() {
     target: 'photo',
   });
 
-  // Full Employee Dossier Modal
+  // Pure Employee Profile Modal
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
-  const [dossierTab, setDossierTab] = useState<'profile' | 'advances' | 'salaries'>('profile');
+
+  // Dedicated Payroll & Payment History Modal
+  const [historyEmployee, setHistoryEmployee] = useState<Employee | null>(null);
+  const [historyTab, setHistoryTab] = useState<'advances' | 'salaries'>('advances');
   const [isSharingPayroll, setIsSharingPayroll] = useState(false);
-  // History filters (shared between advance & salary tabs)
-  const [historyMonthFilter, setHistoryMonthFilter] = useState(''); // 'YYYY-MM' or ''
+  const [historyPreset, setHistoryPreset] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'CUSTOM'>('ALL');
   const [historyStartDate, setHistoryStartDate] = useState('');
   const [historyEndDate, setHistoryEndDate] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
 
   // Zoom ID Card modal
   const [zoomedIdImageUrl, setZoomedIdImageUrl] = useState<string | null>(null);
@@ -389,15 +393,30 @@ export default function Employees() {
     });
   };
 
-  // Open dossier and load both histories in parallel
-  const openDossier = (emp: Employee, initialTab: 'profile' | 'advances' | 'salaries' = 'profile') => {
+  // Open pure profile
+  const openProfile = (emp: Employee) => {
     setViewingEmployee(emp);
-    setDossierTab(initialTab);
-    setHistoryMonthFilter('');
+  };
+
+  // Open dedicated payroll & payment history modal
+  const openHistoryModal = (emp: Employee, tab: 'advances' | 'salaries' = 'advances') => {
+    setHistoryEmployee(emp);
+    setHistoryTab(tab);
+    setHistoryPreset('ALL');
     setHistoryStartDate('');
     setHistoryEndDate('');
+    setHistorySearch('');
     loadAdvanceHistory(emp.id);
     loadSalaryHistory(emp.id);
+  };
+
+  // Compatibility helper
+  const openDossier = (emp: Employee, initialTab: 'profile' | 'advances' | 'salaries' = 'profile') => {
+    if (initialTab === 'profile') {
+      openProfile(emp);
+    } else {
+      openHistoryModal(emp, initialTab);
+    }
   };
 
   // WhatsApp share: capture styled payroll document as image and share or fallback to styled text
@@ -816,9 +835,9 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
               <div className="flex items-start sm:items-center gap-4 min-w-0">
                 {/* Photo / Avatar */}
                 <div
-                  onClick={() => openDossier(emp)}
+                  onClick={() => openProfile(emp)}
                   className="relative cursor-pointer group flex-shrink-0"
-                  title="Click to view full dossier"
+                  title="Click to view full employee profile"
                 >
                   {emp.photoUrl ? (
                     <img
@@ -845,8 +864,8 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
-                      onClick={() => openDossier(emp)}
-                      className="font-bold text-base text-foreground hover:text-primary transition text-left"
+                      onClick={() => openProfile(emp)}
+                      className="font-bold text-base text-foreground hover:text-primary transition text-left cursor-pointer"
                     >
                       {emp.firstName} {emp.lastName}
                     </button>
@@ -883,7 +902,7 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
                     </span>
                     {(emp.advancePay || 0) > 0 ? (
                       <button
-                        onClick={() => openDossier(emp, 'advances')}
+                        onClick={() => openHistoryModal(emp, 'advances')}
                         className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-full font-bold transition cursor-pointer"
                         title="Click to view full Advance Pay history"
                       >
@@ -892,7 +911,7 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
                       </button>
                     ) : (
                       <button
-                        onClick={() => openDossier(emp, 'advances')}
+                        onClick={() => openHistoryModal(emp, 'advances')}
                         className="text-gray-400 hover:text-gray-600 transition underline cursor-pointer"
                         title="Click to view Advance history"
                       >
@@ -906,15 +925,15 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap border-t md:border-t-0 pt-3 md:pt-0">
                 <button
-                  onClick={() => openDossier(emp, 'profile')}
-                  className="flex items-center gap-1 text-xs bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-xl font-semibold transition border shadow-xs"
-                  title="View Full Profile Dossier"
+                  onClick={() => openProfile(emp)}
+                  className="flex items-center gap-1 text-xs bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-xl font-semibold transition border shadow-xs cursor-pointer"
+                  title="View Full Profile"
                 >
                   <Eye size={14} className="text-primary" /> Profile
                 </button>
                 <button
-                  onClick={() => openDossier(emp, 'advances')}
-                  className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-xl font-semibold transition shadow-xs"
+                  onClick={() => openHistoryModal(emp, 'advances')}
+                  className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-xl font-semibold transition shadow-xs cursor-pointer"
                   title="View Full Advance & Salary History"
                 >
                   <History size={14} className="text-amber-700" /> History
@@ -1399,7 +1418,7 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
         </div>
       )}
 
-      {/* Full Employee Profile / Dossier Modal */}
+      {/* ── PURE EMPLOYEE PROFILE MODAL ── */}
       {viewingEmployee && (() => {
         const emp = employees.find(e => e.id === viewingEmployee.id) || viewingEmployee;
         return (
@@ -1416,7 +1435,7 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
                 <button
                   type="button"
                   onClick={() => setViewingEmployee(null)}
-                  className="absolute top-4 right-4 p-1.5 rounded-lg bg-black/20 hover:bg-black/40 text-white transition"
+                  className="absolute top-4 right-4 p-1.5 rounded-lg bg-black/20 hover:bg-black/40 text-white transition cursor-pointer"
                 >
                   <X size={20} />
                 </button>
@@ -1445,484 +1464,675 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
                       <p className="text-xs font-mono text-blue-200 mt-1">ID: {emp.idNumber}</p>
                     )}
                   </div>
-                  {/* Share & Print buttons in header */}
-                  <div className="flex gap-2 flex-shrink-0">
+                </div>
+
+                {/* Compensation Overview Strip */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+                  <div className="bg-white/10 rounded-xl px-3 py-2">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Salary</span>
+                    <span className="font-bold font-mono text-sm">{settings.currency} {emp.salary.toLocaleString()}</span>
+                  </div>
+                  <div className="bg-white/10 rounded-xl px-3 py-2">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Advance Balance</span>
+                    <span className={`font-bold font-mono text-sm ${(emp.advancePay || 0) > 0 ? 'text-amber-300' : ''}`}>
+                      {settings.currency} {(emp.advancePay || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewingEmployee(null);
+                      openHistoryModal(emp, 'advances');
+                    }}
+                    className="bg-white/20 hover:bg-white/30 rounded-xl px-3 py-2 flex items-center justify-between transition cursor-pointer text-left"
+                    title="Open full payment & advance history"
+                  >
+                    <div>
+                      <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Pay History</span>
+                      <span className="text-xs font-bold text-white flex items-center gap-1">
+                        View Records <ArrowRight size={13} />
+                      </span>
+                    </div>
+                    <History size={16} className="text-amber-300" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Profile Details Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* Contact & Personal Details */}
+                <div className="bg-card border rounded-2xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                    <Users size={14} className="text-primary" /> Contact &amp; Particulars
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Phone size={15} className="text-gray-400" />
+                      <span className="text-gray-600">Phone:</span>
+                      {emp.phone ? (
+                        <a href={`tel:${emp.phone}`} className="font-semibold text-primary hover:underline">
+                          {emp.phone}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 italic">Not set</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail size={15} className="text-gray-400" />
+                      <span className="text-gray-600">Email:</span>
+                      {emp.email ? (
+                        <a href={`mailto:${emp.email}`} className="font-semibold text-primary hover:underline">
+                          {emp.email}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 italic">Not set</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={15} className="text-gray-400" />
+                      <span className="text-gray-600">Address:</span>
+                      <span className="font-medium text-gray-900">{emp.address || 'Not set'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar size={15} className="text-gray-400" />
+                      <span className="text-gray-600">Date Joined:</span>
+                      <span className="font-medium text-gray-900">{emp.dateJoined || 'Not set'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Next of Kin */}
+                <div className="bg-rose-50/50 border border-rose-200 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
+                    <HeartHandshake size={15} className="text-rose-600" /> Next of Kin (Emergency Contact)
+                  </h4>
+                  {emp.nextOfKinName ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500 text-xs block">Contact Name</span>
+                        <span className="font-bold text-gray-900">{emp.nextOfKinName}</span>
+                        <span className="text-xs text-rose-700 font-semibold ml-2">({emp.nextOfKinRelationship || 'Kin'})</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 text-xs block">Emergency Phone</span>
+                        {emp.nextOfKinPhone ? (
+                          <a href={`tel:${emp.nextOfKinPhone}`} className="inline-flex items-center gap-1 font-bold text-rose-700 hover:underline">
+                            <Phone size={13} /> {emp.nextOfKinPhone}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 italic">None</span>
+                        )}
+                      </div>
+                      {emp.nextOfKinAddress && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500 text-xs block">Location / Notes</span>
+                          <span className="text-gray-800">{emp.nextOfKinAddress}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 italic">No Next of Kin details recorded yet.</p>
+                  )}
+                </div>
+
+                {/* National ID Scan */}
+                <div className="bg-card border rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                      <ShieldCheck size={15} className="text-emerald-600" /> National ID Document
+                    </h4>
+                    {emp.idCardUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setZoomedIdImageUrl(emp.idCardUrl || null)}
+                        className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                      >
+                        <ZoomIn size={13} /> Enlarge Scan
+                      </button>
+                    )}
+                  </div>
+                  {emp.idCardUrl ? (
+                    <div
+                      onClick={() => setZoomedIdImageUrl(emp.idCardUrl || null)}
+                      className="cursor-pointer group relative w-full h-44 bg-muted rounded-xl border overflow-hidden flex items-center justify-center hover:opacity-95 transition"
+                    >
+                      <img src={emp.idCardUrl} alt="ID Scan" className="w-full h-full object-contain" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold gap-1.5">
+                        <ZoomIn size={16} /> Click to View Full Resolution
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 bg-muted/20 border border-dashed rounded-xl text-gray-400">
+                      <AlertCircle size={28} className="mx-auto mb-1 opacity-50" />
+                      <p className="text-xs">No physical ID card scan attached to this profile.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Profile Footer (Clean, no duplicate share/print buttons) */}
+              <div className="p-4 bg-muted/40 border-t flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewingEmployee(null);
+                    openEditModal(emp);
+                  }}
+                  className="px-4 py-2 border rounded-xl text-xs font-semibold text-gray-700 hover:bg-muted transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit size={14} /> Edit Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingEmployee(null)}
+                  className="px-5 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── DEDICATED PAYROLL & PAYMENT HISTORY MODAL ── */}
+      {historyEmployee && (() => {
+        const emp = employees.find(e => e.id === historyEmployee.id) || historyEmployee;
+        const now = new Date();
+        const thisMonthName = now.toLocaleString('default', { month: 'short' });
+        const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthName = lastMonthDate.toLocaleString('default', { month: 'short' });
+        const lastMonthPrefix = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+        // Robust date normalizer: handles YYYY-MM-DD, DD/MM/YYYY, ISO timestamps
+        const normalizeDate = (dStr: string) => {
+          if (!dStr) return '';
+          const trimmed = dStr.trim();
+          if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+          if (/^\d{1,2}[\/\-](\d{1,2})[\/\-](\d{4})/.test(trimmed)) {
+            const parts = trimmed.split(/[\/\-]/);
+            if (parts[2]?.length === 4) {
+              return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+          }
+          const d = new Date(trimmed);
+          return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
+        };
+
+        const isMatchPeriod = (dateStr: string) => {
+          if (historyPreset === 'ALL') return true;
+          const norm = normalizeDate(dateStr);
+          if (!norm) return false;
+          if (historyPreset === 'THIS_MONTH') return norm.startsWith(thisMonthPrefix);
+          if (historyPreset === 'LAST_MONTH') return norm.startsWith(lastMonthPrefix);
+          if (historyPreset === 'CUSTOM') {
+            if (historyStartDate && norm < historyStartDate) return false;
+            if (historyEndDate && norm > historyEndDate) return false;
+            return true;
+          }
+          return true;
+        };
+
+        const isMatchSearch = (notes: string, loggedBy: string, amount: number) => {
+          if (!historySearch.trim()) return true;
+          const q = historySearch.toLowerCase().trim();
+          return (
+            (notes || '').toLowerCase().includes(q) ||
+            (loggedBy || '').toLowerCase().includes(q) ||
+            String(amount).includes(q)
+          );
+        };
+
+        const allAdv = emp.advanceHistory;
+        const filteredAdv = allAdv ? [...allAdv].reverse().filter(r => isMatchPeriod(r.date) && isMatchSearch(r.notes, r.loggedBy, r.amount)) : null;
+        const totalAdv = filteredAdv ? filteredAdv.reduce((s, r) => s + r.amount, 0) : 0;
+        const allAdvTotal = (allAdv || []).reduce((s, r) => s + r.amount, 0);
+
+        const allSal = emp.salaryHistory;
+        const filteredSal = allSal ? [...allSal].reverse().filter(r => isMatchPeriod(r.date) && isMatchSearch(r.notes, r.loggedBy, r.netPaid)) : null;
+        const totalSal = filteredSal ? filteredSal.reduce((s, r) => s + r.netPaid, 0) : 0;
+        const allSalTotal = (allSal || []).reduce((s, r) => s + r.netPaid, 0);
+
+        const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();
+
+        return (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50"
+            onClick={() => setHistoryEmployee(null)}
+          >
+            <div
+              className="bg-card w-full max-w-3xl rounded-2xl shadow-2xl border overflow-hidden max-h-[92vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header banner with Share & Print buttons */}
+              <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white p-5 sm:p-6">
+                <button
+                  type="button"
+                  onClick={() => setHistoryEmployee(null)}
+                  className="absolute top-4 right-4 p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pr-8">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        <History size={18} />
+                      </span>
+                      <div>
+                        <h2 className="text-xl font-bold leading-tight">Payroll &amp; Payment History</h2>
+                        <p className="text-xs text-blue-200 mt-0.5">
+                          {emp.firstName} {emp.lastName} &bull; <span className="text-white font-medium">{emp.role}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Header Actions (WhatsApp & Print only here!) */}
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={() => handleWhatsAppShare(emp)}
                       disabled={isSharingPayroll}
-                      title="Share payroll history via WhatsApp"
-                      className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shadow-sm"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shadow-sm cursor-pointer"
+                      title="Generate and share payroll statement image"
                     >
                       {isSharingPayroll ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
-                      {isSharingPayroll ? 'Generating...' : 'WhatsApp'}
+                      {isSharingPayroll ? 'Creating...' : 'WhatsApp'}
                     </button>
                     <button
                       type="button"
                       onClick={() => handlePrintPayrollHistory(emp)}
-                      title="Print payroll history"
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/30 text-white rounded-xl text-xs font-semibold transition"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-semibold transition cursor-pointer border border-white/20"
+                      title="Print full statement"
                     >
                       <Printer size={14} /> Print
                     </button>
                   </div>
                 </div>
 
-                {/* Financial summary strips */}
+                {/* Financial Summary Badges */}
                 <div className="grid grid-cols-3 gap-2 mt-4">
-                  <div className="bg-white/10 rounded-xl px-3 py-2">
-                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Salary</span>
+                  <div className="bg-white/10 rounded-xl px-3 py-2 border border-white/10">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Base Salary</span>
                     <span className="font-bold font-mono text-sm">{settings.currency} {emp.salary.toLocaleString()}</span>
                   </div>
-                  <div className="bg-white/10 rounded-xl px-3 py-2">
-                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Advance</span>
-                    <span className={`font-bold font-mono text-sm ${(emp.advancePay || 0) > 0 ? 'text-amber-300' : ''}`}>
+                  <div className="bg-white/10 rounded-xl px-3 py-2 border border-white/10">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Current Advance</span>
+                    <span className={`font-bold font-mono text-sm ${(emp.advancePay || 0) > 0 ? 'text-amber-300' : 'text-slate-300'}`}>
                       {settings.currency} {(emp.advancePay || 0).toLocaleString()}
                     </span>
                   </div>
-                  <div className="bg-white/10 rounded-xl px-3 py-2">
-                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wide block">Net Due</span>
+                  <div className="bg-white/10 rounded-xl px-3 py-2 border border-white/10">
+                    <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Net Due</span>
                     <span className="font-bold font-mono text-sm text-emerald-300">
-                      {settings.currency} {(emp.salary - (emp.advancePay || 0)).toLocaleString()}
+                      {settings.currency} {Math.max(0, emp.salary - (emp.advancePay || 0)).toLocaleString()}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Tabs */}
-              <div className="flex border-b bg-muted/20 px-5 gap-1">
-                {([
-                  { key: 'profile', label: 'Profile', Icon: Users },
-                  { key: 'advances', label: `Advances (${(emp.advanceHistory || []).length})`, Icon: Banknote },
-                  { key: 'salaries', label: `Salaries (${(emp.salaryHistory || []).length})`, Icon: CheckCircle },
-                ] as const).map(({ key, label, Icon }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setDossierTab(key as any)}
-                    className={`py-3 px-3 font-semibold text-xs border-b-2 transition flex items-center gap-1.5 whitespace-nowrap ${
-                      dossierTab === key
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-gray-500 hover:text-gray-900'
-                    }`}
-                  >
-                    <Icon size={14} /> {label}
-                  </button>
-                ))}
+              {/* Sub-tabs: Advances vs Salaries */}
+              <div className="flex border-b bg-muted/30 px-5 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setHistoryTab('advances')}
+                  className={`py-2.5 px-4 font-bold text-xs border-b-2 transition flex items-center gap-2 cursor-pointer ${
+                    historyTab === 'advances'
+                      ? 'border-amber-600 text-amber-700 bg-amber-50/50 rounded-t-lg'
+                      : 'border-transparent text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  <Banknote size={15} className={historyTab === 'advances' ? 'text-amber-600' : ''} />
+                  Advance History
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    historyTab === 'advances' ? 'bg-amber-200 text-amber-900' : 'bg-muted text-gray-600'
+                  }`}>
+                    {(emp.advanceHistory || []).length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistoryTab('salaries')}
+                  className={`py-2.5 px-4 font-bold text-xs border-b-2 transition flex items-center gap-2 cursor-pointer ${
+                    historyTab === 'salaries'
+                      ? 'border-green-600 text-green-700 bg-green-50/50 rounded-t-lg'
+                      : 'border-transparent text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  <CheckCircle size={15} className={historyTab === 'salaries' ? 'text-green-600' : ''} />
+                  Salary Payments
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    historyTab === 'salaries' ? 'bg-green-200 text-green-900' : 'bg-muted text-gray-600'
+                  }`}>
+                    {(emp.salaryHistory || []).length}
+                  </span>
+                </button>
               </div>
 
-              {/* Tab Body */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {/* Professional Filter Bar */}
+              <div className="p-4 bg-muted/15 border-b space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  {/* Preset Pills */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
+                      <Filter size={13} /> Filter:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => { setHistoryPreset('ALL'); setHistoryStartDate(''); setHistoryEndDate(''); }}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        historyPreset === 'ALL'
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-muted hover:bg-muted/80 text-gray-700 border'
+                      }`}
+                    >
+                      All Time
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setHistoryPreset('THIS_MONTH'); setHistoryStartDate(''); setHistoryEndDate(''); }}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        historyPreset === 'THIS_MONTH'
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-muted hover:bg-muted/80 text-gray-700 border'
+                      }`}
+                    >
+                      This Month ({thisMonthName})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setHistoryPreset('LAST_MONTH'); setHistoryStartDate(''); setHistoryEndDate(''); }}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        historyPreset === 'LAST_MONTH'
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-muted hover:bg-muted/80 text-gray-700 border'
+                      }`}
+                    >
+                      Last Month ({lastMonthName})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryPreset('CUSTOM')}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        historyPreset === 'CUSTOM'
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-muted hover:bg-muted/80 text-gray-700 border'
+                      }`}
+                    >
+                      Custom Range
+                    </button>
+                  </div>
 
-                {/* ── PROFILE TAB ── */}
-                {dossierTab === 'profile' && (
-                  <>
-                    {/* Contact & Personal Details */}
-                    <div className="bg-card border rounded-2xl p-4 space-y-3">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                        <Users size={14} className="text-primary" /> Contact &amp; Particulars
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Phone size={15} className="text-gray-400" />
-                          <span className="text-gray-600">Phone:</span>
-                          {emp.phone ? (
-                            <a href={`tel:${emp.phone}`} className="font-semibold text-primary hover:underline">
-                              {emp.phone}
-                            </a>
-                          ) : (
-                            <span className="text-gray-400 italic">Not set</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Mail size={15} className="text-gray-400" />
-                          <span className="text-gray-600">Email:</span>
-                          {emp.email ? (
-                            <a href={`mailto:${emp.email}`} className="font-semibold text-primary hover:underline">
-                              {emp.email}
-                            </a>
-                          ) : (
-                            <span className="text-gray-400 italic">Not set</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin size={15} className="text-gray-400" />
-                          <span className="text-gray-600">Address:</span>
-                          <span className="font-medium text-gray-900">{emp.address || 'Not set'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar size={15} className="text-gray-400" />
-                          <span className="text-gray-600">Date Joined:</span>
-                          <span className="font-medium text-gray-900">{emp.dateJoined || 'Not set'}</span>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Search Input */}
+                  <div className="relative w-full sm:w-56">
+                    <Search size={13} className="absolute left-2.5 top-2.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search notes or staff..."
+                      value={historySearch}
+                      onChange={e => setHistorySearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-card border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
 
-                    {/* Next of Kin */}
-                    <div className="bg-rose-50/50 border border-rose-200 rounded-2xl p-4 space-y-3">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
-                        <HeartHandshake size={15} className="text-rose-600" /> Next of Kin (Emergency Contact)
-                      </h4>
-                      {emp.nextOfKinName ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <span className="text-gray-500 text-xs block">Contact Name</span>
-                            <span className="font-bold text-gray-900">{emp.nextOfKinName}</span>
-                            <span className="text-xs text-rose-700 font-semibold ml-2">({emp.nextOfKinRelationship || 'Kin'})</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500 text-xs block">Emergency Phone</span>
-                            {emp.nextOfKinPhone ? (
-                              <a href={`tel:${emp.nextOfKinPhone}`} className="inline-flex items-center gap-1 font-bold text-rose-700 hover:underline">
-                                <Phone size={13} /> {emp.nextOfKinPhone}
-                              </a>
-                            ) : (
-                              <span className="text-gray-400 italic">None</span>
-                            )}
-                          </div>
-                          {emp.nextOfKinAddress && (
-                            <div className="sm:col-span-2">
-                              <span className="text-gray-500 text-xs block">Location / Notes</span>
-                              <span className="text-gray-800">{emp.nextOfKinAddress}</span>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-500 italic">No Next of Kin details recorded yet.</p>
-                      )}
+                {/* Custom Date Range Inputs (Shown when CUSTOM is selected) */}
+                {historyPreset === 'CUSTOM' && (
+                  <div className="flex items-center gap-3 p-2.5 bg-muted/40 border rounded-xl flex-wrap">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-gray-500 font-medium">From:</span>
+                      <input
+                        type="date"
+                        value={historyStartDate}
+                        onChange={e => setHistoryStartDate(e.target.value)}
+                        className="px-2.5 py-1 text-xs border rounded-lg bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
                     </div>
-
-                    {/* ID Document */}
-                    <div className="bg-card border rounded-2xl p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                          <ShieldCheck size={15} className="text-emerald-600" /> National ID Document
-                        </h4>
-                        {emp.idCardUrl && (
-                          <button
-                            type="button"
-                            onClick={() => setZoomedIdImageUrl(emp.idCardUrl || null)}
-                            className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
-                          >
-                            <ZoomIn size={13} /> Enlarge Scan
-                          </button>
-                        )}
-                      </div>
-                      {emp.idCardUrl ? (
-                        <div
-                          onClick={() => setZoomedIdImageUrl(emp.idCardUrl || null)}
-                          className="cursor-pointer group relative w-full h-48 bg-muted rounded-xl border overflow-hidden flex items-center justify-center hover:opacity-95 transition"
-                        >
-                          <img src={emp.idCardUrl} alt="ID Scan" className="w-full h-full object-contain" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold gap-1.5">
-                            <ZoomIn size={16} /> Click to View Full Resolution
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-center p-6 bg-muted/20 border border-dashed rounded-xl text-gray-400">
-                          <AlertCircle size={28} className="mx-auto mb-1 opacity-50" />
-                          <p className="text-xs">No physical ID card scan attached to this profile.</p>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-gray-500 font-medium">To:</span>
+                      <input
+                        type="date"
+                        value={historyEndDate}
+                        onChange={e => setHistoryEndDate(e.target.value)}
+                        className="px-2.5 py-1 text-xs border rounded-lg bg-card focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
                     </div>
-                  </>
+                  </div>
                 )}
 
-                {/* ── ADVANCE HISTORY TAB ── */}
-                {dossierTab === 'advances' && (() => {
-                  const allAdv = emp.advanceHistory;
-                  const filtered = allAdv ? [...allAdv].reverse().filter(r => {
-                    if (historyMonthFilter && !r.date.startsWith(historyMonthFilter)) return false;
-                    if (historyStartDate && r.date < historyStartDate) return false;
-                    if (historyEndDate && r.date > historyEndDate) return false;
-                    return true;
-                  }) : null;
-                  const filteredTotal = filtered ? filtered.reduce((s, r) => s + r.amount, 0) : 0;
-                  const allTotal = (allAdv || []).reduce((s, r) => s + r.amount, 0);
-                  const hasFilter = !!(historyMonthFilter || historyStartDate || historyEndDate);
-                  return (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                          <Banknote size={16} className="text-amber-600" /> Advance Pay History
-                        </h4>
-                        <span className="text-xs text-gray-500">
-                          Total: <span className="font-bold text-amber-800 font-mono">
-                            {settings.currency} {(hasFilter ? filteredTotal : allTotal).toLocaleString()}
-                          </span>
-                          {hasFilter && <span className="text-gray-400"> (filtered)</span>}
-                        </span>
-                      </div>
-
-                      {/* Filter bar */}
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 mb-1">
-                          <Search size={12} /> Filter Records
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-[10px] text-gray-500 block mb-0.5">Month</label>
-                            <input
-                              type="month"
-                              value={historyMonthFilter}
-                              onChange={e => { setHistoryMonthFilter(e.target.value); setHistoryStartDate(''); setHistoryEndDate(''); }}
-                              className="w-full border border-amber-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-gray-500 block mb-0.5">From Date</label>
-                            <input
-                              type="date"
-                              value={historyStartDate}
-                              onChange={e => { setHistoryStartDate(e.target.value); setHistoryMonthFilter(''); }}
-                              className="w-full border border-amber-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-gray-500 block mb-0.5">To Date</label>
-                            <input
-                              type="date"
-                              value={historyEndDate}
-                              onChange={e => { setHistoryEndDate(e.target.value); setHistoryMonthFilter(''); }}
-                              className="w-full border border-amber-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
-                            />
-                          </div>
-                        </div>
-                        {hasFilter && (
-                          <button
-                            type="button"
-                            onClick={() => { setHistoryMonthFilter(''); setHistoryStartDate(''); setHistoryEndDate(''); }}
-                            className="text-[10px] text-amber-700 hover:text-amber-900 underline"
-                          >
-                            Clear filter
-                          </button>
-                        )}
-                      </div>
-
-                      {allAdv === undefined ? (
-                        <div className="text-center py-8 text-gray-400">
-                          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                          <p className="text-xs">Loading history...</p>
-                          <button
-                            type="button"
-                            onClick={() => loadAdvanceHistory(emp.id)}
-                            className="mt-2 text-xs text-amber-600 hover:underline"
-                          >
-                            Tap to retry
-                          </button>
-                        </div>
-                      ) : filtered!.length === 0 ? (
-                        <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
-                          <History size={30} className="mx-auto mb-2 opacity-40" />
-                          <p className="text-sm font-medium">{hasFilter ? 'No records match filter.' : 'No advance records yet.'}</p>
-                          {!hasFilter && <p className="text-xs mt-1">Advances recorded via the "Pay Advance" button will appear here.</p>}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {filtered!.map((rec, i) => (
-                            <div key={rec.id} className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                              <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                                {filtered!.length - i}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2 flex-wrap">
-                                  <span className="font-bold text-amber-900 font-mono text-sm">
-                                    {settings.currency} {rec.amount.toLocaleString()}
-                                  </span>
-                                  <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
-                                </div>
-                                {rec.notes && (
-                                  <p className="text-xs text-gray-700 mt-0.5 italic">"{rec.notes}"</p>
-                                )}
-                                <p className="text-[11px] text-gray-400 mt-1">Logged by: {rec.loggedBy}</p>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="flex justify-between items-center bg-amber-100 border border-amber-300 rounded-xl px-4 py-2.5 mt-2">
-                            <span className="text-xs font-semibold text-amber-900">{hasFilter ? 'Filtered Total' : 'Total Advances Given'}</span>
-                            <span className="font-bold font-mono text-amber-900">
-                              {settings.currency} {filteredTotal.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* ── SALARY HISTORY TAB ── */}
-                {dossierTab === 'salaries' && (() => {
-                  const allSal = emp.salaryHistory;
-                  const filtered = allSal ? [...allSal].reverse().filter(r => {
-                    if (historyMonthFilter && !r.date.startsWith(historyMonthFilter)) return false;
-                    if (historyStartDate && r.date < historyStartDate) return false;
-                    if (historyEndDate && r.date > historyEndDate) return false;
-                    return true;
-                  }) : null;
-                  const filteredTotal = filtered ? filtered.reduce((s, r) => s + r.netPaid, 0) : 0;
-                  const allTotal = (allSal || []).reduce((s, r) => s + r.netPaid, 0);
-                  const hasFilter = !!(historyMonthFilter || historyStartDate || historyEndDate);
-                  return (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                          <CheckCircle size={16} className="text-green-600" /> Salary Pay History
-                        </h4>
-                        <span className="text-xs text-gray-500">
-                          Total Paid: <span className="font-bold text-green-800 font-mono">
-                            {settings.currency} {(hasFilter ? filteredTotal : allTotal).toLocaleString()}
-                          </span>
-                          {hasFilter && <span className="text-gray-400"> (filtered)</span>}
-                        </span>
-                      </div>
-
-                      {/* Filter bar */}
-                      <div className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-green-800 mb-1">
-                          <Search size={12} /> Filter Records
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <div>
-                            <label className="text-[10px] text-gray-500 block mb-0.5">Month</label>
-                            <input
-                              type="month"
-                              value={historyMonthFilter}
-                              onChange={e => { setHistoryMonthFilter(e.target.value); setHistoryStartDate(''); setHistoryEndDate(''); }}
-                              className="w-full border border-green-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-gray-500 block mb-0.5">From Date</label>
-                            <input
-                              type="date"
-                              value={historyStartDate}
-                              onChange={e => { setHistoryStartDate(e.target.value); setHistoryMonthFilter(''); }}
-                              className="w-full border border-green-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] text-gray-500 block mb-0.5">To Date</label>
-                            <input
-                              type="date"
-                              value={historyEndDate}
-                              onChange={e => { setHistoryEndDate(e.target.value); setHistoryMonthFilter(''); }}
-                              className="w-full border border-green-300 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
-                            />
-                          </div>
-                        </div>
-                        {hasFilter && (
-                          <button
-                            type="button"
-                            onClick={() => { setHistoryMonthFilter(''); setHistoryStartDate(''); setHistoryEndDate(''); }}
-                            className="text-[10px] text-green-700 hover:text-green-900 underline"
-                          >
-                            Clear filter
-                          </button>
-                        )}
-                      </div>
-
-                      {allSal === undefined ? (
-                        <div className="text-center py-8 text-gray-400">
-                          <div className="w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                          <p className="text-xs">Loading history...</p>
-                          <button
-                            type="button"
-                            onClick={() => loadSalaryHistory(emp.id)}
-                            className="mt-2 text-xs text-green-600 hover:underline"
-                          >
-                            Tap to retry
-                          </button>
-                        </div>
-                      ) : filtered!.length === 0 ? (
-                        <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
-                          <History size={30} className="mx-auto mb-2 opacity-40" />
-                          <p className="text-sm font-medium">{hasFilter ? 'No records match filter.' : 'No salary records yet.'}</p>
-                          {!hasFilter && <p className="text-xs mt-1">Salaries recorded via the "Pay Salary" button will appear here.</p>}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {filtered!.map((rec, i) => (
-                            <div key={rec.id} className="bg-green-50 border border-green-200 rounded-xl p-3 space-y-2">
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                                    {filtered!.length - i}
-                                  </div>
-                                  <span className="font-bold text-green-900 font-mono text-sm">
-                                    Net: {settings.currency} {rec.netPaid.toLocaleString()}
-                                  </span>
-                                </div>
-                                <span className="text-xs text-gray-500 font-mono">{rec.date}</span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-xs ml-8">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">Gross Salary:</span>
-                                  <span className="font-mono font-semibold">{settings.currency} {rec.grossSalary.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">Advance Deducted:</span>
-                                  <span className="font-mono font-semibold text-amber-700">-{settings.currency} {rec.advanceDeducted.toLocaleString()}</span>
-                                </div>
-                              </div>
-                              {rec.notes && (
-                                <p className="text-xs text-gray-700 ml-8 italic">"{rec.notes}"</p>
-                              )}
-                              <p className="text-[11px] text-gray-400 ml-8">Logged by: {rec.loggedBy}</p>
-                            </div>
-                          ))}
-                          <div className="flex justify-between items-center bg-green-100 border border-green-300 rounded-xl px-4 py-2.5 mt-2">
-                            <span className="text-xs font-semibold text-green-900">{hasFilter ? 'Filtered Total' : 'Total Net Salaries Paid'}</span>
-                            <span className="font-bold font-mono text-green-900">
-                              {settings.currency} {filteredTotal.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
+                {/* Active Filter Summary Bar */}
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t">
+                  <div>
+                    {historyTab === 'advances' ? (
+                      <span>
+                        Showing <strong className="text-gray-900">{filteredAdv ? filteredAdv.length : 0}</strong> of {(allAdv || []).length} advance records
+                        &bull; Filtered Total: <strong className="font-mono text-amber-700">{settings.currency} {totalAdv.toLocaleString()}</strong>
+                      </span>
+                    ) : (
+                      <span>
+                        Showing <strong className="text-gray-900">{filteredSal ? filteredSal.length : 0}</strong> of {(allSal || []).length} salary records
+                        &bull; Filtered Total: <strong className="font-mono text-green-700">{settings.currency} {totalSal.toLocaleString()}</strong>
+                      </span>
+                    )}
+                  </div>
+                  {hasActiveFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHistoryPreset('ALL');
+                        setHistoryStartDate('');
+                        setHistoryEndDate('');
+                        setHistorySearch('');
+                      }}
+                      className="text-primary hover:underline font-semibold cursor-pointer text-xs"
+                    >
+                      Reset filters
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Dossier Footer */}
-              <div className="p-4 bg-muted/40 border-t flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleWhatsAppShare(emp)}
-                    disabled={isSharingPayroll}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shadow-sm"
-                  >
-                    {isSharingPayroll ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />}
-                    {isSharingPayroll ? 'Generating...' : 'Share via WhatsApp'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handlePrintPayrollHistory(emp)}
-                    className="flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-semibold text-gray-700 hover:bg-muted transition"
-                  >
-                    <Printer size={13} /> Print Report
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViewingEmployee(null);
-                      openEditModal(emp);
-                    }}
-                    className="px-4 py-2 border rounded-xl text-xs font-semibold text-gray-700 hover:bg-muted transition flex items-center gap-1.5"
-                  >
-                    <Edit size={14} /> Edit Record
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewingEmployee(null)}
-                    className="px-5 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition"
-                  >
-                    Close
-                  </button>
-                </div>
+              {/* Records List Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                {/* ── ADVANCES TAB BODY ── */}
+                {historyTab === 'advances' && (
+                  allAdv === undefined ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-xs">Loading advance records...</p>
+                      <button
+                        type="button"
+                        onClick={() => loadAdvanceHistory(emp.id)}
+                        className="mt-2 text-xs text-amber-600 hover:underline cursor-pointer"
+                      >
+                        Tap to retry
+                      </button>
+                    </div>
+                  ) : filteredAdv!.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                      <History size={36} className="mx-auto mb-2 opacity-30 text-amber-600" />
+                      <p className="text-sm font-semibold text-gray-700">
+                        {hasActiveFilter ? 'No advance records found for this period' : 'No advance records on file'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                        {hasActiveFilter
+                          ? 'Try selecting a different month, adjusting date boundaries, or clearing search keywords.'
+                          : 'Advances recorded via the "Pay Advance" button will appear permanently in this history log.'}
+                      </p>
+                      {hasActiveFilter && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHistoryPreset('ALL');
+                            setHistoryStartDate('');
+                            setHistoryEndDate('');
+                            setHistorySearch('');
+                          }}
+                          className="mt-3 px-3 py-1.5 bg-muted text-gray-700 rounded-lg text-xs font-semibold hover:bg-muted/80 transition cursor-pointer"
+                        >
+                          Show All Records
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {filteredAdv!.map((rec, i) => (
+                        <div
+                          key={rec.id}
+                          className="bg-card border rounded-xl p-3.5 hover:border-amber-400 transition shadow-xs flex items-start gap-3.5"
+                        >
+                          <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 border border-amber-200">
+                            #{filteredAdv!.length - i}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="font-bold text-amber-900 font-mono text-base">
+                                {settings.currency} {rec.amount.toLocaleString()}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono">
+                                <Calendar size={12} className="text-gray-400" />
+                                {rec.date}
+                              </div>
+                            </div>
+                            {rec.notes && (
+                              <p className="text-xs text-gray-700 mt-1 bg-muted/30 rounded-lg px-2.5 py-1 border border-dashed">
+                                {rec.notes}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2">
+                              <span>Logged by: <strong className="text-gray-600">{rec.loggedBy}</strong></span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Summary Banner */}
+                      <div className="flex justify-between items-center bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mt-3">
+                        <span className="text-xs font-bold text-amber-900">
+                          {hasActiveFilter ? 'Filtered Total' : 'All-Time Advances Total'}
+                        </span>
+                        <span className="font-bold font-mono text-amber-900 text-base">
+                          {settings.currency} {totalAdv.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                )}
+
+                {/* ── SALARIES TAB BODY ── */}
+                {historyTab === 'salaries' && (
+                  allSal === undefined ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-xs">Loading salary records...</p>
+                      <button
+                        type="button"
+                        onClick={() => loadSalaryHistory(emp.id)}
+                        className="mt-2 text-xs text-green-600 hover:underline cursor-pointer"
+                      >
+                        Tap to retry
+                      </button>
+                    </div>
+                  ) : filteredSal!.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                      <History size={36} className="mx-auto mb-2 opacity-30 text-green-600" />
+                      <p className="text-sm font-semibold text-gray-700">
+                        {hasActiveFilter ? 'No salary records found for this period' : 'No salary records on file'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                        {hasActiveFilter
+                          ? 'Try selecting a different month, adjusting date boundaries, or clearing search keywords.'
+                          : 'Salary settlements recorded via the "Pay Salary" button will appear permanently in this history log.'}
+                      </p>
+                      {hasActiveFilter && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHistoryPreset('ALL');
+                            setHistoryStartDate('');
+                            setHistoryEndDate('');
+                            setHistorySearch('');
+                          }}
+                          className="mt-3 px-3 py-1.5 bg-muted text-gray-700 rounded-lg text-xs font-semibold hover:bg-muted/80 transition cursor-pointer"
+                        >
+                          Show All Records
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {filteredSal!.map((rec, i) => (
+                        <div
+                          key={rec.id}
+                          className="bg-card border rounded-xl p-3.5 hover:border-green-400 transition shadow-xs space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-xl bg-green-100 text-green-800 flex items-center justify-center text-xs font-bold flex-shrink-0 border border-green-200">
+                                #{filteredSal!.length - i}
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider block">Net Paid</span>
+                                <span className="font-bold text-green-900 font-mono text-base">
+                                  {settings.currency} {rec.netPaid.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono">
+                              <Calendar size={12} className="text-gray-400" />
+                              {rec.date}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs bg-muted/30 rounded-xl p-2.5 border">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Gross Salary:</span>
+                              <span className="font-mono font-semibold text-gray-800">{settings.currency} {rec.grossSalary.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Advance Deducted:</span>
+                              <span className="font-mono font-semibold text-amber-700">-{settings.currency} {rec.advanceDeducted.toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          {rec.notes && (
+                            <p className="text-xs text-gray-700 bg-muted/20 rounded-lg px-2.5 py-1 border border-dashed">
+                              {rec.notes}
+                            </p>
+                          )}
+                          <div className="text-[11px] text-gray-400">
+                            Logged by: <strong className="text-gray-600">{rec.loggedBy}</strong>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Summary Banner */}
+                      <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-xl px-4 py-3 mt-3">
+                        <span className="text-xs font-bold text-green-900">
+                          {hasActiveFilter ? 'Filtered Total Net Paid' : 'All-Time Net Salaries Paid'}
+                        </span>
+                        <span className="font-bold font-mono text-green-900 text-base">
+                          {settings.currency} {totalSal.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* History Footer (Clean, NO duplicate share/print buttons!) */}
+              <div className="p-4 bg-muted/40 border-t flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setHistoryEmployee(null)}
+                  className="px-5 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
