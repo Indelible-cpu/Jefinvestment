@@ -1145,9 +1145,16 @@ export const useEmployeeStore = create<EmployeeState>()(
 
               if (!matchesEmp) return;
 
-              const isSalary = 
-                (cat.includes('salary') || title.includes('salary') || desc.includes('salary')) &&
-                !cat.includes('advance') && !title.includes('advance') && !desc.includes('advance');
+              // Use title as the primary discriminator:
+              // "Salary Payment: ..." → salary
+              // "Salary Advance: ..."  → advance
+              // Category "Salary / Advance Pay" contains both words so DON'T use it to exclude
+              const isSalary = title.includes('salary payment') ||
+                desc.includes('net salary payment') ||
+                (
+                  (title.includes('salary') || desc.includes('salary')) &&
+                  !title.includes('advance') && !desc.includes('advance')
+                );
 
               if (!isSalary) return;
 
