@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Receipt, X, Trash2, Share2, Printer, Calendar, Filter, RefreshCw, Search } from 'lucide-react';
+import { Plus, Receipt, X, Trash2, Share2, Printer, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSettingsStore } from '../store/settingsStore';
 import { useExpenseStore } from '../store/dataStore';
@@ -164,7 +164,7 @@ export default function Expenses() {
     const moreText = filtered.length > 15 ? `\n  ...and ${filtered.length - 15} more entries.` : '';
 
     const message = 
-`*EXPENSE REPORT — ${settings.storeName || 'MsikaFlo'}*
+`*EXPENSE REPORT — ${settings.companyName || 'MsikaFlo'}*
 Period: ${activeRangeDescription}
 Category Filter: ${categoryFilter === 'ALL' ? 'All Categories' : categoryFilter}
 Total Entries: ${filtered.length}
@@ -208,7 +208,7 @@ _Generated: ${new Date().toLocaleString()}_`;
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Expense Report — ${settings.storeName || 'MsikaFlo'}</title>
+  <title>Expense Report — ${settings.companyName || 'MsikaFlo'}</title>
   <style>
     body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 24px; line-height: 1.4; }
     h1 { font-size: 22px; margin: 0 0 4px 0; color: #1e3a8a; }
@@ -226,7 +226,7 @@ _Generated: ${new Date().toLocaleString()}_`;
   </style>
 </head>
 <body>
-  <h1>${settings.storeName || 'MsikaFlo'}</h1>
+  <h1>${settings.companyName || 'MsikaFlo'}</h1>
   <div class="subtitle">Expense &amp; Petty Cash Audit Report</div>
 
   <div class="meta-box">
@@ -598,7 +598,7 @@ _Generated: ${new Date().toLocaleString()}_`;
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
                 <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-primary outline-none">
-                  {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 

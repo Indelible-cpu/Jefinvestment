@@ -5,7 +5,7 @@ import {
   Calendar, ShieldCheck, HeartHandshake, FileText, Search, ZoomIn,
   AlertCircle, Image as ImageIcon, Share2, Printer, History
 } from 'lucide-react';
-import { useEmployeeStore, type Employee, type AdvancePayRecord, type SalaryPayRecord } from '../store/dataStore';
+import { useEmployeeStore, type Employee } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { storage } from '../lib/firebase';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
