@@ -74,7 +74,6 @@ export default function Employees() {
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [dossierTab, setDossierTab] = useState<'profile' | 'advances' | 'salaries'>('profile');
   const [isSharingPayroll, setIsSharingPayroll] = useState(false);
-  const dossierContentRef = useRef<HTMLDivElement>(null);
 
   // Zoom ID Card modal
   const [zoomedIdImageUrl, setZoomedIdImageUrl] = useState<string | null>(null);
