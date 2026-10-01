@@ -1637,10 +1637,16 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
         const lastMonthName = lastMonthDate.toLocaleString('default', { month: 'short' });
         const lastMonthPrefix = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
 
-        // Robust date normalizer: handles YYYY-MM-DD, DD/MM/YYYY, ISO timestamps
-        const normalizeDate = (dStr: string) => {
+        // Robust date normalizer: handles YYYY-MM-DD, DD/MM/YYYY, ISO timestamps without timezone shift
+        const normalizeDate = (dStr: string, createdAt?: number) => {
+          if (!dStr && createdAt) {
+            const cd = new Date(createdAt);
+            if (!isNaN(cd.getTime())) {
+              return `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
+            }
+          }
           if (!dStr) return '';
-          const trimmed = dStr.trim();
+          const trimmed = String(dStr).trim();
           if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
           if (/^\d{1,2}[\/\-](\d{1,2})[\/\-](\d{4})/.test(trimmed)) {
             const parts = trimmed.split(/[\/\-]/);
@@ -1649,12 +1655,15 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
             }
           }
           const d = new Date(trimmed);
-          return !isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
+          if (!isNaN(d.getTime())) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          }
+          return '';
         };
 
-        const isMatchPeriod = (dateStr: string) => {
+        const isMatchPeriod = (dateStr: string, createdAt?: number) => {
           if (historyPreset === 'ALL') return true;
-          const norm = normalizeDate(dateStr);
+          const norm = normalizeDate(dateStr, createdAt);
           if (!norm) return false;
           if (historyPreset === 'THIS_MONTH') return norm.startsWith(thisMonthPrefix);
           if (historyPreset === 'LAST_MONTH') return norm.startsWith(lastMonthPrefix);
@@ -1677,11 +1686,11 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
         };
 
         const allAdv = emp.advanceHistory;
-        const filteredAdv = allAdv ? [...allAdv].reverse().filter(r => isMatchPeriod(r.date) && isMatchSearch(r.notes, r.loggedBy, r.amount)) : null;
+        const filteredAdv = allAdv ? [...allAdv].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes, r.loggedBy, r.amount)) : null;
         const totalAdv = filteredAdv ? filteredAdv.reduce((s, r) => s + r.amount, 0) : 0;
 
         const allSal = emp.salaryHistory;
-        const filteredSal = allSal ? [...allSal].reverse().filter(r => isMatchPeriod(r.date) && isMatchSearch(r.notes, r.loggedBy, r.netPaid)) : null;
+        const filteredSal = allSal ? [...allSal].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes, r.loggedBy, r.netPaid)) : null;
         const totalSal = filteredSal ? filteredSal.reduce((s, r) => s + r.netPaid, 0) : 0;
 
         const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();

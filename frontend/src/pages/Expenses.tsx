@@ -62,15 +62,21 @@ export default function Expenses() {
   const applyPreset = (preset: DatePreset) => {
     setDatePreset(preset);
     const now = new Date();
+    const toLocalDateStr = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
     
     if (preset === 'today') {
-      const d = now.toISOString().slice(0, 10);
+      const d = toLocalDateStr(now);
       setStartDate(d);
       setEndDate(d);
     } else if (preset === 'yesterday') {
       const y = new Date();
       y.setDate(y.getDate() - 1);
-      const d = y.toISOString().slice(0, 10);
+      const d = toLocalDateStr(y);
       setStartDate(d);
       setEndDate(d);
     } else if (preset === 'this_week') {
@@ -78,16 +84,16 @@ export default function Expenses() {
       const day = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
       const monday = new Date(d.setDate(diff));
-      setStartDate(monday.toISOString().slice(0, 10));
-      setEndDate(new Date().toISOString().slice(0, 10));
+      setStartDate(toLocalDateStr(monday));
+      setEndDate(toLocalDateStr(new Date()));
     } else if (preset === 'this_month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-      const end = now.toISOString().slice(0, 10);
+      const start = toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+      const end = toLocalDateStr(now);
       setStartDate(start);
       setEndDate(end);
     } else if (preset === 'last_month') {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+      const start = toLocalDateStr(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+      const end = toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 0));
       setStartDate(start);
       setEndDate(end);
     } else if (preset === 'all') {
