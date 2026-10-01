@@ -9,6 +9,8 @@ const POS = lazy(() => import('./pages/POS'));
 const Sales = lazy(() => import('./pages/Sales'));
 const CreditManagement = lazy(() => import('./pages/CreditManagement'));
 const Employees = lazy(() => import('./pages/Employees'));
+const EmployeeProfile = lazy(() => import('./pages/EmployeeProfile'));
+const EmployeeHistory = lazy(() => import('./pages/EmployeeHistory'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Expenses = lazy(() => import('./pages/Expenses'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -54,6 +56,8 @@ function App() {
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="credits" element={<CreditManagement />} />
                 <Route path="employees" element={<Employees />} />
+                <Route path="employees/:id" element={<EmployeeProfile />} />
+                <Route path="employees/:id/history" element={<EmployeeHistory />} />
                 <Route path="stationery-services" element={<StationeryServices />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="branches" element={<Branches />} />
