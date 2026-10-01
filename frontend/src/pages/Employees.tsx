@@ -3,7 +3,7 @@ import {
   Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle,
   Trash2, Edit, Camera, Upload, Eye, X, Phone, Mail, MapPin,
   Calendar, ShieldCheck, HeartHandshake, FileText, Search, ZoomIn,
-  AlertCircle, Image as ImageIcon, Share2, Printer, History, Loader2, ArrowRight
+  AlertCircle, Image as ImageIcon, Share2, Printer, History, Loader2, ArrowRight, Filter
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useEmployeeStore, useExpenseStore, type Employee } from '../store/dataStore';
@@ -408,15 +408,6 @@ export default function Employees() {
     setHistorySearch('');
     loadAdvanceHistory(emp.id);
     loadSalaryHistory(emp.id);
-  };
-
-  // Compatibility helper
-  const openDossier = (emp: Employee, initialTab: 'profile' | 'advances' | 'salaries' = 'profile') => {
-    if (initialTab === 'profile') {
-      openProfile(emp);
-    } else {
-      openHistoryModal(emp, initialTab);
-    }
   };
 
   // WhatsApp share: capture styled payroll document as image and share or fallback to styled text
@@ -1688,12 +1679,10 @@ Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
         const allAdv = emp.advanceHistory;
         const filteredAdv = allAdv ? [...allAdv].reverse().filter(r => isMatchPeriod(r.date) && isMatchSearch(r.notes, r.loggedBy, r.amount)) : null;
         const totalAdv = filteredAdv ? filteredAdv.reduce((s, r) => s + r.amount, 0) : 0;
-        const allAdvTotal = (allAdv || []).reduce((s, r) => s + r.amount, 0);
 
         const allSal = emp.salaryHistory;
         const filteredSal = allSal ? [...allSal].reverse().filter(r => isMatchPeriod(r.date) && isMatchSearch(r.notes, r.loggedBy, r.netPaid)) : null;
         const totalSal = filteredSal ? filteredSal.reduce((s, r) => s + r.netPaid, 0) : 0;
-        const allSalTotal = (allSal || []).reduce((s, r) => s + r.netPaid, 0);
 
         const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();
 
