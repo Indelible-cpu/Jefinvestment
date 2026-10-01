@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Receipt, X, Trash2, Share2, Printer, Filter, Search } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Plus, Receipt, X, Trash2, Share2, Printer, Filter, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import html2canvas from 'html2canvas';
 import { useSettingsStore } from '../store/settingsStore';
 import { useExpenseStore } from '../store/dataStore';
 import { useAuditStore } from '../store/auditStore';
@@ -43,6 +44,7 @@ export default function Expenses() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [showModal, setShowModal] = useState(false);
+  const [isSharingExpenses, setIsSharingExpenses] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,36 +152,177 @@ export default function Expenses() {
     return `Date Range: ${startDate || 'Start'} to ${endDate || 'Now'}`;
   }, [datePreset, startDate, endDate]);
 
-  // WhatsApp Share handler
-  const handleWhatsAppShare = () => {
-    const cur = settings.currency;
-    const catBreakdown = Object.entries(categoryTotals)
-      .map(([cat, amt]) => `  • ${cat}: ${cur} ${amt.toLocaleString()}`)
-      .join('\n');
+  // WhatsApp Share handler: generates a visual image card and shares via navigator.share or download
+  const handleWhatsAppShare = async () => {
+    setIsSharingExpenses(true);
+    const toastId = toast.loading('Generating expense report image...');
+    try {
+      const cur = settings.currency;
+      const catSummaryRows = Object.entries(categoryTotals).map(([cat, amt]) => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:6px 8px;font-size:12px;font-weight:600;color:#334155;">${cat}</td>
+          <td style="padding:6px 8px;font-size:12px;font-weight:700;text-align:right;color:#0f172a;">${cur} ${amt.toLocaleString()}</td>
+          <td style="padding:6px 8px;font-size:11px;color:#64748b;text-align:right;">${totalFiltered > 0 ? ((amt / totalFiltered) * 100).toFixed(1) : '0'}%</td>
+        </tr>
+      `).join('');
 
-    const topEntries = filtered.slice(0, 15).map((e, i) => 
-      `  ${i + 1}. [${e.date}] ${e.category} - ${e.description}: ${cur} ${e.amount.toLocaleString()} (${e.loggedBy})`
-    ).join('\n');
+      const topEntries = filtered.slice(0, 18).map((e, idx) => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:6px 4px;font-size:11px;color:#64748b;text-align:center;">#${idx + 1}</td>
+          <td style="padding:6px 8px;font-size:11px;font-weight:600;color:#334155;">${e.date}</td>
+          <td style="padding:6px 8px;font-size:11px;color:#2563eb;font-weight:600;">${e.category}</td>
+          <td style="padding:6px 8px;font-size:11px;color:#0f172a;">${e.description}</td>
+          <td style="padding:6px 8px;font-size:11px;color:#64748b;">${e.loggedBy}</td>
+          <td style="padding:6px 8px;font-size:12px;font-weight:700;color:#dc2626;text-align:right;">${cur} ${e.amount.toLocaleString()}</td>
+        </tr>
+      `).join('');
 
-    const moreText = filtered.length > 15 ? `\n  ...and ${filtered.length - 15} more entries.` : '';
+      const moreText = filtered.length > 18 ? `<div style="text-align:center;padding:8px;font-size:11px;color:#64748b;">...and ${filtered.length - 18} more records.</div>` : '';
 
-    const message = 
-`*EXPENSE REPORT — ${settings.companyName || 'MsikaFlo'}*
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '680px';
+      container.style.background = '#ffffff';
+      container.style.color = '#0f172a';
+      container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      container.style.padding = '28px';
+      container.style.borderRadius = '16px';
+      container.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+
+      container.innerHTML = `
+        <div style="border-bottom:2px solid #dc2626;padding-bottom:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h2 style="margin:0;font-size:22px;font-weight:800;color:#1e3a8a;">${settings.companyName || 'MsikaFlo Limited'}</h2>
+            <div style="font-size:13px;color:#64748b;margin-top:2px;">Business Expense &amp; Petty Cash Audit Statement</div>
+          </div>
+          <div style="text-align:right;">
+            <span style="display:inline-block;padding:4px 12px;background:#fee2e2;color:#991b1b;font-weight:700;font-size:11px;border-radius:12px;">EXPENSE REPORT</span>
+            <div style="font-size:11px;color:#64748b;margin-top:4px;">Period: ${activeRangeDescription}</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
+          <div style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:10px;">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#991b1b;display:block;">TOTAL EXPENDITURE</span>
+            <strong style="font-size:18px;color:#dc2626;">${cur} ${totalFiltered.toLocaleString()}</strong>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:10px;">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;display:block;">NUMBER OF ENTRIES</span>
+            <strong style="font-size:18px;color:#0f172a;">${filtered.length} records</strong>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:10px;">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:#64748b;display:block;">CATEGORY FILTER</span>
+            <strong style="font-size:13px;color:#0f172a;">${categoryFilter === 'ALL' ? 'All Categories' : categoryFilter}</strong>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">
+            📊 Category Breakdown
+          </div>
+          <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+            <thead>
+              <tr style="background:#f1f5f9;color:#475569;font-size:10px;text-transform:uppercase;">
+                <th style="padding:6px 8px;text-align:left;">Category</th>
+                <th style="padding:6px 8px;text-align:right;">Total</th>
+                <th style="padding:6px 8px;text-align:right;">Share</th>
+              </tr>
+            </thead>
+            <tbody>${catSummaryRows || '<tr><td colspan="3" style="padding:8px;text-align:center;">No records.</td></tr>'}</tbody>
+          </table>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:800;color:#334155;text-transform:uppercase;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">
+            📝 Itemized Expense Records
+          </div>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f8fafc;color:#475569;font-size:10px;text-transform:uppercase;">
+                <th style="padding:6px 4px;text-align:center;">#</th>
+                <th style="padding:6px 8px;text-align:left;">Date</th>
+                <th style="padding:6px 8px;text-align:left;">Category</th>
+                <th style="padding:6px 8px;text-align:left;">Description</th>
+                <th style="padding:6px 8px;text-align:left;">Logged By</th>
+                <th style="padding:6px 8px;text-align:right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${topEntries || '<tr><td colspan="6" style="padding:10px;text-align:center;color:#888;">No expenses recorded.</td></tr>'}</tbody>
+            <tfoot>
+              <tr style="background:#fef2f2;font-weight:bold;border-top:2px solid #fecaca;">
+                <td colspan="5" style="padding:8px;text-align:right;font-size:12px;color:#991b1b;">GRAND TOTAL</td>
+                <td style="padding:8px;text-align:right;font-size:13px;color:#dc2626;">${cur} ${totalFiltered.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+          ${moreText}
+        </div>
+
+        <div style="border-top:1px solid #e2e8f0;padding-top:10px;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
+          <span>Generated on ${new Date().toLocaleString()} by ${user?.name || 'Staff'}</span>
+          <span>${settings.companyName || 'MsikaFlo'} Accounting</span>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+      const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      document.body.removeChild(container);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          toast.error('Could not generate image.', { id: toastId });
+          setIsSharingExpenses(false);
+          return;
+        }
+
+        const fileName = `Expense_Report_${startDate || 'all'}_${endDate || 'all'}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        if (navigator.canShare?.({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: `Expense Report — ${settings.companyName || 'MsikaFlo'}`,
+              text: `Expense audit statement (${activeRangeDescription}): Total ${cur} ${totalFiltered.toLocaleString()}`,
+            });
+            toast.success('Shared successfully!', { id: toastId });
+          } catch (err: any) {
+            if (err.name !== 'AbortError') {
+              toast.error('Sharing failed', { id: toastId });
+            } else {
+              toast.dismiss(toastId);
+            }
+          }
+        } else {
+          // Download visual card & open WhatsApp
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          const summaryMsg = encodeURIComponent(
+`*${settings.companyName || 'MsikaFlo'} — EXPENSE REPORT*
 Period: ${activeRangeDescription}
-Category Filter: ${categoryFilter === 'ALL' ? 'All Categories' : categoryFilter}
+Category: ${categoryFilter === 'ALL' ? 'All Categories' : categoryFilter}
 Total Entries: ${filtered.length}
 *Total Expenses: ${cur} ${totalFiltered.toLocaleString()}*
 
-*CATEGORY BREAKDOWN:*
-${catBreakdown || '  No records'}
-
-*EXPENSE ENTRIES:*
-${topEntries || '  No expenses recorded.'}${moreText}
-
-_Generated: ${new Date().toLocaleString()}_`;
-
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+📸 *Visual Statement:* The full styled graphic expense report has been downloaded to your device (${fileName}). You can attach it directly to this chat!`
+          );
+          window.open(`https://wa.me/?text=${summaryMsg}`, '_blank');
+          toast.success('Expense report image downloaded! Attach it to your WhatsApp chat.', { id: toastId });
+        }
+        setIsSharingExpenses(false);
+      }, 'image/png');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to generate image: ' + err.message, { id: toastId });
+      setIsSharingExpenses(false);
+    }
   };
 
   // Print Report handler
@@ -362,10 +505,12 @@ _Generated: ${new Date().toLocaleString()}_`;
         <div className="flex items-center gap-2 flex-wrap self-start">
           <button
             onClick={handleWhatsAppShare}
-            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 text-xs sm:text-sm transition shadow-sm"
+            disabled={isSharingExpenses}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 text-xs sm:text-sm transition shadow-sm"
             title="Share current filtered expenses via WhatsApp"
           >
-            <Share2 size={16} /> WhatsApp
+            {isSharingExpenses ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
+            {isSharingExpenses ? 'Generating...' : 'WhatsApp'}
           </button>
           <button
             onClick={handlePrint}

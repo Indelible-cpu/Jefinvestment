@@ -3,8 +3,9 @@ import {
   Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle,
   Trash2, Edit, Camera, Upload, Eye, X, Phone, Mail, MapPin,
   Calendar, ShieldCheck, HeartHandshake, FileText, Search, ZoomIn,
-  AlertCircle, Image as ImageIcon, Share2, Printer, History
+  AlertCircle, Image as ImageIcon, Share2, Printer, History, Loader2
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
 import { useEmployeeStore, type Employee } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { storage } from '../lib/firebase';
@@ -72,6 +73,8 @@ export default function Employees() {
   // Full Employee Dossier Modal
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [dossierTab, setDossierTab] = useState<'profile' | 'advances' | 'salaries'>('profile');
+  const [isSharingPayroll, setIsSharingPayroll] = useState(false);
+  const dossierContentRef = useRef<HTMLDivElement>(null);
 
   // Zoom ID Card modal
   const [zoomedIdImageUrl, setZoomedIdImageUrl] = useState<string | null>(null);
@@ -384,52 +387,195 @@ export default function Employees() {
   };
 
   // Open dossier and load both histories in parallel
-  const openDossier = (emp: Employee) => {
+  const openDossier = (emp: Employee, initialTab: 'profile' | 'advances' | 'salaries' = 'profile') => {
     setViewingEmployee(emp);
-    setDossierTab('profile');
+    setDossierTab(initialTab);
     loadAdvanceHistory(emp.id);
     loadSalaryHistory(emp.id);
   };
 
-  // WhatsApp share: full payroll history summary for an employee
-  const handleWhatsAppShare = (emp: Employee) => {
-    const advHistory = emp.advanceHistory || [];
-    const salHistory = emp.salaryHistory || [];
-    const cur = settings.currency;
+  // WhatsApp share: capture styled payroll document as image and share or fallback to styled text
+  const handleWhatsAppShare = async (emp: Employee) => {
+    setIsSharingPayroll(true);
+    const toastId = toast.loading('Generating payroll card image...');
+    try {
+      const advHistory = emp.advanceHistory || [];
+      const salHistory = emp.salaryHistory || [];
+      const cur = settings.currency;
+      const totalAdvances = advHistory.reduce((s, r) => s + r.amount, 0);
+      const totalSalaries = salHistory.reduce((s, r) => s + r.netPaid, 0);
 
-    const advLines = advHistory.length
-      ? advHistory.map((r, i) =>
-          `  ${i + 1}. ${r.date} — ${cur} ${r.amount.toLocaleString()}${r.notes ? ` (${r.notes})` : ''} [by ${r.loggedBy}]`
-        ).join('\n')
-      : '  No advance records.';
+      // Create an offscreen, beautifully styled DOM container to screenshot
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '640px';
+      container.style.background = '#ffffff';
+      container.style.color = '#0f172a';
+      container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      container.style.padding = '28px';
+      container.style.borderRadius = '16px';
+      container.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
 
-    const salLines = salHistory.length
-      ? salHistory.map((r, i) =>
-          `  ${i + 1}. ${r.date} — Gross: ${cur} ${r.grossSalary.toLocaleString()}, Advance: -${cur} ${r.advanceDeducted.toLocaleString()}, Net Paid: ${cur} ${r.netPaid.toLocaleString()}${r.notes ? ` (${r.notes})` : ''} [by ${r.loggedBy}]`
-        ).join('\n')
-      : '  No salary records.';
+      const advRowsHtml = advHistory.length
+        ? advHistory.map((r, i) => `
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 6px;color:#64748b;font-size:12px;">#${i + 1}</td>
+            <td style="padding:8px 6px;font-size:12px;font-weight:600;">${r.date}</td>
+            <td style="padding:8px 6px;font-size:12px;color:#b45309;font-weight:700;text-align:right;">${cur} ${r.amount.toLocaleString()}</td>
+            <td style="padding:8px 6px;font-size:11px;color:#475569;">${r.notes || '—'}</td>
+            <td style="padding:8px 6px;font-size:11px;color:#94a3b8;">${r.loggedBy}</td>
+          </tr>
+        `).join('')
+        : '<tr><td colspan="5" style="padding:14px;text-align:center;color:#94a3b8;font-size:12px;">No advance payments recorded.</td></tr>';
 
-    const totalAdvances = advHistory.reduce((s, r) => s + r.amount, 0);
-    const totalSalaries = salHistory.reduce((s, r) => s + r.netPaid, 0);
+      const salRowsHtml = salHistory.length
+        ? salHistory.map((r, i) => `
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 6px;color:#64748b;font-size:12px;">#${i + 1}</td>
+            <td style="padding:8px 6px;font-size:12px;font-weight:600;">${r.date}</td>
+            <td style="padding:8px 6px;font-size:12px;text-align:right;">${cur} ${r.grossSalary.toLocaleString()}</td>
+            <td style="padding:8px 6px;font-size:12px;color:#b45309;text-align:right;">-${cur} ${r.advanceDeducted.toLocaleString()}</td>
+            <td style="padding:8px 6px;font-size:12px;font-weight:700;color:#15803d;text-align:right;">${cur} ${r.netPaid.toLocaleString()}</td>
+            <td style="padding:8px 6px;font-size:11px;color:#475569;">${r.notes || '—'}</td>
+          </tr>
+        `).join('')
+        : '<tr><td colspan="6" style="padding:14px;text-align:center;color:#94a3b8;font-size:12px;">No salary payments recorded.</td></tr>';
 
-    const message =
-`*PAYROLL HISTORY — ${emp.firstName} ${emp.lastName}*
-Role: ${emp.role} | ID: ${emp.idNumber || 'N/A'}
+      container.innerHTML = `
+        <div style="border-bottom:2px solid #2563eb;padding-bottom:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h2 style="margin:0;font-size:20px;font-weight:800;color:#1e3a8a;">${settings.companyName || 'MsikaFlo Limited'}</h2>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">Employee Compensation &amp; Payroll Record</div>
+          </div>
+          <div style="text-align:right;">
+            <span style="display:inline-block;padding:3px 10px;background:#dbeafe;color:#1e40af;font-weight:700;font-size:11px;border-radius:12px;">${emp.role}</span>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">ID: ${emp.idNumber || 'N/A'}</div>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:18px;">
+          <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px;">${emp.firstName} ${emp.lastName}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div style="background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;display:block;">MONTHLY SALARY</span>
+              <strong style="font-size:14px;color:#0f172a;">${cur} ${emp.salary.toLocaleString()}</strong>
+            </div>
+            <div style="background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;display:block;">ADVANCE BALANCE</span>
+              <strong style="font-size:14px;color:${(emp.advancePay || 0) > 0 ? '#b45309' : '#0f172a'};">${cur} ${(emp.advancePay || 0).toLocaleString()}</strong>
+            </div>
+            <div style="background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;">
+              <span style="font-size:10px;color:#64748b;font-weight:600;display:block;">NET DUE THIS MONTH</span>
+              <strong style="font-size:14px;color:#15803d;">${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:6px;display:flex;justify-content:space-between;">
+            <span>💵 Advance Pay History (${advHistory.length})</span>
+            <span>Total: ${cur} ${totalAdvances.toLocaleString()}</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;text-align:left;">
+            <thead>
+              <tr style="background:#fef3c7;color:#92400e;font-size:10px;text-transform:uppercase;">
+                <th style="padding:6px;">#</th>
+                <th style="padding:6px;">Date</th>
+                <th style="padding:6px;text-align:right;">Amount</th>
+                <th style="padding:6px;">Notes</th>
+                <th style="padding:6px;">Logged By</th>
+              </tr>
+            </thead>
+            <tbody>${advRowsHtml}</tbody>
+          </table>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:800;color:#166534;margin-bottom:6px;display:flex;justify-content:space-between;">
+            <span>✅ Salary Payments History (${salHistory.length})</span>
+            <span>Total Paid: ${cur} ${totalSalaries.toLocaleString()}</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;text-align:left;">
+            <thead>
+              <tr style="background:#dcfce7;color:#166534;font-size:10px;text-transform:uppercase;">
+                <th style="padding:6px;">#</th>
+                <th style="padding:6px;">Date</th>
+                <th style="padding:6px;text-align:right;">Gross</th>
+                <th style="padding:6px;text-align:right;">Advance</th>
+                <th style="padding:6px;text-align:right;">Net Paid</th>
+                <th style="padding:6px;">Notes</th>
+              </tr>
+            </thead>
+            <tbody>${salRowsHtml}</tbody>
+          </table>
+        </div>
+
+        <div style="border-top:1px solid #e2e8f0;padding-top:10px;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
+          <span>Generated on ${new Date().toLocaleString()}</span>
+          <span>${settings.companyName || 'MsikaFlo'} Payroll</span>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+      const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      document.body.removeChild(container);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          toast.error('Could not generate image.', { id: toastId });
+          setIsSharingPayroll(false);
+          return;
+        }
+
+        const fileName = `Payroll_${emp.firstName}_${emp.lastName}_${new Date().toISOString().slice(0, 10)}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        // If Web Share API supports file sharing (mobile WhatsApp or native share)
+        if (navigator.canShare?.({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: `Payroll Record — ${emp.firstName} ${emp.lastName}`,
+              text: `Payroll & Advance Pay statement for ${emp.firstName} ${emp.lastName} (${settings.companyName || 'MsikaFlo'})`,
+            });
+            toast.success('Shared successfully!', { id: toastId });
+          } catch (err: any) {
+            if (err.name !== 'AbortError') {
+              toast.error('Sharing failed', { id: toastId });
+            } else {
+              toast.dismiss(toastId);
+            }
+          }
+        } else {
+          // Desktop WhatsApp Web fallback: automatically download the image card & open WhatsApp
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          const summaryMsg = encodeURIComponent(
+`*${settings.companyName || 'MsikaFlo'} — PAYROLL STATEMENT*
+Employee: ${emp.firstName} ${emp.lastName} (${emp.role})
 Monthly Salary: ${cur} ${emp.salary.toLocaleString()}
-Current Advance Balance: ${cur} ${(emp.advancePay || 0).toLocaleString()}
+Advance Balance: ${cur} ${(emp.advancePay || 0).toLocaleString()}
+Net Due: ${cur} ${(emp.salary - (emp.advancePay || 0)).toLocaleString()}
 
-*ADVANCE PAY RECORDS (${advHistory.length})*
-${advLines}
-Total Advanced: ${cur} ${totalAdvances.toLocaleString()}
-
-*SALARY PAY RECORDS (${salHistory.length})*
-${salLines}
-Total Salaries Paid: ${cur} ${totalSalaries.toLocaleString()}
-
-_Generated: ${new Date().toLocaleString()}_`;
-
-    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+📸 *Note:* The full visual payroll card with complete advance & salary tables has been downloaded to your device (${fileName}). You can attach it directly to this chat!`
+          );
+          window.open(`https://wa.me/?text=${summaryMsg}`, '_blank');
+          toast.success('Payroll image downloaded! Attach it to your WhatsApp chat.', { id: toastId });
+        }
+        setIsSharingPayroll(false);
+      }, 'image/png');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to generate shareable image: ' + err.message, { id: toastId });
+      setIsSharingPayroll(false);
+    }
   };
 
   // Print payroll history for an employee
@@ -730,11 +876,22 @@ _Generated: ${new Date().toLocaleString()}_`;
                       Salary: {settings.currency} {emp.salary.toLocaleString()}
                     </span>
                     {(emp.advancePay || 0) > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded-full font-bold">
+                      <button
+                        onClick={() => openDossier(emp, 'advances')}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-full font-bold transition cursor-pointer"
+                        title="Click to view full Advance Pay history"
+                      >
                         <Banknote size={12} /> Advance: {settings.currency} {emp.advancePay?.toLocaleString()}
-                      </span>
+                        <History size={11} className="ml-0.5 opacity-70" />
+                      </button>
                     ) : (
-                      <span className="text-gray-400">No advance</span>
+                      <button
+                        onClick={() => openDossier(emp, 'advances')}
+                        className="text-gray-400 hover:text-gray-600 transition underline cursor-pointer"
+                        title="Click to view Advance history"
+                      >
+                        No active advance
+                      </button>
                     )}
                   </div>
                 </div>
@@ -743,11 +900,18 @@ _Generated: ${new Date().toLocaleString()}_`;
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap border-t md:border-t-0 pt-3 md:pt-0">
                 <button
-                  onClick={() => openDossier(emp)}
+                  onClick={() => openDossier(emp, 'profile')}
                   className="flex items-center gap-1 text-xs bg-muted hover:bg-muted/80 text-foreground px-3 py-1.5 rounded-xl font-semibold transition border shadow-xs"
                   title="View Full Profile Dossier"
                 >
                   <Eye size={14} className="text-primary" /> Profile
+                </button>
+                <button
+                  onClick={() => openDossier(emp, 'advances')}
+                  className="flex items-center gap-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-xl font-semibold transition shadow-xs"
+                  title="View Full Advance & Salary History"
+                >
+                  <History size={14} className="text-amber-700" /> History
                 </button>
                 <button
                   onClick={() => setSelectedEmpForSalary(emp)}
@@ -1280,10 +1444,12 @@ _Generated: ${new Date().toLocaleString()}_`;
                     <button
                       type="button"
                       onClick={() => handleWhatsAppShare(emp)}
+                      disabled={isSharingPayroll}
                       title="Share payroll history via WhatsApp"
-                      className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-xs font-semibold transition shadow-sm"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shadow-sm"
                     >
-                      <Share2 size={14} /> WhatsApp
+                      {isSharingPayroll ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                      {isSharingPayroll ? 'Generating...' : 'WhatsApp'}
                     </button>
                     <button
                       type="button"
@@ -1590,9 +1756,11 @@ _Generated: ${new Date().toLocaleString()}_`;
                   <button
                     type="button"
                     onClick={() => handleWhatsAppShare(emp)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-xl text-xs font-semibold hover:bg-green-700 transition shadow-sm"
+                    disabled={isSharingPayroll}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition shadow-sm"
                   >
-                    <Share2 size={13} /> Share via WhatsApp
+                    {isSharingPayroll ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />}
+                    {isSharingPayroll ? 'Generating...' : 'Share via WhatsApp'}
                   </button>
                   <button
                     type="button"
