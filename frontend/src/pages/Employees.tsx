@@ -468,7 +468,8 @@ export default function Employees() {
           </div>
           <div style="text-align:right;">
             <span style="display:inline-block;padding:3px 10px;background:#dbeafe;color:#1e40af;font-weight:700;font-size:11px;border-radius:12px;">${emp.role}</span>
-            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">ID: ${emp.idNumber || 'N/A'}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">ID: ${emp.id}</div>
+            ${emp.idNumber ? `<div style="font-size:10px;color:#94a3b8;">NID: ${emp.idNumber}</div>` : ''}
           </div>
         </div>
 
