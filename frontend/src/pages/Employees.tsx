@@ -386,7 +386,7 @@ export default function Employees() {
   };
 
   // Navigate to dedicated payroll & payment history page
-  const openHistoryModal = (emp: Employee) => {
+  const openHistoryModal = (emp: Employee, _tab?: string) => {
     navigate(`/employees/${emp.id}/history`);
   };
 
