@@ -502,7 +502,7 @@ export default function EmployeePayslip() {
     </div>
 
     <div class="footer">
-      <span>Jef Investment Payroll System</span>
+      <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies</span>
       <span>Generated on: ${generatedDateTime}</span>
     </div>
   </div>
@@ -862,10 +862,14 @@ export default function EmployeePayslip() {
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="mt-8 pt-3 border-t border-slate-200 flex flex-col sm:flex-row justify-between text-[10px] text-slate-400 gap-1">
-            <span>Jef Investment Payroll System</span>
-            <span>Generated on: ${generatedDateTime}</span>
+          {/* System Footer matching system standards */}
+          <div className="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-500 space-y-1">
+            <p className="font-medium text-slate-600">
+              &copy; {new Date().getFullYear()} {companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies
+            </p>
+            <p className="text-[10px] text-slate-400">
+              Generated on {generatedDateTime} &bull; Official Monthly Payslip
+            </p>
           </div>
         </div>
       </div>

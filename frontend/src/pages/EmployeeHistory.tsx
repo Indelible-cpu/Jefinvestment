@@ -408,12 +408,16 @@ export default function EmployeeHistory() {
 <body>
   <div class="sheet">
     <div class="header-bar">
-      <div>
-        <h1 class="company-title">${companyName}</h1>
-        <div class="doc-subtitle">EMPLOYEE PAYROLL HISTORY</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="max-height:46px;max-width:130px;object-fit:contain;background:#fff;padding:2px;border-radius:4px;" />` : ''}
+        <div>
+          <h1 class="company-title">${companyName}</h1>
+          <div class="doc-subtitle">EMPLOYEE PAYROLL HISTORY</div>
+        </div>
       </div>
       <div style="text-align:right;">
-        ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="max-height:40px;max-width:110px;object-fit:contain;" />` : `<div style="font-weight:700;font-size:12px;color:#1e3a8a;">Payroll Record</div>`}
+        <span style="display:inline-block;padding:3px 10px;background:#e0e7ff;color:#1e3a8a;font-weight:700;font-size:10px;border-radius:10px;">OFFICIAL STATEMENT</span>
+        <div style="font-size:9.5px;color:#64748b;margin-top:2px;">Employee: ${targetEmp.firstName} ${targetEmp.lastName}</div>
       </div>
     </div>
 
@@ -560,7 +564,7 @@ export default function EmployeeHistory() {
 
     <!-- Footer -->
     <div class="footer">
-      <span>Jef Investment Payroll System</span>
+      <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies</span>
       <span>Generated on: ${new Date().toLocaleString()}</span>
     </div>
   </div>
@@ -629,10 +633,13 @@ export default function EmployeeHistory() {
         : '<tr><td colspan="6" style="padding:10px;text-align:center;color:#94a3b8;font-size:11px;">No salary payments recorded.</td></tr>';
 
       container.innerHTML = `
-        <div style="border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;">
-          <div>
-            <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;">${companyName}</h2>
-            <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-top:2px;">EMPLOYEE PAYROLL HISTORY</div>
+        <div style="border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="max-height:42px;max-width:110px;object-fit:contain;background:#fff;padding:2px;border-radius:4px;" />` : ''}
+            <div>
+              <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;">${companyName}</h2>
+              <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-top:2px;">EMPLOYEE PAYROLL HISTORY</div>
+            </div>
           </div>
           <div style="text-align:right;">
             <span style="display:inline-block;padding:2px 8px;background:#dbeafe;color:#1e40af;font-weight:700;font-size:11px;border-radius:10px;">${targetEmp.role}</span>
@@ -728,9 +735,9 @@ export default function EmployeeHistory() {
           </div>
         </div>
 
-        <div style="border-top:1px solid #e2e8f0;padding-top:8px;font-size:9.5px;color:#94a3b8;display:flex;justify-content:space-between;">
+        <div style="border-top:1px solid #e2e8f0;padding-top:8px;font-size:9.5px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center;">
+          <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies</span>
           <span>Generated on ${new Date().toLocaleString()}</span>
-          <span>Jef Investment Payroll System</span>
         </div>
       `;
 
@@ -839,13 +846,27 @@ export default function EmployeeHistory() {
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white p-5 sm:p-7">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
-              <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                <History size={22} />
-              </span>
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 block">
-                  EMPLOYEE PAYROLL HISTORY
+              {settings.companyLogo ? (
+                <img
+                  src={settings.companyLogo}
+                  alt={companyName}
+                  className="h-12 w-auto max-w-[120px] object-contain rounded-xl bg-white p-1 shadow-sm shrink-0"
+                />
+              ) : (
+                <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                  <History size={22} />
                 </span>
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 block">
+                    EMPLOYEE PAYROLL HISTORY
+                  </span>
+                  <span className="text-white/40 text-xs">&bull;</span>
+                  <span className="text-[11px] font-bold text-blue-200 uppercase tracking-wider">
+                    {companyName}
+                  </span>
+                </div>
                 <h1 className="text-xl sm:text-2xl font-bold leading-tight text-white mt-0.5">
                   {emp.firstName} {emp.lastName}
                 </h1>
@@ -1307,6 +1328,16 @@ export default function EmployeeHistory() {
                   {cur} {totalSalariesPaid.toLocaleString()}
                 </div>
               </div>
+            </div>
+
+            {/* System Footer matching system standards */}
+            <div className="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-500 space-y-1">
+              <p className="font-medium text-slate-600">
+                &copy; {new Date().getFullYear()} {companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies
+              </p>
+              <p className="text-[10px] text-slate-400">
+                Generated on {new Date().toLocaleString()} &bull; Official Employee Payroll History Record
+              </p>
             </div>
           </div>
         </div>
