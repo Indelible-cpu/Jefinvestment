@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Coins, Store } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Gem, Store } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -239,7 +239,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400/20 border border-amber-400/35 flex items-center justify-center text-amber-300 shrink-0 shadow-inner">
-                  <Coins size={18} className="text-amber-300" />
+                  <Gem size={18} className="text-amber-300" />
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wider font-bold text-amber-300 leading-tight">
