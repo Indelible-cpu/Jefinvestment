@@ -161,7 +161,9 @@ export default function EmployeeHistory() {
   // Overall summary metrics
   const totalAdvancesRecovered = allSal.reduce((sum, r) => sum + getSalaryDeduction(r), 0);
   const currentAdvanceBalance = emp.advancePay || 0;
-  const salaryBalance = Math.max(0, emp.salary - currentAdvanceBalance);
+  // Salary After Advances = Monthly Salary minus all advances actually recovered via salary deductions
+  // This matches: Monthly Salary − Advances Recovered = Net Salary Paid
+  const salaryAfterAdvances = Math.max(0, emp.salary - totalAdvancesRecovered);
   const latestNetSalaryPaid = sortedSalDesc.length > 0 ? sortedSalDesc[0].netPaid : 0;
 
   const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();
@@ -175,7 +177,8 @@ export default function EmployeeHistory() {
     const salTotal = salList.reduce((s, r) => s + r.netPaid, 0);
     const advRecovered = salList.reduce((s, r) => s + getSalaryDeduction(r), 0);
     const latestNet = salList.length > 0 ? [...salList].sort((a, b) => b.createdAt - a.createdAt)[0].netPaid : 0;
-    const salBal = Math.max(0, targetEmp.salary - (targetEmp.advancePay || 0));
+    // Salary After Advances: Monthly Salary minus advances actually recovered via salary deductions
+    const salBal = Math.max(0, targetEmp.salary - advRecovered);
 
     const advRowsHtml = advList.length
       ? advList.map((r, i) => `
@@ -532,7 +535,7 @@ export default function EmployeeHistory() {
           <div class="summary-item-value" style="color:#b45309;">${cur} ${advRecovered.toLocaleString()}</div>
         </div>
         <div class="summary-item">
-          <span class="summary-item-label">Salary Balance</span>
+          <span class="summary-item-label">Salary After Advances</span>
           <div class="summary-item-value">${cur} ${salBal.toLocaleString()}</div>
         </div>
         <div class="summary-item summary-item-highlight">
@@ -564,8 +567,7 @@ export default function EmployeeHistory() {
 
     <!-- Footer -->
     <div class="footer">
-      <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies</span>
-      <span>Generated on: ${new Date().toLocaleString()}</span>
+      <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo &middot; Indelible Technologies &middot; Generated on: ${new Date().toLocaleString()} &middot; Official Employee Payroll Record</span>
     </div>
   </div>
   <script>window.onload = function(){ window.print(); }</script>
@@ -725,7 +727,7 @@ export default function EmployeeHistory() {
               <strong style="font-size:11px;color:#b45309;">${cur} ${advRecovered.toLocaleString()}</strong>
             </div>
             <div style="background:#fff;border:1px solid #cbd5e1;padding:4px;border-radius:4px;">
-              <span style="color:#64748b;font-weight:600;display:block;">SALARY BALANCE</span>
+              <span style="color:#64748b;font-weight:600;display:block;">SALARY AFTER ADVANCES</span>
               <strong style="font-size:11px;color:#0f172a;">${cur} ${salBal.toLocaleString()}</strong>
             </div>
             <div style="background:#f0fdf4;border:1px solid #16a34a;padding:4px;border-radius:4px;">
@@ -735,9 +737,8 @@ export default function EmployeeHistory() {
           </div>
         </div>
 
-        <div style="border-top:1px solid #e2e8f0;padding-top:8px;font-size:9.5px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center;">
-          <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies</span>
-          <span>Generated on ${new Date().toLocaleString()}</span>
+        <div style="border-top:1px solid #e2e8f0;padding-top:7px;font-size:9px;color:#94a3b8;text-align:center;">
+          &copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo &middot; Indelible Technologies &middot; Generated on ${new Date().toLocaleString()} &middot; Official Employee Payroll Record
         </div>
       `;
 
@@ -1313,10 +1314,10 @@ export default function EmployeeHistory() {
 
               <div className="bg-muted/30 border rounded-xl p-3.5">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                  Salary Balance
+                  Salary After Advances
                 </span>
                 <div className="text-base font-extrabold font-mono text-slate-900 mt-1">
-                  {cur} {salaryBalance.toLocaleString()}
+                  {cur} {salaryAfterAdvances.toLocaleString()}
                 </div>
               </div>
 
@@ -1330,13 +1331,13 @@ export default function EmployeeHistory() {
               </div>
             </div>
 
-            {/* System Footer matching system standards */}
-            <div className="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-500 space-y-1">
-              <p className="font-medium text-slate-600">
-                &copy; {new Date().getFullYear()} {companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies
+            {/* Official footer — lighter and cleaner, matching system standard */}
+            <div className="mt-6 pt-3 border-t border-slate-100 text-center space-y-0.5">
+              <p className="text-[11px] text-slate-500 font-medium">
+                &copy; {new Date().getFullYear()} {companyName}. All rights reserved. Powered by MsikaFlo &middot; Indelible Technologies
               </p>
               <p className="text-[10px] text-slate-400">
-                Generated on {new Date().toLocaleString()} &bull; Official Employee Payroll History Record
+                Generated on {new Date().toLocaleString()} &middot; Official Employee Payroll Record
               </p>
             </div>
           </div>
