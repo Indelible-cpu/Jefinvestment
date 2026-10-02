@@ -249,27 +249,20 @@ export default function Dashboard() {
             {/* Subtle Divider */}
             <div className="border-t border-violet-800/60 my-3 sm:my-3.5" />
 
-            {/* 3-Column Metrics Bar in a Single Row */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 divide-x divide-violet-800/40">
-              <div className="pr-2 sm:pr-3">
-                <div className="text-[10px] sm:text-xs text-slate-400 font-medium">Daily Target</div>
-                <div className="text-sm sm:text-xl font-extrabold text-white mt-0.5 tracking-tight truncate">
-                  {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="px-2 sm:px-4">
+            {/* 2-Column Metrics Row (No Duplication) */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 divide-x divide-violet-800/40">
+              <div className="pr-2 sm:pr-4">
                 <div className="text-[10px] sm:text-xs text-slate-400 font-medium">Total Profit</div>
-                <div className="text-xs sm:text-base font-bold text-slate-100 mt-0.5 tracking-tight truncate">
+                <div className="text-sm sm:text-xl font-bold text-slate-100 mt-0.5 tracking-tight truncate">
                   {settings.currency} {todayFinancials.realizedNetProfit.toLocaleString()}
                 </div>
               </div>
 
-              <div className="pl-2 sm:pl-4">
-                <div className="text-[10px] sm:text-xs text-slate-400 font-medium truncate">
-                  Savings ({todayFinancials.savingsPercentage}%)
+              <div className="pl-3 sm:pl-6">
+                <div className="text-[10px] sm:text-xs text-amber-300 font-medium">
+                  Target to Save ({todayFinancials.savingsPercentage}%)
                 </div>
-                <div className="text-xs sm:text-base font-bold text-amber-400 mt-0.5 tracking-tight truncate">
+                <div className="text-sm sm:text-xl font-extrabold text-amber-400 mt-0.5 tracking-tight truncate">
                   {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
                 </div>
               </div>
