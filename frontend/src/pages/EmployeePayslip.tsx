@@ -517,15 +517,155 @@ export default function EmployeePayslip() {
     }
   };
 
-  // WhatsApp / Image share
+  // WhatsApp / Image share: renders offscreen with fixed 720px width so it matches the PDF/Print layout perfectly on all mobile & desktop screens
   const handleSharePayslipImage = async () => {
     setIsExporting(true);
     const toastId = toast.loading('Generating payslip image...');
     try {
-      const el = document.getElementById('payslip-print-sheet');
-      if (!el) throw new Error('Payslip element not found');
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '720px';
+      container.style.background = '#ffffff';
+      container.style.color = '#0f172a';
+      container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      container.style.padding = '28px';
+      container.style.borderRadius = '12px';
+      container.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
+      container.style.border = '2px solid #0f172a';
 
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      container.innerHTML = `
+        <div style="text-align:center;border-bottom:2px solid #0f172a;padding-bottom:14px;margin-bottom:16px;">
+          ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="max-height:55px;max-width:140px;object-fit:contain;margin-bottom:6px;display:block;margin-left:auto;margin-right:auto;" />` : ''}
+          <h1 style="margin:0;font-size:22px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#0f172a;">${companyName}</h1>
+          <div style="font-size:15px;font-weight:800;letter-spacing:3px;color:#1e3a8a;margin-top:2px;">PAYSLIP</div>
+          <div style="display:inline-block;margin-top:8px;padding:4px 16px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:20px;font-size:12px;font-weight:800;color:#0f172a;">
+            PAY PERIOD: <strong>${payPeriod.toUpperCase()}</strong>
+          </div>
+        </div>
+
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Employee Information</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:24px;row-gap:8px;font-size:12px;">
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Employee Name:</span>
+              <strong style="color:#0f172a;">${emp.firstName} ${emp.lastName}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Employee ID:</span>
+              <strong style="font-family:monospace;color:#0f172a;">${emp.id}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Position:</span>
+              <strong style="color:#0f172a;">${emp.role}</strong>
+            </div>
+            ${emp.department ? `
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Department:</span>
+              <strong style="color:#0f172a;">${emp.department}</strong>
+            </div>` : `
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Payment Date:</span>
+              <strong style="color:#0f172a;">${paymentDate}</strong>
+            </div>`}
+            ${emp.department ? `
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Payment Date:</span>
+              <strong style="color:#0f172a;">${paymentDate}</strong>
+            </div>` : ''}
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Payment Status:</span>
+              <strong style="color:#0f172a;">${paymentStatus}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Payroll Reference:</span>
+              <strong style="font-family:monospace;color:#0f172a;">${payrollRef}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Payment Method:</span>
+              <strong style="color:#0f172a;">${paymentMethod}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <!-- Earnings Box -->
+          <div style="border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;">
+            <div style="background:#0f172a;color:#ffffff;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;display:flex;justify-content:space-between;">
+              <span>Earnings</span>
+              <span>Amount (${cur})</span>
+            </div>
+            <div style="padding:10px 12px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;">
+                <span style="color:#475569;">Basic / Monthly Salary</span>
+                <span style="font-weight:700;font-family:monospace;color:#0f172a;">${cur} ${basicSalary.toLocaleString()}</span>
+              </div>
+            </div>
+            <div style="background:#f8fafc;border-top:1.5px solid #cbd5e1;padding:8px 12px;display:flex;justify-content:space-between;font-weight:800;font-size:12px;">
+              <span>GROSS SALARY</span>
+              <span style="font-family:monospace;color:#0f172a;">${cur} ${grossSalary.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <!-- Deductions Box -->
+          <div style="border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;">
+            <div style="background:#475569;color:#ffffff;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;display:flex;justify-content:space-between;">
+              <span>Deductions</span>
+              <span>Amount (${cur})</span>
+            </div>
+            <div style="padding:10px 12px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;">
+                <span style="color:#475569;">Advance Deduction</span>
+                <span style="font-weight:700;font-family:monospace;color:#b45309;">-${cur} ${advanceDeduction.toLocaleString()}</span>
+              </div>
+            </div>
+            <div style="background:#f8fafc;border-top:1.5px solid #cbd5e1;padding:8px 12px;display:flex;justify-content:space-between;font-weight:800;font-size:12px;">
+              <span>TOTAL DEDUCTIONS</span>
+              <span style="font-family:monospace;color:#b45309;">${cur} ${totalDeductions.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Net Pay Banner -->
+        <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div>
+            <div style="font-size:13px;font-weight:800;color:#166534;letter-spacing:1px;">NET PAY</div>
+            <div style="font-size:11px;color:#15803d;">Net salary settled to employee</div>
+          </div>
+          <div style="font-size:24px;font-weight:900;color:#15803d;font-family:monospace;">${cur} ${netPay.toLocaleString()}</div>
+        </div>
+
+        ${notes ? `
+        <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:6px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:14px;">
+          <strong>NOTES:</strong> ${notes}
+        </div>` : ''}
+
+        <!-- Authorization Section -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#0f172a;min-height:20px;padding-bottom:2px;">${authorizer}</div>
+            <div style="border-bottom:1.5px solid #0f172a;margin-bottom:4px;"></div>
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Authorized By</div>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#0f172a;font-family:monospace;min-height:20px;padding-bottom:2px;">${authDate}</div>
+            <div style="border-bottom:1.5px solid #0f172a;margin-bottom:4px;"></div>
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Date</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="margin-top:16px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9.5px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center;">
+          <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies</span>
+          <span>Generated on: ${generatedDateTime}</span>
+        </div>
+      `;
+
+      document.body.appendChild(container);
+      const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      document.body.removeChild(container);
+
       canvas.toBlob(async (blob) => {
         if (!blob) {
           toast.error('Could not generate payslip image', { id: toastId });
