@@ -787,6 +787,7 @@ export interface SalaryPayRecord {
   notes?: string;
   loggedBy: string;
   createdAt: number;    // epoch ms for sorting
+  paymentMethod?: string;
 }
 
 export interface Employee {
@@ -800,6 +801,7 @@ export interface Employee {
   status: 'PRESENT' | 'ABSENT' | 'LEAVE';
   advancePay?: number;
   branchId?: string;
+  department?: string;
   photoUrl?: string;
   idCardUrl?: string;
   idNumber?: string;
@@ -825,7 +827,7 @@ interface EmployeeState {
   updateEmployee: (id: string, emp: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => void;
   recordAdvancePay: (id: string, amount: number, notes?: string) => Promise<void>;
-  recordSalaryPay: (id: string, netAmount: number, notes?: string) => Promise<void>;
+  recordSalaryPay: (id: string, netAmount: number, notes?: string, paymentMethod?: string) => Promise<void>;
   clearAdvancePay: (id: string) => Promise<void>;
   loadAdvanceHistory: (id: string) => Promise<void>;
   loadSalaryHistory: (id: string) => Promise<void>;
@@ -863,6 +865,7 @@ export const useEmployeeStore = create<EmployeeState>()(
             status: e.status || 'PRESENT',
             advancePay: Number(e.advancePay) || 0,
             branchId: e.branchId || 'main',
+            department: e.department || '',
             photoUrl: e.photoUrl || '',
             idCardUrl: e.idCardUrl || '',
             idNumber: e.idNumber || '',
@@ -949,7 +952,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         advancePay: 0
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
-    recordSalaryPay: async (id, netAmount, notes) => {
+    recordSalaryPay: async (id, netAmount, notes, paymentMethod = 'CASH') => {
       const emp = get().employees.find(e => e.id === id);
       if (!emp) return;
 
@@ -972,6 +975,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         notes: notes || '',
         loggedBy: currentUser,
         createdAt: now,
+        paymentMethod: paymentMethod || 'CASH',
       };
       addDoc(collection(db, 'employees', id, 'salaryHistory'), salaryRecord)
         .catch(e => console.warn('Offline write deferred or failed (salary history):', e));
@@ -982,7 +986,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         amount: Number(netAmount),
         category: 'Salary / Advance Pay',
         description: notes ? `Notes: ${notes}` : `Net salary payment to ${emp.firstName} ${emp.lastName}`,
-        paymentMethod: 'CASH',
+        paymentMethod: paymentMethod || 'CASH',
         date: dateStr,
         loggedBy: currentUser,
         branchId,
@@ -1041,10 +1045,19 @@ export const useEmployeeStore = create<EmployeeState>()(
 
               if (!matchesEmp) return;
 
+              // Ensure salary payments are NEVER classified as advances
+              const isSalaryPayment = title.includes('salary payment') ||
+                desc.includes('net salary payment') ||
+                (
+                  (title.includes('salary') || desc.includes('salary')) &&
+                  !title.includes('advance') && !desc.includes('advance')
+                );
+              if (isSalaryPayment) return;
+
               const isAdvance = 
-                cat.includes('advance') || 
                 title.includes('advance') || 
-                desc.includes('advance');
+                desc.includes('advance') ||
+                (cat.includes('advance') && !title.includes('salary'));
 
               if (!isAdvance) return;
 
@@ -1110,15 +1123,25 @@ export const useEmployeeStore = create<EmployeeState>()(
             const cd = new Date(created);
             dateStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
           }
+          const netPaid = Number(data.netPaid) || 0;
+          let grossSalary = Number(data.grossSalary) || (emp?.salary || 0);
+          let advanceDeducted = Number(data.advanceDeducted) || 0;
+          if (advanceDeducted === 0 && grossSalary > netPaid) {
+            advanceDeducted = grossSalary - netPaid;
+          }
+          if (grossSalary === 0) {
+            grossSalary = netPaid + advanceDeducted;
+          }
           return {
             id: d.id,
-            grossSalary: Number(data.grossSalary) || (emp?.salary || 0),
-            advanceDeducted: Number(data.advanceDeducted) || 0,
-            netPaid: Number(data.netPaid) || 0,
+            grossSalary,
+            advanceDeducted,
+            netPaid,
             date: dateStr,
             notes: data.notes || '',
             loggedBy: data.loggedBy || 'System',
             createdAt: created || Date.now(),
+            paymentMethod: data.paymentMethod || 'CASH',
           };
         });
 
@@ -1172,15 +1195,18 @@ export const useEmployeeStore = create<EmployeeState>()(
               const netPaid = Number(data.amount) || 0;
               const alreadyHas = subRecords.some(r => r.date === expDate && r.netPaid === netPaid);
               if (!alreadyHas) {
+                const grossSalary = emp.salary || netPaid;
+                const advanceDeducted = grossSalary > netPaid ? (grossSalary - netPaid) : 0;
                 legacyRecords.push({
                   id: `exp_${ed.id}`,
-                  grossSalary: emp.salary,
-                  advanceDeducted: 0,
+                  grossSalary,
+                  advanceDeducted,
                   netPaid,
                   date: expDate,
                   notes: data.description || data.title || 'Salary Payment',
                   loggedBy: data.loggedBy || 'System',
                   createdAt: expCreated || (expDate ? new Date(expDate).getTime() : Date.now()),
+                  paymentMethod: data.paymentMethod || 'CASH',
                 });
               }
             });

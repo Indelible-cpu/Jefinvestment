@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Users, Phone, Mail, MapPin, Calendar, HeartHandshake,
-  ShieldCheck, ZoomIn, AlertCircle, History, ArrowRight, X, User
+  ShieldCheck, ZoomIn, AlertCircle, History, ArrowRight, X, User, FileText
 } from 'lucide-react';
 import { useEmployeeStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -66,6 +66,15 @@ export default function EmployeeProfile() {
           <span>Back to Staff Directory</span>
         </button>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/employees/${emp.id}/payslip`)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer shadow-xs"
+            title="View Monthly Payslip document"
+          >
+            <FileText size={16} />
+            <span>Generate Payslip</span>
+          </button>
           <button
             type="button"
             onClick={() => navigate(`/employees/${emp.id}/history`)}

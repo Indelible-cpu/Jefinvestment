@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, History, Share2, Printer, Banknote, CheckCircle,
-  Filter, Search, Calendar, User, Loader2
+  Filter, Search, User, Loader2, FileText
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
-import { useEmployeeStore, useExpenseStore, type Employee } from '../store/dataStore';
+import { useEmployeeStore, useExpenseStore, type Employee, type SalaryPayRecord, type AdvancePayRecord } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 
 export default function EmployeeHistory() {
@@ -16,7 +16,7 @@ export default function EmployeeHistory() {
   const { loadExpenses } = useExpenseStore();
   const settings = useSettingsStore();
 
-  const [historyTab, setHistoryTab] = useState<'advances' | 'salaries'>('advances');
+  const [historyTab, setHistoryTab] = useState<'advances' | 'salaries' | 'statement'>('advances');
   const [isSharingPayroll, setIsSharingPayroll] = useState(false);
   const [historyPreset, setHistoryPreset] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'CUSTOM'>('ALL');
   const [historyStartDate, setHistoryStartDate] = useState('');
@@ -68,6 +68,9 @@ export default function EmployeeHistory() {
       </div>
     );
   }
+
+  const cur = settings.currency || 'MWK';
+  const companyName = settings.companyName || 'JEF INVESTMENT';
 
   const now = new Date();
   const thisMonthName = now.toLocaleString('default', { month: 'short' });
@@ -124,138 +127,610 @@ export default function EmployeeHistory() {
     );
   };
 
-  const allAdv = emp.advanceHistory;
-  const filteredAdv = allAdv ? [...allAdv].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes, r.loggedBy, r.amount)) : null;
-  const totalAdv = filteredAdv ? filteredAdv.reduce((s, r) => s + r.amount, 0) : 0;
+  // ── Calculation helpers to guarantee clear, non-confusing calculations ──
+  const getSalaryDeduction = (r: SalaryPayRecord) => {
+    if (typeof r.advanceDeducted === 'number' && r.advanceDeducted > 0) {
+      return r.advanceDeducted;
+    }
+    const gross = r.grossSalary || emp.salary;
+    return gross > r.netPaid ? gross - r.netPaid : 0;
+  };
 
-  const allSal = emp.salaryHistory;
-  const filteredSal = allSal ? [...allSal].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes, r.loggedBy, r.netPaid)) : null;
-  const totalSal = filteredSal ? filteredSal.reduce((s, r) => s + r.netPaid, 0) : 0;
+  const getSalaryGross = (r: SalaryPayRecord) => {
+    const deduction = getSalaryDeduction(r);
+    return r.grossSalary || (r.netPaid + deduction) || emp.salary;
+  };
+
+  // Advance records
+  const allAdv: AdvancePayRecord[] = emp.advanceHistory || [];
+  const filteredAdv = allAdv.length > 0
+    ? [...allAdv].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes || '', r.loggedBy, r.amount))
+    : [];
+  const totalAdvances = allAdv.reduce((s, r) => s + r.amount, 0);
+  const filteredAdvTotal = filteredAdv.reduce((s, r) => s + r.amount, 0);
+
+  // Salary records
+  const allSal: SalaryPayRecord[] = emp.salaryHistory || [];
+  const sortedSalDesc = [...allSal].sort((a, b) => b.createdAt - a.createdAt);
+  const filteredSal = allSal.length > 0
+    ? [...allSal].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes || '', r.loggedBy, r.netPaid))
+    : [];
+  const totalSalariesPaid = allSal.reduce((s, r) => s + r.netPaid, 0);
+  const filteredSalTotal = filteredSal.reduce((s, r) => s + r.netPaid, 0);
+
+  // Overall summary metrics
+  const totalAdvancesRecovered = allSal.reduce((sum, r) => sum + getSalaryDeduction(r), 0);
+  const currentAdvanceBalance = emp.advancePay || 0;
+  const salaryBalance = Math.max(0, emp.salary - currentAdvanceBalance);
+  const latestNetSalaryPaid = sortedSalDesc.length > 0 ? sortedSalDesc[0].netPaid : 0;
 
   const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();
 
-  // WhatsApp share: capture styled payroll document as image and share or fallback to styled text
+  // Print Full Payroll History (optimized for 1-page A4 printing)
+  const handlePrintPayrollHistory = (targetEmp: Employee) => {
+    const advList = targetEmp.advanceHistory || [];
+    const salList = targetEmp.salaryHistory || [];
+
+    const advTotal = advList.reduce((s, r) => s + r.amount, 0);
+    const salTotal = salList.reduce((s, r) => s + r.netPaid, 0);
+    const advRecovered = salList.reduce((s, r) => s + getSalaryDeduction(r), 0);
+    const latestNet = salList.length > 0 ? [...salList].sort((a, b) => b.createdAt - a.createdAt)[0].netPaid : 0;
+    const salBal = Math.max(0, targetEmp.salary - (targetEmp.advancePay || 0));
+
+    const advRowsHtml = advList.length
+      ? advList.map((r, i) => `
+        <tr>
+          <td style="padding:4px 6px;text-align:center;font-size:11px;">#${i + 1}</td>
+          <td style="padding:4px 6px;font-size:11px;font-weight:600;">${r.date}</td>
+          <td style="padding:4px 6px;font-size:11px;font-weight:700;color:#b45309;text-align:right;font-family:monospace;">${cur} ${r.amount.toLocaleString()}</td>
+          <td style="padding:4px 6px;font-size:11px;color:#334155;">${r.notes || '—'}</td>
+          <td style="padding:4px 6px;font-size:10px;color:#64748b;">${r.loggedBy}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" style="padding:8px;text-align:center;color:#94a3b8;font-size:11px;">No advance records on file.</td></tr>';
+
+    const salRowsHtml = salList.length
+      ? salList.map((r, i) => {
+          const gross = getSalaryGross(r);
+          const deduction = getSalaryDeduction(r);
+          return `
+          <tr>
+            <td style="padding:4px 6px;text-align:center;font-size:11px;">#${i + 1}</td>
+            <td style="padding:4px 6px;font-size:11px;font-weight:600;">${r.date}</td>
+            <td style="padding:4px 6px;font-size:11px;text-align:right;font-family:monospace;">${cur} ${gross.toLocaleString()}</td>
+            <td style="padding:4px 6px;font-size:11px;color:#b45309;text-align:right;font-family:monospace;">-${cur} ${deduction.toLocaleString()}</td>
+            <td style="padding:4px 6px;font-size:11px;font-weight:700;color:#166534;text-align:right;font-family:monospace;">${cur} ${r.netPaid.toLocaleString()}</td>
+            <td style="padding:4px 6px;font-size:11px;color:#334155;">${r.notes || '—'}</td>
+            <td style="padding:4px 6px;font-size:10px;color:#64748b;">${r.loggedBy}</td>
+          </tr>`;
+        }).join('')
+      : '<tr><td colspan="7" style="padding:8px;text-align:center;color:#94a3b8;font-size:11px;">No salary payment records on file.</td></tr>';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Payroll History — ${targetEmp.firstName} ${targetEmp.lastName}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 12mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 11px;
+      color: #0f172a;
+      line-height: 1.35;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+    .sheet {
+      max-width: 800px;
+      margin: 0 auto;
+      border: 1px solid #cbd5e1;
+      padding: 16px 20px;
+      border-radius: 6px;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .company-title {
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0;
+      color: #0f172a;
+    }
+    .doc-subtitle {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e3a8a;
+      letter-spacing: 1px;
+      margin-top: 1px;
+    }
+    .emp-info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 11px;
+    }
+    .info-cell {
+      display: flex;
+      flex-direction: column;
+    }
+    .info-lbl {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .info-val {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 10px 0 4px 0;
+      padding-bottom: 2px;
+      border-bottom: 1.5px solid #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
+    }
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 6px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+    }
+    td {
+      border: 1px solid #e2e8f0;
+      padding: 4px 6px;
+      font-size: 10.5px;
+      vertical-align: middle;
+    }
+    .total-row {
+      background: #f8fafc;
+      font-weight: 700;
+      border-top: 1.5px solid #0f172a;
+    }
+    .summary-card {
+      background: #f8fafc;
+      border: 1.5px solid #0f172a;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    .summary-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #0f172a;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      text-align: center;
+    }
+    .summary-item {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 4px 6px;
+    }
+    .summary-item-label {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      display: block;
+    }
+    .summary-item-value {
+      font-size: 11.5px;
+      font-weight: 800;
+      font-family: monospace;
+      color: #0f172a;
+      margin-top: 1px;
+    }
+    .summary-item-highlight {
+      background: #f0fdf4;
+      border-color: #16a34a;
+    }
+    .summary-item-highlight .summary-item-value {
+      color: #15803d;
+      font-size: 12px;
+    }
+    .signatures-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #cbd5e1;
+    }
+    .sig-line {
+      border-bottom: 1px solid #94a3b8;
+      height: 28px;
+      margin-bottom: 2px;
+    }
+    .sig-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .footer {
+      margin-top: 10px;
+      padding-top: 4px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 9px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="header-bar">
+      <div>
+        <h1 class="company-title">${companyName}</h1>
+        <div class="doc-subtitle">EMPLOYEE PAYROLL HISTORY</div>
+      </div>
+      <div style="text-align:right;">
+        ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="max-height:40px;max-width:110px;object-fit:contain;" />` : `<div style="font-weight:700;font-size:12px;color:#1e3a8a;">Payroll Record</div>`}
+      </div>
+    </div>
+
+    <!-- Section 1: Improved Employee Payroll History Header -->
+    <div class="emp-info-grid">
+      <div class="info-cell">
+        <span class="info-lbl">Employee Name</span>
+        <span class="info-val">${targetEmp.firstName} ${targetEmp.lastName}</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-lbl">Employee ID</span>
+        <span class="info-val font-mono">${targetEmp.id}</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-lbl">Position</span>
+        <span class="info-val">${targetEmp.role}</span>
+      </div>
+      ${targetEmp.department ? `
+      <div class="info-cell">
+        <span class="info-lbl">Department</span>
+        <span class="info-val">${targetEmp.department}</span>
+      </div>` : `
+      <div class="info-cell">
+        <span class="info-lbl">Monthly Salary</span>
+        <span class="info-val font-mono">${cur} ${targetEmp.salary.toLocaleString()}</span>
+      </div>`}
+      ${targetEmp.department ? `
+      <div class="info-cell">
+        <span class="info-lbl">Monthly Salary</span>
+        <span class="info-val font-mono">${cur} ${targetEmp.salary.toLocaleString()}</span>
+      </div>` : ''}
+      <div class="info-cell">
+        <span class="info-lbl">Total Advances</span>
+        <span class="info-val font-mono" style="color:#b45309;">${cur} ${advTotal.toLocaleString()}</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-lbl">Current Advance Balance</span>
+        <span class="info-val font-mono" style="color:${(targetEmp.advancePay || 0) > 0 ? '#b45309' : '#0f172a'};">${cur} ${(targetEmp.advancePay || 0).toLocaleString()}</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-lbl">Latest Net Salary Paid</span>
+        <span class="info-val font-mono" style="color:#15803d;">${cur} ${latestNet.toLocaleString()}</span>
+      </div>
+    </div>
+
+    <!-- Section 2: Advance Pay Records -->
+    <div class="section-title">
+      <span>Advance Pay Records (${advList.length})</span>
+      <span style="font-weight:700;color:#b45309;">Total: ${cur} ${advTotal.toLocaleString()}</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px;text-align:center;">#</th>
+          <th style="width:90px;">Date</th>
+          <th style="width:110px;text-align:right;">Amount</th>
+          <th>Reason / Notes</th>
+          <th style="width:110px;">Logged By</th>
+        </tr>
+      </thead>
+      <tbody>${advRowsHtml}</tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="2" style="text-align:right;text-transform:uppercase;font-size:10px;">Total Advances</td>
+          <td style="text-align:right;color:#b45309;font-weight:700;font-family:monospace;">${cur} ${advTotal.toLocaleString()}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- Section 3 & 4: Salary Pay Records with Clear Calculation Display -->
+    <div class="section-title">
+      <span>Salary Pay Records (${salList.length})</span>
+      <span style="font-weight:700;color:#166534;">Total Net Paid: ${cur} ${salTotal.toLocaleString()}</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px;text-align:center;">#</th>
+          <th style="width:90px;">Date</th>
+          <th style="width:105px;text-align:right;">Gross Salary</th>
+          <th style="width:115px;text-align:right;">Advances Deducted</th>
+          <th style="width:110px;text-align:right;">Net Paid</th>
+          <th>Notes</th>
+          <th style="width:90px;">Logged By</th>
+        </tr>
+      </thead>
+      <tbody>${salRowsHtml}</tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="4" style="text-align:right;text-transform:uppercase;font-size:10px;">Total Net Salaries Paid</td>
+          <td style="text-align:right;color:#166534;font-weight:700;font-family:monospace;">${cur} ${salTotal.toLocaleString()}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- Section 5: Payroll Summary Box -->
+    <div class="summary-card">
+      <div class="summary-title">Payroll Summary</div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-item-label">Monthly Salary</span>
+          <div class="summary-item-value">${cur} ${targetEmp.salary.toLocaleString()}</div>
+        </div>
+        <div class="summary-item">
+          <span class="summary-item-label">Total Advances</span>
+          <div class="summary-item-value" style="color:#b45309;">${cur} ${advTotal.toLocaleString()}</div>
+        </div>
+        <div class="summary-item">
+          <span class="summary-item-label">Advances Recovered</span>
+          <div class="summary-item-value" style="color:#b45309;">${cur} ${advRecovered.toLocaleString()}</div>
+        </div>
+        <div class="summary-item">
+          <span class="summary-item-label">Salary Balance</span>
+          <div class="summary-item-value">${cur} ${salBal.toLocaleString()}</div>
+        </div>
+        <div class="summary-item summary-item-highlight">
+          <span class="summary-item-label" style="color:#166534;">NET SALARY PAID</span>
+          <div class="summary-item-value">${cur} ${salTotal.toLocaleString()}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 7: Signatures Area -->
+    <div class="signatures-row">
+      <div>
+        <div class="sig-line"></div>
+        <div class="sig-label">Prepared By</div>
+      </div>
+      <div>
+        <div class="sig-line"></div>
+        <div class="sig-label">Employee Signature</div>
+      </div>
+      <div>
+        <div class="sig-line"></div>
+        <div class="sig-label">Authorized By</div>
+      </div>
+      <div>
+        <div class="sig-line"></div>
+        <div class="sig-label">Date</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span>Jef Investment Payroll System</span>
+      <span>Generated on: ${new Date().toLocaleString()}</span>
+    </div>
+  </div>
+  <script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
+  // WhatsApp share: capture styled payroll document as image and share or fallback to download
   const handleWhatsAppShare = async (targetEmp: Employee) => {
     setIsSharingPayroll(true);
-    const toastId = toast.loading('Generating payroll card image...');
+    const toastId = toast.loading('Generating payroll statement card...');
     try {
-      const advHistory = targetEmp.advanceHistory || [];
-      const salHistory = targetEmp.salaryHistory || [];
-      const cur = settings.currency;
-      const totalAdvances = advHistory.reduce((s, r) => s + r.amount, 0);
-      const totalSalaries = salHistory.reduce((s, r) => s + r.netPaid, 0);
+      const advList = targetEmp.advanceHistory || [];
+      const salList = targetEmp.salaryHistory || [];
+      const advTotal = advList.reduce((s, r) => s + r.amount, 0);
+      const salTotal = salList.reduce((s, r) => s + r.netPaid, 0);
+      const advRecovered = salList.reduce((s, r) => s + getSalaryDeduction(r), 0);
+      const latestNet = salList.length > 0 ? [...salList].sort((a, b) => b.createdAt - a.createdAt)[0].netPaid : 0;
+      const salBal = Math.max(0, targetEmp.salary - (targetEmp.advancePay || 0));
 
-      // Create an offscreen, beautifully styled DOM container to screenshot
       const container = document.createElement('div');
       container.style.position = 'fixed';
       container.style.left = '-9999px';
       container.style.top = '0';
-      container.style.width = '640px';
+      container.style.width = '700px';
       container.style.background = '#ffffff';
       container.style.color = '#0f172a';
       container.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-      container.style.padding = '28px';
-      container.style.borderRadius = '16px';
+      container.style.padding = '24px';
+      container.style.borderRadius = '14px';
       container.style.boxShadow = '0 10px 25px rgba(0,0,0,0.1)';
 
-      const advRowsHtml = advHistory.length
-        ? advHistory.map((r, i) => `
+      const advRowsHtml = advList.length
+        ? advList.map((r, i) => `
           <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:8px 6px;color:#64748b;font-size:12px;">#${i + 1}</td>
-            <td style="padding:8px 6px;font-size:12px;font-weight:600;">${r.date}</td>
-            <td style="padding:8px 6px;font-size:12px;color:#b45309;font-weight:700;text-align:right;">${cur} ${r.amount.toLocaleString()}</td>
-            <td style="padding:8px 6px;font-size:11px;color:#475569;">${r.notes || '—'}</td>
-            <td style="padding:8px 6px;font-size:11px;color:#94a3b8;">${r.loggedBy}</td>
+            <td style="padding:6px;color:#64748b;font-size:11px;">#${i + 1}</td>
+            <td style="padding:6px;font-size:11px;font-weight:600;">${r.date}</td>
+            <td style="padding:6px;font-size:11px;color:#b45309;font-weight:700;text-align:right;">${cur} ${r.amount.toLocaleString()}</td>
+            <td style="padding:6px;font-size:11px;color:#475569;">${r.notes || '—'}</td>
+            <td style="padding:6px;font-size:10px;color:#94a3b8;">${r.loggedBy}</td>
           </tr>
         `).join('')
-        : '<tr><td colspan="5" style="padding:14px;text-align:center;color:#94a3b8;font-size:12px;">No advance payments recorded.</td></tr>';
+        : '<tr><td colspan="5" style="padding:10px;text-align:center;color:#94a3b8;font-size:11px;">No advance payments recorded.</td></tr>';
 
-      const salRowsHtml = salHistory.length
-        ? salHistory.map((r, i) => `
-          <tr style="border-bottom:1px solid #f1f5f9;">
-            <td style="padding:8px 6px;color:#64748b;font-size:12px;">#${i + 1}</td>
-            <td style="padding:8px 6px;font-size:12px;font-weight:600;">${r.date}</td>
-            <td style="padding:8px 6px;font-size:12px;text-align:right;">${cur} ${r.grossSalary.toLocaleString()}</td>
-            <td style="padding:8px 6px;font-size:12px;color:#b45309;text-align:right;">-${cur} ${r.advanceDeducted.toLocaleString()}</td>
-            <td style="padding:8px 6px;font-size:12px;font-weight:700;color:#15803d;text-align:right;">${cur} ${r.netPaid.toLocaleString()}</td>
-            <td style="padding:8px 6px;font-size:11px;color:#475569;">${r.notes || '—'}</td>
-          </tr>
-        `).join('')
-        : '<tr><td colspan="6" style="padding:14px;text-align:center;color:#94a3b8;font-size:12px;">No salary payments recorded.</td></tr>';
+      const salRowsHtml = salList.length
+        ? salList.map((r, i) => {
+            const gross = getSalaryGross(r);
+            const deduction = getSalaryDeduction(r);
+            return `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:6px;color:#64748b;font-size:11px;">#${i + 1}</td>
+              <td style="padding:6px;font-size:11px;font-weight:600;">${r.date}</td>
+              <td style="padding:6px;font-size:11px;text-align:right;">${cur} ${gross.toLocaleString()}</td>
+              <td style="padding:6px;font-size:11px;color:#b45309;text-align:right;">-${cur} ${deduction.toLocaleString()}</td>
+              <td style="padding:6px;font-size:11px;font-weight:700;color:#15803d;text-align:right;">${cur} ${r.netPaid.toLocaleString()}</td>
+              <td style="padding:6px;font-size:11px;color:#475569;">${r.notes || '—'}</td>
+            </tr>`;
+          }).join('')
+        : '<tr><td colspan="6" style="padding:10px;text-align:center;color:#94a3b8;font-size:11px;">No salary payments recorded.</td></tr>';
 
       container.innerHTML = `
-        <div style="border-bottom:2px solid #2563eb;padding-bottom:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-start;">
           <div>
-            <h2 style="margin:0;font-size:20px;font-weight:800;color:#1e3a8a;">${settings.companyName || 'MsikaFlo Limited'}</h2>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">Employee Compensation &amp; Payroll Record</div>
+            <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;">${companyName}</h2>
+            <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-top:2px;">EMPLOYEE PAYROLL HISTORY</div>
           </div>
           <div style="text-align:right;">
-            <span style="display:inline-block;padding:3px 10px;background:#dbeafe;color:#1e40af;font-weight:700;font-size:11px;border-radius:12px;">${targetEmp.role}</span>
-            <div style="font-size:11px;color:#94a3b8;margin-top:4px;">ID: ${targetEmp.id}</div>
-            ${targetEmp.idNumber ? `<div style="font-size:10px;color:#94a3b8;">NID: ${targetEmp.idNumber}</div>` : ''}
+            <span style="display:inline-block;padding:2px 8px;background:#dbeafe;color:#1e40af;font-weight:700;font-size:11px;border-radius:10px;">${targetEmp.role}</span>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">ID: ${targetEmp.id}</div>
           </div>
         </div>
 
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:18px;">
-          <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px;">${targetEmp.firstName} ${targetEmp.lastName}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-            <div style="background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;">
-              <span style="font-size:10px;color:#64748b;font-weight:600;display:block;">MONTHLY SALARY</span>
-              <strong style="font-size:14px;color:#0f172a;">${cur} ${targetEmp.salary.toLocaleString()}</strong>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:8px;">${targetEmp.firstName} ${targetEmp.lastName}</div>
+          <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;font-size:11px;">
+            <div style="background:#fff;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;">
+              <span style="font-size:9px;color:#64748b;font-weight:600;display:block;">MONTHLY SALARY</span>
+              <strong style="color:#0f172a;">${cur} ${targetEmp.salary.toLocaleString()}</strong>
             </div>
-            <div style="background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;">
-              <span style="font-size:10px;color:#64748b;font-weight:600;display:block;">ADVANCE BALANCE</span>
-              <strong style="font-size:14px;color:${(targetEmp.advancePay || 0) > 0 ? '#b45309' : '#0f172a'};">${cur} ${(targetEmp.advancePay || 0).toLocaleString()}</strong>
+            <div style="background:#fff;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;">
+              <span style="font-size:9px;color:#64748b;font-weight:600;display:block;">TOTAL ADVANCES</span>
+              <strong style="color:#b45309;">${cur} ${advTotal.toLocaleString()}</strong>
             </div>
-            <div style="background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;">
-              <span style="font-size:10px;color:#64748b;font-weight:600;display:block;">NET DUE THIS MONTH</span>
-              <strong style="font-size:14px;color:#15803d;">${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleString()}</strong>
+            <div style="background:#fff;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;">
+              <span style="font-size:9px;color:#64748b;font-weight:600;display:block;">ADVANCE BALANCE</span>
+              <strong style="color:${(targetEmp.advancePay || 0) > 0 ? '#b45309' : '#0f172a'};">${cur} ${(targetEmp.advancePay || 0).toLocaleString()}</strong>
+            </div>
+            <div style="background:#fff;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;">
+              <span style="font-size:9px;color:#64748b;font-weight:600;display:block;">LATEST NET PAID</span>
+              <strong style="color:#15803d;">${cur} ${latestNet.toLocaleString()}</strong>
             </div>
           </div>
         </div>
 
-        <div style="margin-bottom:16px;">
-          <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:6px;display:flex;justify-content:space-between;">
-            <span>💵 Advance Pay History (${advHistory.length})</span>
-            <span>Total: ${cur} ${totalAdvances.toLocaleString()}</span>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:4px;display:flex;justify-content:space-between;">
+            <span>Advance Pay Records (${advList.length})</span>
+            <span>Total: ${cur} ${advTotal.toLocaleString()}</span>
           </div>
           <table style="width:100%;border-collapse:collapse;text-align:left;">
             <thead>
-              <tr style="background:#fef3c7;color:#92400e;font-size:10px;text-transform:uppercase;">
-                <th style="padding:6px;">#</th>
-                <th style="padding:6px;">Date</th>
-                <th style="padding:6px;text-align:right;">Amount</th>
-                <th style="padding:6px;">Notes</th>
-                <th style="padding:6px;">Logged By</th>
+              <tr style="background:#fef3c7;color:#92400e;font-size:9.5px;text-transform:uppercase;">
+                <th style="padding:5px;">#</th>
+                <th style="padding:5px;">Date</th>
+                <th style="padding:5px;text-align:right;">Amount</th>
+                <th style="padding:5px;">Notes</th>
+                <th style="padding:5px;">Logged By</th>
               </tr>
             </thead>
             <tbody>${advRowsHtml}</tbody>
           </table>
         </div>
 
-        <div style="margin-bottom:16px;">
-          <div style="font-size:13px;font-weight:800;color:#166534;margin-bottom:6px;display:flex;justify-content:space-between;">
-            <span>✅ Salary Payments History (${salHistory.length})</span>
-            <span>Total Paid: ${cur} ${totalSalaries.toLocaleString()}</span>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:800;color:#166534;margin-bottom:4px;display:flex;justify-content:space-between;">
+            <span>Salary Pay Records (${salList.length})</span>
+            <span>Total Net Paid: ${cur} ${salTotal.toLocaleString()}</span>
           </div>
           <table style="width:100%;border-collapse:collapse;text-align:left;">
             <thead>
-              <tr style="background:#dcfce7;color:#166534;font-size:10px;text-transform:uppercase;">
-                <th style="padding:6px;">#</th>
-                <th style="padding:6px;">Date</th>
-                <th style="padding:6px;text-align:right;">Gross</th>
-                <th style="padding:6px;text-align:right;">Advance</th>
-                <th style="padding:6px;text-align:right;">Net Paid</th>
-                <th style="padding:6px;">Notes</th>
+              <tr style="background:#dcfce7;color:#166534;font-size:9.5px;text-transform:uppercase;">
+                <th style="padding:5px;">#</th>
+                <th style="padding:5px;">Date</th>
+                <th style="padding:5px;text-align:right;">Gross</th>
+                <th style="padding:5px;text-align:right;">Deduction</th>
+                <th style="padding:5px;text-align:right;">Net Paid</th>
+                <th style="padding:5px;">Notes</th>
               </tr>
             </thead>
             <tbody>${salRowsHtml}</tbody>
           </table>
         </div>
 
-        <div style="border-top:1px solid #e2e8f0;padding-top:10px;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between;">
+        <!-- Payroll Summary Box -->
+        <div style="background:#f8fafc;border:1.5px solid #0f172a;border-radius:8px;padding:10px;margin-bottom:12px;">
+          <div style="font-size:11px;font-weight:800;color:#0f172a;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Payroll Summary</div>
+          <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;text-align:center;font-size:10px;">
+            <div style="background:#fff;border:1px solid #cbd5e1;padding:4px;border-radius:4px;">
+              <span style="color:#64748b;font-weight:600;display:block;">MONTHLY SALARY</span>
+              <strong style="font-size:11px;color:#0f172a;">${cur} ${targetEmp.salary.toLocaleString()}</strong>
+            </div>
+            <div style="background:#fff;border:1px solid #cbd5e1;padding:4px;border-radius:4px;">
+              <span style="color:#64748b;font-weight:600;display:block;">TOTAL ADVANCES</span>
+              <strong style="font-size:11px;color:#b45309;">${cur} ${advTotal.toLocaleString()}</strong>
+            </div>
+            <div style="background:#fff;border:1px solid #cbd5e1;padding:4px;border-radius:4px;">
+              <span style="color:#64748b;font-weight:600;display:block;">ADVANCES RECOVERED</span>
+              <strong style="font-size:11px;color:#b45309;">${cur} ${advRecovered.toLocaleString()}</strong>
+            </div>
+            <div style="background:#fff;border:1px solid #cbd5e1;padding:4px;border-radius:4px;">
+              <span style="color:#64748b;font-weight:600;display:block;">SALARY BALANCE</span>
+              <strong style="font-size:11px;color:#0f172a;">${cur} ${salBal.toLocaleString()}</strong>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #16a34a;padding:4px;border-radius:4px;">
+              <span style="color:#166534;font-weight:700;display:block;">NET SALARY PAID</span>
+              <strong style="font-size:12px;color:#15803d;">${cur} ${salTotal.toLocaleString()}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #e2e8f0;padding-top:8px;font-size:9.5px;color:#94a3b8;display:flex;justify-content:space-between;">
           <span>Generated on ${new Date().toLocaleString()}</span>
-          <span>${settings.companyName || 'MsikaFlo'} Payroll</span>
+          <span>Jef Investment Payroll System</span>
         </div>
       `;
 
@@ -270,147 +745,36 @@ export default function EmployeeHistory() {
           return;
         }
 
-        const fileName = `Payroll_${targetEmp.firstName}_${targetEmp.lastName}_${new Date().toISOString().slice(0, 10)}.png`;
+        const fileName = `Payroll_History_${targetEmp.firstName}_${targetEmp.lastName}_${new Date().toISOString().slice(0, 10)}.png`;
         const file = new File([blob], fileName, { type: 'image/png' });
 
-        // If Web Share API supports file sharing (mobile WhatsApp or native share)
         if (navigator.canShare?.({ files: [file] })) {
           try {
             await navigator.share({
               files: [file],
-              title: `Payroll Record — ${targetEmp.firstName} ${targetEmp.lastName}`,
-              text: `Payroll & Advance Pay statement for ${targetEmp.firstName} ${targetEmp.lastName} (${settings.companyName || 'MsikaFlo'})`,
+              title: `Payroll History — ${targetEmp.firstName} ${targetEmp.lastName}`,
+              text: `Payroll History statement for ${targetEmp.firstName} ${targetEmp.lastName} (${companyName})`,
             });
             toast.success('Shared successfully!', { id: toastId });
           } catch (err: any) {
-            if (err.name !== 'AbortError') {
-              toast.error('Sharing failed', { id: toastId });
-            } else {
-              toast.dismiss(toastId);
-            }
+            if (err.name !== 'AbortError') toast.error('Sharing failed', { id: toastId });
+            else toast.dismiss(toastId);
           }
         } else {
-          // Desktop WhatsApp Web fallback: automatically download the image card & open WhatsApp
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
           a.download = fileName;
           a.click();
           URL.revokeObjectURL(url);
-
-          const summaryMsg = encodeURIComponent(
-`*${settings.companyName || 'MsikaFlo'} — PAYROLL STATEMENT*
-Employee: ${targetEmp.firstName} ${targetEmp.lastName} (${targetEmp.role})
-Monthly Salary: ${cur} ${targetEmp.salary.toLocaleString()}
-Advance Balance: ${cur} ${(targetEmp.advancePay || 0).toLocaleString()}
-Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleString()}
-
-📸 *Note:* The full visual payroll card with complete advance & salary tables has been downloaded to your device (${fileName}). You can attach it directly to this chat!`
-          );
-          window.open(`https://wa.me/?text=${summaryMsg}`, '_blank');
-          toast.success('Payroll image downloaded! Attach it to your WhatsApp chat.', { id: toastId });
+          toast.success('Payroll History image downloaded!', { id: toastId });
         }
         setIsSharingPayroll(false);
       }, 'image/png');
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to generate shareable image: ' + err.message, { id: toastId });
+      toast.error('Failed to generate statement image: ' + err.message, { id: toastId });
       setIsSharingPayroll(false);
-    }
-  };
-
-  // Print payroll history for an employee
-  const handlePrintPayrollHistory = (targetEmp: Employee) => {
-    const advHistory = targetEmp.advanceHistory || [];
-    const salHistory = targetEmp.salaryHistory || [];
-    const cur = settings.currency;
-    const totalAdvances = advHistory.reduce((s, r) => s + r.amount, 0);
-    const totalSalaries = salHistory.reduce((s, r) => s + r.netPaid, 0);
-
-    const advRows = advHistory.length
-      ? advHistory.map((r, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${r.date}</td>
-          <td style="text-align:right">${cur} ${r.amount.toLocaleString()}</td>
-          <td>${r.notes || '—'}</td>
-          <td>${r.loggedBy}</td>
-        </tr>`).join('')
-      : '<tr><td colspan="5" style="text-align:center;color:#888">No advance records.</td></tr>';
-
-    const salRows = salHistory.length
-      ? salHistory.map((r, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${r.date}</td>
-          <td style="text-align:right">${cur} ${r.grossSalary.toLocaleString()}</td>
-          <td style="text-align:right;color:#b45309">-${cur} ${r.advanceDeducted.toLocaleString()}</td>
-          <td style="text-align:right;font-weight:700">${cur} ${r.netPaid.toLocaleString()}</td>
-          <td>${r.notes || '—'}</td>
-          <td>${r.loggedBy}</td>
-        </tr>`).join('')
-      : '<tr><td colspan="7" style="text-align:center;color:#888">No salary records.</td></tr>';
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Payroll History — ${targetEmp.firstName} ${targetEmp.lastName}</title>
-  <style>
-    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 24px; }
-    h1 { font-size: 20px; margin-bottom: 2px; }
-    .meta { color: #555; font-size: 12px; margin-bottom: 20px; }
-    .badge { display:inline-block; background:#dbeafe; color:#1e40af; border-radius:4px; padding:2px 8px; font-size:11px; margin-left:6px; }
-    h2 { font-size: 15px; margin-top: 24px; margin-bottom: 6px; border-bottom: 2px solid #e5e7eb; padding-bottom: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    th { background: #f3f4f6; text-align: left; padding: 6px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
-    td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-    tr:last-child td { border-bottom: none; }
-    .total-row { font-weight: 700; background: #f9fafb; }
-    .footer { margin-top: 32px; font-size: 11px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 8px; }
-    @media print { body { padding: 0; } }
-  </style>
-</head>
-<body>
-  <h1>Payroll History <span class="badge">${targetEmp.role}</span></h1>
-  <div class="meta">
-    <strong>${targetEmp.firstName} ${targetEmp.lastName}</strong> &nbsp;|&nbsp;
-    ID: ${targetEmp.id} &nbsp;|&nbsp;
-    Monthly Salary: ${cur} ${targetEmp.salary.toLocaleString()} &nbsp;|&nbsp;
-    Current Advance Balance: ${cur} ${(targetEmp.advancePay || 0).toLocaleString()}
-  </div>
-
-  <h2>💵 Advance Pay Records</h2>
-  <table>
-    <thead><tr><th>#</th><th>Date</th><th>Amount</th><th>Reason / Notes</th><th>Logged By</th></tr></thead>
-    <tbody>${advRows}</tbody>
-    <tfoot><tr class="total-row">
-      <td colspan="2">TOTAL ADVANCED</td>
-      <td style="text-align:right">${cur} ${totalAdvances.toLocaleString()}</td>
-      <td colspan="2"></td>
-    </tr></tfoot>
-  </table>
-
-  <h2>✅ Salary Pay Records</h2>
-  <table>
-    <thead><tr><th>#</th><th>Date</th><th>Gross Salary</th><th>Advance Deducted</th><th>Net Paid</th><th>Notes</th><th>Logged By</th></tr></thead>
-    <tbody>${salRows}</tbody>
-    <tfoot><tr class="total-row">
-      <td colspan="4">TOTAL NET SALARIES PAID</td>
-      <td style="text-align:right">${cur} ${totalSalaries.toLocaleString()}</td>
-      <td colspan="2"></td>
-    </tr></tfoot>
-  </table>
-
-  <div class="footer">Generated on ${new Date().toLocaleString()} &nbsp;|&nbsp; ${settings.companyName || 'MsikaFlo'} Payroll System</div>
-  <script>window.onload = function(){ window.print(); }</script>
-</body>
-</html>`;
-
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(html);
-      win.document.close();
     }
   };
 
@@ -436,14 +800,23 @@ Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleStrin
           </button>
         </div>
 
-        {/* WhatsApp & Print Actions */}
+        {/* Action Buttons: Generate Payslip, WhatsApp & Print */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/employees/${emp.id}/payslip`)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+            title="View Monthly Payslip document"
+          >
+            <FileText size={16} />
+            <span>Generate Payslip</span>
+          </button>
           <button
             type="button"
             onClick={() => handleWhatsAppShare(emp)}
             disabled={isSharingPayroll}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
-            title="Generate and share payroll statement image"
+            title="Share full statement image"
           >
             {isSharingPayroll ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
             <span>{isSharingPayroll ? 'Creating...' : 'WhatsApp'}</span>
@@ -452,53 +825,74 @@ Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleStrin
             type="button"
             onClick={() => handlePrintPayrollHistory(emp)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-card hover:bg-muted text-gray-700 border rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer shadow-xs"
-            title="Print full statement"
+            title="Print full statement or save as PDF"
           >
             <Printer size={16} />
-            <span>Print</span>
+            <span>Print Statement</span>
           </button>
         </div>
       </div>
 
       {/* Main Container */}
       <div className="bg-card rounded-2xl shadow-sm border overflow-hidden">
-        {/* Banner with Summary */}
+        {/* Section 1: Improved Employee Payroll History Header */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white p-5 sm:p-7">
-          <div className="flex items-center gap-3">
-            <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-              <History size={22} />
-            </span>
-            <div>
-              <h1 className="text-2xl font-bold leading-tight">Payroll &amp; Payment History</h1>
-              <p className="text-xs sm:text-sm text-blue-200 mt-0.5">
-                {emp.firstName} {emp.lastName} &bull; <span className="text-white font-medium">{emp.role}</span> &bull; ID: <span className="font-mono text-white">{emp.id}</span>
-              </p>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <History size={22} />
+              </span>
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-400 block">
+                  EMPLOYEE PAYROLL HISTORY
+                </span>
+                <h1 className="text-xl sm:text-2xl font-bold leading-tight text-white mt-0.5">
+                  {emp.firstName} {emp.lastName}
+                </h1>
+                <p className="text-xs text-blue-200 mt-0.5">
+                  Position: <strong className="text-white font-medium">{emp.role}</strong> &bull; ID: <strong className="font-mono text-white">{emp.id}</strong>
+                  {emp.department ? <> &bull; Dept: <strong className="text-white font-medium">{emp.department}</strong></> : null}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <span className="text-xs text-blue-200 block">Monthly Base Salary</span>
+              <span className="text-xl sm:text-2xl font-bold font-mono text-white">
+                {cur} {emp.salary.toLocaleString()}
+              </span>
             </div>
           </div>
 
-          {/* Financial Summary Badges */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-            <div className="bg-white/10 rounded-xl px-4 py-3 border border-white/10 backdrop-blur-xs">
-              <span className="text-blue-200 text-[11px] font-semibold uppercase tracking-wider block">Base Salary</span>
-              <span className="font-bold font-mono text-base sm:text-lg text-white">{settings.currency} {emp.salary.toLocaleString()}</span>
+          {/* Dynamic Header Metrics Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+            <div className="bg-white/10 rounded-xl px-3.5 py-2.5 border border-white/10 backdrop-blur-xs">
+              <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Monthly Salary</span>
+              <span className="font-bold font-mono text-sm sm:text-base text-white">{cur} {emp.salary.toLocaleString()}</span>
             </div>
-            <div className="bg-white/10 rounded-xl px-4 py-3 border border-white/10 backdrop-blur-xs">
-              <span className="text-blue-200 text-[11px] font-semibold uppercase tracking-wider block">Current Advance</span>
-              <span className={`font-bold font-mono text-base sm:text-lg ${(emp.advancePay || 0) > 0 ? 'text-amber-300' : 'text-slate-300'}`}>
-                {settings.currency} {(emp.advancePay || 0).toLocaleString()}
+            <div className="bg-white/10 rounded-xl px-3.5 py-2.5 border border-white/10 backdrop-blur-xs">
+              <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Total Advances</span>
+              <span className="font-bold font-mono text-sm sm:text-base text-amber-300">
+                {cur} {totalAdvances.toLocaleString()}
               </span>
             </div>
-            <div className="bg-white/10 rounded-xl px-4 py-3 border border-white/10 backdrop-blur-xs">
-              <span className="text-blue-200 text-[11px] font-semibold uppercase tracking-wider block">Net Due</span>
-              <span className="font-bold font-mono text-base sm:text-lg text-emerald-300">
-                {settings.currency} {Math.max(0, emp.salary - (emp.advancePay || 0)).toLocaleString()}
+            <div className="bg-white/10 rounded-xl px-3.5 py-2.5 border border-white/10 backdrop-blur-xs">
+              <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Current Advance Balance</span>
+              <span className={`font-bold font-mono text-sm sm:text-base ${currentAdvanceBalance > 0 ? 'text-amber-300' : 'text-slate-300'}`}>
+                {cur} {currentAdvanceBalance.toLocaleString()}
+              </span>
+            </div>
+            <div className="bg-white/10 rounded-xl px-3.5 py-2.5 border border-white/10 backdrop-blur-xs">
+              <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Latest Net Salary Paid</span>
+              <span className="font-bold font-mono text-sm sm:text-base text-emerald-300">
+                {cur} {latestNetSalaryPaid.toLocaleString()}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Sub-tabs: Advances vs Salaries */}
-        <div className="flex border-b bg-muted/30 px-5 sm:px-7 gap-2 pt-2">
+        {/* Sub-tabs: Advances vs Salaries vs Complete Statement */}
+        <div className="flex border-b bg-muted/30 px-5 sm:px-7 gap-2 pt-2 flex-wrap">
           <button
             type="button"
             onClick={() => setHistoryTab('advances')}
@@ -509,13 +903,14 @@ Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleStrin
             }`}
           >
             <Banknote size={16} className={historyTab === 'advances' ? 'text-amber-600' : ''} />
-            <span>Advance History</span>
+            <span>Advance Pay Records</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
               historyTab === 'advances' ? 'bg-amber-100 text-amber-900' : 'bg-muted text-gray-600'
             }`}>
-              {(emp.advanceHistory || []).length}
+              {allAdv.length}
             </span>
           </button>
+
           <button
             type="button"
             onClick={() => setHistoryTab('salaries')}
@@ -526,12 +921,25 @@ Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleStrin
             }`}
           >
             <CheckCircle size={16} className={historyTab === 'salaries' ? 'text-green-600' : ''} />
-            <span>Salary Payments</span>
+            <span>Salary Pay Records</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
               historyTab === 'salaries' ? 'bg-green-100 text-green-900' : 'bg-muted text-gray-600'
             }`}>
-              {(emp.salaryHistory || []).length}
+              {allSal.length}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setHistoryTab('statement')}
+            className={`py-3 px-4 font-bold text-xs sm:text-sm border-b-2 transition flex items-center gap-2 cursor-pointer ${
+              historyTab === 'statement'
+                ? 'border-blue-600 text-blue-700 bg-card rounded-t-xl'
+                : 'border-transparent text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            <History size={16} className={historyTab === 'statement' ? 'text-blue-600' : ''} />
+            <span>Full History &amp; Summary</span>
           </button>
         </div>
 
@@ -629,15 +1037,23 @@ Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleStrin
           {/* Active Filter Summary Bar */}
           <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
             <div>
-              {historyTab === 'advances' ? (
+              {historyTab === 'advances' && (
                 <span>
-                  Showing <strong className="text-gray-900">{filteredAdv ? filteredAdv.length : 0}</strong> of {(allAdv || []).length} advance records
-                  &bull; Filtered Total: <strong className="font-mono text-amber-700">{settings.currency} {totalAdv.toLocaleString()}</strong>
+                  Showing <strong className="text-gray-900">{filteredAdv.length}</strong> of {allAdv.length} advance records
+                  &bull; Filtered Total: <strong className="font-mono text-amber-700">{cur} {filteredAdvTotal.toLocaleString()}</strong>
                 </span>
-              ) : (
+              )}
+              {historyTab === 'salaries' && (
                 <span>
-                  Showing <strong className="text-gray-900">{filteredSal ? filteredSal.length : 0}</strong> of {(allSal || []).length} salary records
-                  &bull; Filtered Total: <strong className="font-mono text-green-700">{settings.currency} {totalSal.toLocaleString()}</strong>
+                  Showing <strong className="text-gray-900">{filteredSal.length}</strong> of {allSal.length} salary records
+                  &bull; Filtered Total: <strong className="font-mono text-green-700">{cur} {filteredSalTotal.toLocaleString()}</strong>
+                </span>
+              )}
+              {historyTab === 'statement' && (
+                <span>
+                  All-Time Advances: <strong className="font-mono text-amber-700">{cur} {totalAdvances.toLocaleString()}</strong>
+                  &nbsp;&bull;&nbsp;
+                  All-Time Salaries Paid: <strong className="font-mono text-green-700">{cur} {totalSalariesPaid.toLocaleString()}</strong>
                 </span>
               )}
             </div>
@@ -659,192 +1075,240 @@ Net Due: ${cur} ${(targetEmp.salary - (targetEmp.advancePay || 0)).toLocaleStrin
         </div>
 
         {/* Records List Body */}
-        <div className="p-5 sm:p-7 space-y-3">
-          {/* ── ADVANCES TAB BODY ── */}
-          {historyTab === 'advances' && (
-            allAdv === undefined ? (
-              <div className="text-center py-16 text-gray-400">
-                <div className="w-8 h-8 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs">Loading advance records...</p>
-                <button
-                  type="button"
-                  onClick={() => loadAdvanceHistory(emp.id)}
-                  className="mt-2 text-xs text-amber-600 hover:underline cursor-pointer"
-                >
-                  Tap to retry
-                </button>
+        <div className="p-5 sm:p-7 space-y-6">
+          {/* ── ADVANCES TAB BODY (Section 2: Clean Table) ── */}
+          {(historyTab === 'advances' || historyTab === 'statement') && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                  <Banknote size={16} className="text-amber-700" />
+                  <span>Advance Pay Records ({filteredAdv.length})</span>
+                </h3>
+                <span className="text-xs font-mono font-bold text-amber-800">
+                  Total: {cur} {filteredAdvTotal.toLocaleString()}
+                </span>
               </div>
-            ) : filteredAdv!.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
-                <History size={40} className="mx-auto mb-2 opacity-30 text-amber-600" />
-                <p className="text-base font-semibold text-gray-700">
-                  {hasActiveFilter ? 'No advance records found for this period' : 'No advance records on file'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-                  {hasActiveFilter
-                    ? 'Try selecting a different month, adjusting date boundaries, or clearing search keywords.'
-                    : 'Advances recorded via the "Pay Advance" button will appear permanently in this history log.'}
-                </p>
-                {hasActiveFilter && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHistoryPreset('ALL');
-                      setHistoryStartDate('');
-                      setHistoryEndDate('');
-                      setHistorySearch('');
-                    }}
-                    className="mt-4 px-3.5 py-1.5 bg-card border text-gray-700 rounded-lg text-xs font-semibold hover:bg-muted transition cursor-pointer shadow-xs"
-                  >
-                    Show All Records
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredAdv!.map((rec, i) => (
-                  <div
-                    key={rec.id}
-                    className="bg-card border rounded-xl p-4 hover:border-amber-400 transition shadow-xs flex items-start gap-4"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border border-amber-200">
-                      #{filteredAdv!.length - i}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="font-bold text-amber-900 font-mono text-base sm:text-lg">
-                          {settings.currency} {rec.amount.toLocaleString()}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono">
-                          <Calendar size={13} className="text-gray-400" />
-                          <span>{rec.date}</span>
-                        </div>
-                      </div>
 
-                      {rec.notes && (
-                        <p className="text-xs sm:text-sm text-gray-700 bg-muted/30 rounded-lg px-3 py-1.5 border border-dashed">
-                          {rec.notes}
-                        </p>
-                      )}
-                      <div className="text-[11px] text-gray-400">
-                        Logged by: <strong className="text-gray-600">{rec.loggedBy}</strong>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Summary Banner */}
-                <div className="flex justify-between items-center bg-amber-50 border border-amber-200 rounded-xl px-5 py-3.5 mt-4">
-                  <span className="text-xs sm:text-sm font-bold text-amber-900">
-                    {hasActiveFilter ? 'Filtered Total Advances' : 'All-Time Total Advances'}
-                  </span>
-                  <span className="font-bold font-mono text-amber-900 text-base sm:text-lg">
-                    {settings.currency} {totalAdv.toLocaleString()}
-                  </span>
+              {filteredAdv.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                  <History size={36} className="mx-auto mb-2 opacity-30 text-amber-600" />
+                  <p className="text-sm font-semibold text-gray-700">No genuine advance records for this selection</p>
+                  <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                    Only authentic employee advances appear here. Normal salary payments are never mixed into this section.
+                  </p>
                 </div>
-              </div>
-            )
+              ) : (
+                <div className="border rounded-xl overflow-hidden shadow-xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-amber-50/80 text-amber-950 font-bold uppercase tracking-wider border-b border-amber-200">
+                          <th className="py-2.5 px-3 w-12 text-center">#</th>
+                          <th className="py-2.5 px-3 w-28">Date</th>
+                          <th className="py-2.5 px-3 w-32 text-right">Amount</th>
+                          <th className="py-2.5 px-3">Reason / Notes</th>
+                          <th className="py-2.5 px-3 w-32">Logged By</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredAdv.map((rec, i) => (
+                          <tr key={rec.id} className="hover:bg-amber-50/40 transition">
+                            <td className="py-2.5 px-3 text-center font-bold text-gray-400">
+                              #{filteredAdv.length - i}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-gray-800 font-mono">
+                              {rec.date}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-800">
+                              {cur} {rec.amount.toLocaleString()}
+                            </td>
+                            <td className="py-2.5 px-3 text-gray-600">
+                              {rec.notes || <span className="text-gray-400 italic">—</span>}
+                            </td>
+                            <td className="py-2.5 px-3 text-gray-500 text-[11px]">
+                              {rec.loggedBy}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-amber-50 border-t-2 border-amber-300 font-bold text-amber-950">
+                          <td colSpan={2} className="py-2.5 px-3 text-right uppercase text-[11px]">
+                            Total Advances:
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-sm text-amber-900">
+                            {cur} {filteredAdvTotal.toLocaleString()}
+                          </td>
+                          <td colSpan={2}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
-          {/* ── SALARIES TAB BODY ── */}
-          {historyTab === 'salaries' && (
-            allSal === undefined ? (
-              <div className="text-center py-16 text-gray-400">
-                <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs">Loading salary records...</p>
-                <button
-                  type="button"
-                  onClick={() => loadSalaryHistory(emp.id)}
-                  className="mt-2 text-xs text-green-600 hover:underline cursor-pointer"
-                >
-                  Tap to retry
-                </button>
+          {/* ── SALARIES TAB BODY (Section 3 & 4: Clear Calculation Display) ── */}
+          {(historyTab === 'salaries' || historyTab === 'statement') && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-green-900 flex items-center gap-2">
+                  <CheckCircle size={16} className="text-green-700" />
+                  <span>Salary Pay Records ({filteredSal.length})</span>
+                </h3>
+                <span className="text-xs font-mono font-bold text-green-800">
+                  Total Net Paid: {cur} {filteredSalTotal.toLocaleString()}
+                </span>
               </div>
-            ) : filteredSal!.length === 0 ? (
-              <div className="text-center py-16 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
-                <CheckCircle size={40} className="mx-auto mb-2 opacity-30 text-green-600" />
-                <p className="text-base font-semibold text-gray-700">
-                  {hasActiveFilter ? 'No salary payments found for this period' : 'No salary payments recorded yet'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-                  {hasActiveFilter
-                    ? 'Try selecting a different month, adjusting date boundaries, or clearing search keywords.'
-                    : 'Salary settlements recorded via "Pay Salary" will appear permanently in this history log.'}
-                </p>
-                {hasActiveFilter && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHistoryPreset('ALL');
-                      setHistoryStartDate('');
-                      setHistoryEndDate('');
-                      setHistorySearch('');
-                    }}
-                    className="mt-4 px-3.5 py-1.5 bg-card border text-gray-700 rounded-lg text-xs font-semibold hover:bg-muted transition cursor-pointer shadow-xs"
-                  >
-                    Show All Records
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredSal!.map((rec, i) => (
-                  <div
-                    key={rec.id}
-                    className="bg-card border rounded-xl p-4 hover:border-green-400 transition shadow-xs flex items-start gap-4"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-green-100 text-green-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 border border-green-200">
-                      #{filteredSal!.length - i}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-green-900 font-mono text-base sm:text-lg">
-                            {settings.currency} {rec.netPaid.toLocaleString()}
-                          </span>
-                          <span className="text-[11px] font-semibold px-2 py-0.5 bg-green-100 text-green-800 rounded-full border border-green-200">
-                            Net Paid
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono">
-                          <Calendar size={13} className="text-gray-400" />
-                          <span>{rec.date}</span>
-                        </div>
-                      </div>
 
-                      {/* Pay Breakdown Pill */}
-                      <div className="flex items-center gap-3 text-xs bg-muted/40 rounded-lg px-3 py-1.5 text-gray-600 flex-wrap">
-                        <span>Base: <strong className="font-mono text-gray-800">{settings.currency} {rec.grossSalary.toLocaleString()}</strong></span>
-                        <span>&bull;</span>
-                        <span>Advance Deducted: <strong className="font-mono text-amber-700">-{settings.currency} {rec.advanceDeducted.toLocaleString()}</strong></span>
-                        <span>&bull;</span>
-                        <span>Net Paid: <strong className="font-mono text-green-700">{settings.currency} {rec.netPaid.toLocaleString()}</strong></span>
-                      </div>
-
-                      {rec.notes && (
-                        <p className="text-xs sm:text-sm text-gray-700 bg-muted/30 rounded-lg px-3 py-1.5 border border-dashed">
-                          {rec.notes}
-                        </p>
-                      )}
-                      <div className="text-[11px] text-gray-400">
-                        Logged by: <strong className="text-gray-600">{rec.loggedBy}</strong>
-                      </div>
-                    </div>
+              {filteredSal.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
+                  <CheckCircle size={36} className="mx-auto mb-2 opacity-30 text-green-600" />
+                  <p className="text-sm font-semibold text-gray-700">No salary payment records for this selection</p>
+                  <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                    Settled salaries recorded via &ldquo;Pay Salary&rdquo; appear here with full gross, advance deductions, and net payouts.
+                  </p>
+                </div>
+              ) : (
+                <div className="border rounded-xl overflow-hidden shadow-xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-green-50/80 text-green-950 font-bold uppercase tracking-wider border-b border-green-200">
+                          <th className="py-2.5 px-3 w-12 text-center">#</th>
+                          <th className="py-2.5 px-3 w-28">Date</th>
+                          <th className="py-2.5 px-3 w-32 text-right">Gross Salary</th>
+                          <th className="py-2.5 px-3 w-36 text-right">Advances Deducted</th>
+                          <th className="py-2.5 px-3 w-32 text-right">Net Paid</th>
+                          <th className="py-2.5 px-3">Notes</th>
+                          <th className="py-2.5 px-3 w-28">Logged By</th>
+                          <th className="py-2.5 px-3 w-24 text-center">Payslip</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredSal.map((rec, i) => {
+                          const gross = getSalaryGross(rec);
+                          const deduction = getSalaryDeduction(rec);
+                          return (
+                            <tr key={rec.id} className="hover:bg-green-50/40 transition">
+                              <td className="py-2.5 px-3 text-center font-bold text-gray-400">
+                                #{filteredSal.length - i}
+                              </td>
+                              <td className="py-2.5 px-3 font-semibold text-gray-800 font-mono">
+                                {rec.date}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-semibold text-gray-700">
+                                {cur} {gross.toLocaleString()}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-800">
+                                -{cur} {deduction.toLocaleString()}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-green-800 text-sm">
+                                {cur} {rec.netPaid.toLocaleString()}
+                              </td>
+                              <td className="py-2.5 px-3 text-gray-600">
+                                {rec.notes || <span className="text-gray-400 italic">—</span>}
+                              </td>
+                              <td className="py-2.5 px-3 text-gray-500 text-[11px]">
+                                {rec.loggedBy}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/employees/${emp.id}/payslip?record=${rec.id}`)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+                                  title="View Monthly Payslip document for this salary payment"
+                                >
+                                  <FileText size={12} />
+                                  <span>Payslip</span>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-green-50 border-t-2 border-green-300 font-bold text-green-950">
+                          <td colSpan={4} className="py-2.5 px-3 text-right uppercase text-[11px]">
+                            Total Net Salaries Paid:
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-sm text-green-900">
+                            {cur} {filteredSalTotal.toLocaleString()}
+                          </td>
+                          <td colSpan={3}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
-                ))}
+                </div>
+              )}
+            </div>
+          )}
 
-                {/* Summary Banner */}
-                <div className="flex justify-between items-center bg-green-50 border border-green-200 rounded-xl px-5 py-3.5 mt-4">
-                  <span className="text-xs sm:text-sm font-bold text-green-900">
-                    {hasActiveFilter ? 'Filtered Total Net Paid' : 'All-Time Net Salaries Paid'}
-                  </span>
-                  <span className="font-bold font-mono text-green-900 text-base sm:text-lg">
-                    {settings.currency} {totalSal.toLocaleString()}
-                  </span>
+          {/* ── Section 5: PAYROLL SUMMARY BOX ── */}
+          <div className="bg-card border-2 border-slate-800 rounded-2xl p-5 shadow-xs">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-slate-900 text-white rounded-lg">
+                  <Banknote size={16} />
+                </span>
+                <h3 className="font-extrabold uppercase tracking-wider text-slate-900 text-sm">
+                  PAYROLL SUMMARY
+                </h3>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Dynamic calculations from payroll records
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div className="bg-muted/30 border rounded-xl p-3.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Monthly Salary
+                </span>
+                <div className="text-base font-extrabold font-mono text-slate-900 mt-1">
+                  {cur} {emp.salary.toLocaleString()}
                 </div>
               </div>
-            )
-          )}
+
+              <div className="bg-muted/30 border rounded-xl p-3.5">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
+                  Total Advances
+                </span>
+                <div className="text-base font-extrabold font-mono text-amber-800 mt-1">
+                  {cur} {totalAdvances.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="bg-muted/30 border rounded-xl p-3.5">
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
+                  Advances Recovered
+                </span>
+                <div className="text-base font-extrabold font-mono text-amber-800 mt-1">
+                  {cur} {totalAdvancesRecovered.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="bg-muted/30 border rounded-xl p-3.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Salary Balance
+                </span>
+                <div className="text-base font-extrabold font-mono text-slate-900 mt-1">
+                  {cur} {salaryBalance.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3.5 col-span-2 sm:col-span-1">
+                <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">
+                  NET SALARY PAID
+                </span>
+                <div className="text-base sm:text-lg font-black font-mono text-emerald-700 mt-1">
+                  {cur} {totalSalariesPaid.toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -416,12 +416,26 @@ export default function Employees() {
             Staff directory, photo verification, ID records, Next of Kin, attendance &amp; payroll.
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="bg-primary text-white px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-semibold hover:bg-blue-700 flex items-center gap-2 transition shadow-sm sm:shadow-md self-start text-xs sm:text-sm"
-        >
-          <UserPlus size={18} /> Add Employee
-        </button>
+        <div className="flex items-center gap-2 self-start flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              if (employees.length > 0) {
+                navigate(`/employees/${employees[0].id}/payslip`);
+              }
+            }}
+            className="bg-blue-600 text-white px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-semibold hover:bg-blue-700 flex items-center gap-2 transition shadow-sm text-xs sm:text-sm cursor-pointer"
+            title="Generate a separate Monthly Payslip document"
+          >
+            <FileText size={18} /> Generate Payslip
+          </button>
+          <button
+            onClick={openAddModal}
+            className="bg-primary text-white px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl font-semibold hover:bg-blue-700 flex items-center gap-2 transition shadow-sm sm:shadow-md text-xs sm:text-sm"
+          >
+            <UserPlus size={18} /> Add Employee
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -629,6 +643,13 @@ export default function Employees() {
                   title="View Full Advance & Salary History"
                 >
                   <History size={14} className="text-amber-700" /> History
+                </button>
+                <button
+                  onClick={() => navigate(`/employees/${emp.id}/payslip`)}
+                  className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 px-3 py-1.5 rounded-xl font-semibold transition shadow-xs cursor-pointer"
+                  title="View Monthly Payslip document"
+                >
+                  <FileText size={14} className="text-blue-700" /> Payslip
                 </button>
                 <button
                   onClick={() => setSelectedEmpForSalary(emp)}
