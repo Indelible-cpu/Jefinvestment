@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Printer, Share2, FileText, User, History
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { toast } from 'sonner';
 import { useEmployeeStore, type SalaryPayRecord } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';

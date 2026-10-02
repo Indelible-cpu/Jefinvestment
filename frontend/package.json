@@ -16,6 +16,7 @@
     "clsx": "^2.1.1",
     "firebase": "^12.17.1",
     "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^2.5.0",
     "html5-qrcode": "^2.3.8",
     "idb": "^8.0.3",
     "lucide-react": "^0.479.0",

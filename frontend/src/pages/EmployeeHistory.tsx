@@ -4,7 +4,7 @@ import {
   ArrowLeft, History, Share2, Printer, Banknote, CheckCircle,
   Filter, Search, User, Loader2, FileText
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { toast } from 'sonner';
 import { useEmployeeStore, useExpenseStore, type Employee, type SalaryPayRecord, type AdvancePayRecord } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';

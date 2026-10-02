@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Printer, MessageCircle, X, FileText, Receipt, ShoppingCart } from 'lucide-react';
 import { useSettingsStore } from '../store/settingsStore';
 import type { CartItem } from '../store/cartStore';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 
 interface ReceiptPreviewModalProps {
   items: CartItem[];

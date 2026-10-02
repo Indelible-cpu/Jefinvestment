@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Receipt, X, Trash2, Share2, Printer, Filter, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { useSettingsStore } from '../store/settingsStore';
 import { useExpenseStore } from '../store/dataStore';
 import { useAuditStore } from '../store/auditStore';
