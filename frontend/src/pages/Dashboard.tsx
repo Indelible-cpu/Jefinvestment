@@ -235,14 +235,20 @@ export default function Dashboard() {
           <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-44 h-44 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute left-1/2 bottom-0 translate-y-6 w-64 h-24 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
-            {/* Header: Title & Subtitle */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 text-amber-300">
-                <Coins size={16} className="text-amber-400 shrink-0" />
-                <span className="text-xs uppercase tracking-wider font-bold">Daily Savings Target</span>
-              </div>
-              <div className="text-[11px] sm:text-xs text-slate-300 font-medium">
-                {todayFinancials.savingsPercentage}% of Total Profit
+            {/* Header: Title, Wealth Icon Emblem & Subtitle */}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-400/20 border border-amber-400/35 flex items-center justify-center text-amber-300 shrink-0 shadow-inner">
+                  <Coins size={18} className="text-amber-300" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wider font-bold text-amber-300 leading-tight">
+                    Daily Savings Target
+                  </div>
+                  <div className="text-[11px] text-slate-300 font-medium leading-tight mt-0.5">
+                    {todayFinancials.savingsPercentage}% of Total Profit
+                  </div>
+                </div>
               </div>
             </div>
 
