@@ -235,38 +235,41 @@ export default function Dashboard() {
           <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-44 h-44 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute left-1/2 bottom-0 translate-y-6 w-64 h-24 bg-violet-600/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
-            {/* Heading with integrated wealth/coins symbol */}
-            <div className="flex items-center gap-1.5 text-amber-300">
-              <Coins size={16} className="text-amber-400 shrink-0" />
-              <span className="text-xs uppercase tracking-wider font-bold">Daily Savings Target</span>
-            </div>
-
-            {/* Subheading */}
-            <div className="text-[11px] sm:text-xs text-slate-300 mt-1 font-medium">
-              {todayFinancials.savingsPercentage}% of Total Profit
-            </div>
-
-            {/* Main Savings Target Amount */}
-            <div className="text-2xl sm:text-3xl font-extrabold text-white mt-1 tracking-tight">
-              {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
+            {/* Header: Title & Subtitle */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-amber-300">
+                <Coins size={16} className="text-amber-400 shrink-0" />
+                <span className="text-xs uppercase tracking-wider font-bold">Daily Savings Target</span>
+              </div>
+              <div className="text-[11px] sm:text-xs text-slate-300 font-medium">
+                {todayFinancials.savingsPercentage}% of Total Profit
+              </div>
             </div>
 
             {/* Subtle Divider */}
             <div className="border-t border-violet-800/60 my-3 sm:my-3.5" />
 
-            {/* Supporting Figures: Total Profit & Savings (50%) */}
-            <div className="grid grid-cols-2 gap-4 max-w-xs sm:max-w-sm">
-              <div>
+            {/* 3-Column Metrics Bar in a Single Row */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 divide-x divide-violet-800/40">
+              <div className="pr-2 sm:pr-3">
+                <div className="text-[10px] sm:text-xs text-slate-400 font-medium">Daily Target</div>
+                <div className="text-sm sm:text-xl font-extrabold text-white mt-0.5 tracking-tight truncate">
+                  {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="px-2 sm:px-4">
                 <div className="text-[10px] sm:text-xs text-slate-400 font-medium">Total Profit</div>
-                <div className="text-xs sm:text-sm font-bold text-slate-100 mt-0.5">
+                <div className="text-xs sm:text-base font-bold text-slate-100 mt-0.5 tracking-tight truncate">
                   {settings.currency} {todayFinancials.realizedNetProfit.toLocaleString()}
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] sm:text-xs text-slate-400 font-medium">
+
+              <div className="pl-2 sm:pl-4">
+                <div className="text-[10px] sm:text-xs text-slate-400 font-medium truncate">
                   Savings ({todayFinancials.savingsPercentage}%)
                 </div>
-                <div className="text-xs sm:text-sm font-bold text-amber-400 mt-0.5">
+                <div className="text-xs sm:text-base font-bold text-amber-400 mt-0.5 tracking-tight truncate">
                   {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
                 </div>
               </div>
