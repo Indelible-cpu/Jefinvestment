@@ -7,6 +7,7 @@ import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 import { useEmployeeStore, type SalaryPayRecord } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useAuthStore } from '../store/authStore';
 
 export default function EmployeePayslip() {
   const { id } = useParams<{ id: string }>();
@@ -14,9 +15,12 @@ export default function EmployeePayslip() {
   const navigate = useNavigate();
   const { employees, isLoading, loadEmployees, loadSalaryHistory } = useEmployeeStore();
   const settings = useSettingsStore();
+  const currentUser = useAuthStore(state => state.user);
 
   const recordParam = searchParams.get('record') || '';
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string>(recordParam || 'CURRENT');
+  const [customPayPeriod, setCustomPayPeriod] = useState<string>('');
+  const [customAuthorizer, setCustomAuthorizer] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
@@ -79,10 +83,30 @@ export default function EmployeePayslip() {
   const cur = settings.currency || 'MWK';
   const companyName = settings.companyName || 'JEF INVESTMENT';
 
-  const formatPayPeriod = (dateStr: string) => {
+  // Format pay period: accurately identifies if salary paid early in month M is for month M-1
+  const formatPayPeriod = (dateStr: string, notesStr?: string) => {
+    // 1. If notes explicitly mention a month, honor it
+    if (notesStr) {
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      for (const m of months) {
+        if (new RegExp(`\\b${m}\\b`, 'i').test(notesStr)) {
+          const yearMatch = notesStr.match(/\b(20\d{2})\b/);
+          const yr = yearMatch ? yearMatch[1] : (dateStr ? new Date(dateStr).getFullYear() : new Date().getFullYear());
+          return `${m} ${yr}`;
+        }
+      }
+    }
     if (!dateStr) return 'Current Period';
     const d = new Date(dateStr);
     if (!isNaN(d.getTime())) {
+      // In payroll practice, salary settled on day 1 to 15 of month M is for month M-1 (last month)
+      if (d.getDate() <= 15) {
+        const prevMonthDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+        return prevMonthDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      }
       return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     }
     return dateStr;
@@ -90,7 +114,7 @@ export default function EmployeePayslip() {
 
   const selectedRecord: SalaryPayRecord | undefined = sortedSalaryHistory.find(r => r.id === selectedPeriodKey);
 
-  let payPeriod = '';
+  let defaultPayPeriod = '';
   let paymentDate = '';
   let basicSalary = 0;
   let grossSalary = 0;
@@ -102,9 +126,10 @@ export default function EmployeePayslip() {
   let paymentStatus = 'Paid';
   let payrollRef = '';
   let notes = '';
+  let defaultAuthorizer = '';
 
   if (selectedRecord) {
-    payPeriod = formatPayPeriod(selectedRecord.date);
+    defaultPayPeriod = formatPayPeriod(selectedRecord.date, selectedRecord.notes);
     paymentDate = selectedRecord.date;
     basicSalary = selectedRecord.grossSalary || emp.salary;
     advanceDeduction = selectedRecord.advanceDeducted > 0
@@ -117,9 +142,11 @@ export default function EmployeePayslip() {
     paymentStatus = 'Paid';
     payrollRef = `PAY-${selectedRecord.id.slice(-6).toUpperCase()}`;
     notes = selectedRecord.notes || '';
+    defaultAuthorizer = selectedRecord.loggedBy || currentUser?.name || 'Administrator';
   } else {
+    // Current Period fallback
     const now = new Date();
-    payPeriod = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    defaultPayPeriod = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     paymentDate = now.toISOString().slice(0, 10);
     basicSalary = emp.salary || 0;
     grossSalary = basicSalary;
@@ -130,8 +157,13 @@ export default function EmployeePayslip() {
     paymentStatus = advanceDeduction > 0 || netPay > 0 ? 'Pending Settlement' : 'Up to Date';
     payrollRef = `DRAFT-${emp.id.slice(-4).toUpperCase()}`;
     notes = '';
+    defaultAuthorizer = currentUser?.name || 'Administrator';
   }
 
+  // Active pay period and authorizer (allows user override if needed)
+  const payPeriod = customPayPeriod || defaultPayPeriod;
+  const authorizer = customAuthorizer || defaultAuthorizer;
+  const authDate = paymentDate || new Date().toISOString().slice(0, 10);
   const generatedDateTime = new Date().toLocaleString();
 
   // Print Payslip
@@ -314,27 +346,34 @@ export default function EmployeePayslip() {
       color: #92400e;
       margin-bottom: 16px;
     }
-    .signatures {
+    .authorization-section {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
       margin-top: 24px;
       padding-top: 14px;
       border-top: 1px solid #e2e8f0;
     }
-    .signature-block {
+    .auth-block {
       text-align: left;
     }
-    .sig-line {
-      border-bottom: 1px solid #94a3b8;
-      height: 36px;
+    .auth-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      min-height: 22px;
+      padding-bottom: 2px;
+    }
+    .auth-line {
+      border-bottom: 1.5px solid #0f172a;
       margin-bottom: 4px;
     }
-    .sig-label {
+    .auth-label {
       font-size: 10px;
-      font-weight: 600;
+      font-weight: 700;
       color: #64748b;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .footer {
       margin-top: 18px;
@@ -448,23 +487,17 @@ export default function EmployeePayslip() {
       <strong>NOTES:</strong> ${notes}
     </div>` : ''}
 
-    <!-- Signatures -->
-    <div class="signatures">
-      <div class="signature-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Employee Signature</div>
+    <!-- Autofilled Authorization Section (Employee Signature & Prepared By removed) -->
+    <div class="authorization-section">
+      <div class="auth-block">
+        <div class="auth-value">${authorizer}</div>
+        <div class="auth-line"></div>
+        <div class="auth-label">Authorized By</div>
       </div>
-      <div class="signature-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Prepared By</div>
-      </div>
-      <div class="signature-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Authorized By</div>
-      </div>
-      <div class="signature-block">
-        <div class="sig-line"></div>
-        <div class="sig-label">Date</div>
+      <div class="auth-block">
+        <div class="auth-value font-mono">${authDate}</div>
+        <div class="auth-line"></div>
+        <div class="auth-label">Date</div>
       </div>
     </div>
 
@@ -587,9 +620,9 @@ export default function EmployeePayslip() {
         </div>
       </div>
 
-      {/* Selectors Bar: Employee Switcher & Pay Period Switcher */}
-      <div className="bg-card rounded-2xl p-4 sm:p-5 border shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+      {/* Selectors Bar: Employee Switcher, Pay Period & Authorizer */}
+      <div className="bg-card rounded-2xl p-4 sm:p-5 border shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full lg:w-auto">
           <div className="p-2.5 bg-blue-100 text-blue-800 rounded-xl shrink-0">
             <FileText size={22} />
           </div>
@@ -601,13 +634,16 @@ export default function EmployeePayslip() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 w-full lg:w-auto">
           {/* Employee Selector Dropdown */}
-          <div className="w-full sm:w-auto">
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              Employee
+            </label>
             <select
               value={emp.id}
               onChange={e => navigate(`/employees/${e.target.value}/payslip`)}
-              className="w-full sm:w-60 px-3 py-1.5 text-xs bg-muted/40 border rounded-xl font-medium focus:ring-1 focus:ring-primary outline-none"
+              className="w-full px-3 py-1.5 text-xs bg-muted/40 border rounded-xl font-medium focus:ring-1 focus:ring-primary outline-none"
             >
               {employees.map(e => (
                 <option key={e.id} value={e.id}>
@@ -618,26 +654,60 @@ export default function EmployeePayslip() {
           </div>
 
           {/* Pay Period Selector Dropdown */}
-          <div className="w-full sm:w-auto">
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              Payment Record
+            </label>
             <select
               value={selectedPeriodKey}
               onChange={e => {
                 const val = e.target.value;
                 setSelectedPeriodKey(val);
+                setCustomPayPeriod(''); // reset custom override when selecting a record
                 if (val !== 'CURRENT') setSearchParams({ record: val });
                 else setSearchParams({});
               }}
-              className="w-full sm:w-64 px-3 py-1.5 text-xs bg-muted/40 border rounded-xl font-medium focus:ring-1 focus:ring-primary outline-none"
+              className="w-full px-3 py-1.5 text-xs bg-muted/40 border rounded-xl font-medium focus:ring-1 focus:ring-primary outline-none"
             >
               {sortedSalaryHistory.map(rec => (
                 <option key={rec.id} value={rec.id}>
-                  {formatPayPeriod(rec.date)} — Paid {cur} {rec.netPaid.toLocaleString()} ({rec.date})
+                  {formatPayPeriod(rec.date, rec.notes)} — Paid {cur} {rec.netPaid.toLocaleString()} ({rec.date})
                 </option>
               ))}
               <option value="CURRENT">
                 Current Period (Pending / Unsettled)
               </option>
             </select>
+          </div>
+
+          {/* Pay Period Title Customizer */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              Pay Period Name
+            </label>
+            <input
+              type="text"
+              value={payPeriod}
+              onChange={e => setCustomPayPeriod(e.target.value)}
+              placeholder="e.g. September 2026"
+              className="w-full px-3 py-1.5 text-xs bg-muted/40 border rounded-xl font-semibold text-blue-900 focus:ring-1 focus:ring-primary outline-none"
+              title="Click to edit or adjust the Pay Period text displayed on the payslip"
+            />
+          </div>
+
+          {/* Authorizer Customizer */}
+          <div>
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              Authorized By
+            </label>
+            <input
+              type="text"
+              value={authorizer}
+              onChange={e => setCustomAuthorizer(e.target.value)}
+              placeholder="e.g. Administrator"
+              className="w-full px-3 py-1.5 text-xs bg-muted/40 border rounded-xl font-semibold text-gray-900 focus:ring-1 focus:ring-primary outline-none"
+              title="Click to edit or adjust the Authorizer name displayed on the payslip"
+            />
           </div>
         </div>
       </div>
@@ -770,23 +840,25 @@ export default function EmployeePayslip() {
             </div>
           )}
 
-          {/* Signatures Area */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-200 mt-8">
+          {/* Autofilled Authorization Section (Employee Signature and Prepared By removed) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-6 border-t border-slate-200 mt-8">
             <div>
-              <div className="border-b border-slate-400 h-10 mb-1.5"></div>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Employee Signature</span>
+              <div className="text-sm font-bold text-slate-900 pb-1 min-h-[22px]">
+                {authorizer}
+              </div>
+              <div className="border-b-2 border-slate-900 mb-1.5"></div>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Authorized By
+              </span>
             </div>
             <div>
-              <div className="border-b border-slate-400 h-10 mb-1.5"></div>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Prepared By</span>
-            </div>
-            <div>
-              <div className="border-b border-slate-400 h-10 mb-1.5"></div>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Authorized By</span>
-            </div>
-            <div>
-              <div className="border-b border-slate-400 h-10 mb-1.5"></div>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase block">Date</span>
+              <div className="text-sm font-bold text-slate-900 font-mono pb-1 min-h-[22px]">
+                {authDate}
+              </div>
+              <div className="border-b-2 border-slate-900 mb-1.5"></div>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Date
+              </span>
             </div>
           </div>
 
