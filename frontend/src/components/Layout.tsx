@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon, AlertTriangle, CheckCircle2, Trash2, ShoppingBag, Store, ExternalLink } from 'lucide-react';
+import { ShoppingCart, LayoutDashboard, Users, CreditCard, Package, Receipt, BarChart3, Settings as SettingsIcon, LogOut, ClipboardList, Menu, Bell, User, CloudOff, CloudUpload, Cloud, Printer, Lock, Search, TrendingUp, GitBranch, Sun, Moon, AlertTriangle, CheckCircle2, Trash2, ShoppingBag, Store, ExternalLink, PiggyBank } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store/authStore';
@@ -363,30 +363,62 @@ export default function Layout() {
 
       localStorage.setItem(storageKey, 'true');
 
-      // Cashier receives the exact amount (unalterable)
-      const currentRole = useAuthStore.getState().user?.role;
-      if (currentRole === 'CASHIER') {
-        const servingTitle = `🔔 Daily Serving Due — ${companyName || 'JEF Investment'}`;
-        const servingBody = `Today's Serving Amount: ${currency || 'MWK'} ${servingAmount.toLocaleString()}\nClosing in ${reminderMinutes} minute${reminderMinutes === 1 ? '' : 's'}. Please serve/remit this exact calculated amount.`;
+      // Simplified, high-visibility reminder card with highlighted distinct amount color
+      const servingTitle = `Daily Savings Target`;
+      const servingBody = `Amount: ${currency || 'MWK'} ${servingAmount.toLocaleString()} • Closing in ${reminderMinutes}m`;
 
-        toast.info(servingTitle, {
-          description: servingBody,
-          duration: 30000,
-        });
+      toast.custom((t) => (
+        <div className="bg-slate-900 text-white border-2 border-emerald-500/80 rounded-2xl p-4 shadow-2xl w-full max-w-sm flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
+                <PiggyBank size={18} />
+              </span>
+              <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                Daily Savings Target
+              </span>
+            </div>
+            <span className="text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full">
+              Closing in {reminderMinutes}m
+            </span>
+          </div>
 
-        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then((reg) => {
-              reg.showNotification(servingTitle, {
-                body: servingBody,
-                icon: '/pwa-192x192.png',
-                badge: '/pwa-192x192.png',
-                tag: 'msikaflo-serving-' + todayStr,
-                vibrate: [200, 100, 200, 100, 200],
-                data: { url: '/pos' },
-              } as any);
-            }).catch(() => {});
-          }
+          <div className="bg-slate-950/90 rounded-xl p-3 border border-emerald-500/40 text-center shadow-inner">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Exact Serving Amount
+            </span>
+            <div className="text-2xl font-black font-mono text-emerald-400 tracking-tight">
+              {currency || 'MWK'} {servingAmount.toLocaleString()}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-0.5">
+            <span className="text-[11px] text-slate-400">
+              Please remit this exact amount.
+            </span>
+            <button
+              type="button"
+              onClick={() => toast.dismiss(t)}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
+            >
+              Got It
+            </button>
+          </div>
+        </div>
+      ), { duration: 30000 });
+
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification(servingTitle, {
+              body: servingBody,
+              icon: '/pwa-192x192.png',
+              badge: '/pwa-192x192.png',
+              tag: 'msikaflo-serving-' + todayStr,
+              vibrate: [200, 100, 200, 100, 200],
+              data: { url: '/pos' },
+            } as any);
+          }).catch(() => {});
         }
       }
 
