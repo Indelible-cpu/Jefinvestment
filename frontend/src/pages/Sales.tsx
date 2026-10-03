@@ -182,8 +182,12 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
                 {(() => {
                   const repList = Array.isArray(sale.repayments) ? sale.repayments : [];
                   const repSum = repList.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0);
-                  const credPaid = Number(sale.creditPaid) || 0;
-                  const totalPaid = Math.min(sale.total, (Number(sale.amountPaid) || 0) + (repSum > 0 ? repSum : credPaid));
+                  const initialDeposit = Number(sale.amountPaid) || 0;
+                  // Use repayments array as authoritative source; fallback creditPaid minus initialDeposit for legacy records
+                  const subsequentPaid = Array.isArray(sale.repayments)
+                    ? repSum
+                    : Math.max(0, (Number(sale.creditPaid) || 0) - initialDeposit);
+                  const totalPaid = Math.min(sale.total, initialDeposit + subsequentPaid);
                   const balance = Math.max(0, sale.total - totalPaid);
                   const isSettled = balance === 0 && sale.total > 0;
                   return (
@@ -202,8 +206,11 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
               {(() => {
                 const repList = Array.isArray(sale.repayments) ? sale.repayments : [];
                 const repSum = repList.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0);
-                const credPaid = Number(sale.creditPaid) || 0;
-                const totalPaid = Math.min(sale.total, (Number(sale.amountPaid) || 0) + (repSum > 0 ? repSum : credPaid));
+                const initialDeposit = Number(sale.amountPaid) || 0;
+                const subsequentPaid = Array.isArray(sale.repayments)
+                  ? repSum
+                  : Math.max(0, (Number(sale.creditPaid) || 0) - initialDeposit);
+                const totalPaid = Math.min(sale.total, initialDeposit + subsequentPaid);
                 const balance = Math.max(0, sale.total - totalPaid);
 
                 return (
@@ -663,8 +670,11 @@ export default function Sales() {
                           (() => {
                             const repList = Array.isArray(sale.repayments) ? sale.repayments : [];
                             const repSum = repList.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0);
-                            const credPaid = Number(sale.creditPaid) || 0;
-                            const totalPaid = Math.min(sale.total, (Number(sale.amountPaid) || 0) + (repSum > 0 ? repSum : credPaid));
+                            const initialDeposit = Number(sale.amountPaid) || 0;
+                            const subsequentPaid = Array.isArray(sale.repayments)
+                              ? repSum
+                              : Math.max(0, (Number(sale.creditPaid) || 0) - initialDeposit);
+                            const totalPaid = Math.min(sale.total, initialDeposit + subsequentPaid);
                             const balance = Math.max(0, sale.total - totalPaid);
                             const isSettled = balance === 0 && sale.total > 0;
 

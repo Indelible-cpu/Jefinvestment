@@ -188,6 +188,9 @@ export default function POS() {
   useEffect(() => {
     if (paymentMethod === 'CASH') {
       setAmountPaid(finalTotal || '');
+    } else {
+      // Clear stale cash amount when switching to CREDIT or other methods
+      setAmountPaid('');
     }
   }, [paymentMethod, finalTotal]);
 

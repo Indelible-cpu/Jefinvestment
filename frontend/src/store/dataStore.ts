@@ -314,7 +314,10 @@ export const useSaleStore = create<SaleState>()(
       };
 
       if (cleanedSale.isCredit) {
-        newSale.creditPaid = cleanedSale.amountPaid || 0;
+        // creditPaid tracks ONLY subsequent repayments recorded via recordRepayment().
+        // The initial deposit is already stored in amountPaid and counted as initialDeposit.
+        // Do NOT seed creditPaid with amountPaid — that would double-count the initial deposit.
+        newSale.creditPaid = 0;
       }
 
       // Step 1: Immediately save to durable emergency offline backup in LocalStorage
@@ -664,15 +667,28 @@ export const useCreditStore = create<CreditState>()(
         const mapped = snapshot.docs.map(doc => {
           const c = doc.data();
           const totalAmount = Number(c.total) || 0;
-          // Calculate repayments total from repayments array if present, fallback to creditPaid
+          // Calculate repayments total from repayments array (authoritative source).
+          // When the repayments array exists (even empty), trust it completely.
+          // Only fall back to creditPaid for legacy records without a repayments array,
+          // and subtract initialDeposit to avoid double-counting (creditPaid was historically
+          // seeded with amountPaid which is already counted as initialDeposit).
           const repaymentsList: CreditRepaymentEntry[] = Array.isArray(c.repayments) ? c.repayments : [];
           const repaymentsSum = repaymentsList.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-          const creditPaidField = Number(c.creditPaid) || 0;
-          const subsequentPaid = repaymentsSum > 0 ? repaymentsSum : creditPaidField;
-          
+          const hasRepaymentsArray = Array.isArray(c.repayments);
+
           // Initial deposit collected when the credit invoice was created at POS
           const initialDeposit = Number(c.amountPaid) || 0;
-          
+
+          let subsequentPaid: number;
+          if (hasRepaymentsArray) {
+            // Modern records: use repayments array exclusively (prevents double-count with initialDeposit)
+            subsequentPaid = repaymentsSum;
+          } else {
+            // Legacy records: creditPaid may have been seeded with amountPaid, so subtract initialDeposit
+            const creditPaidField = Number(c.creditPaid) || 0;
+            subsequentPaid = Math.max(0, creditPaidField - initialDeposit);
+          }
+
           // Total paid = initial deposit + subsequent repayments
           const paidAmount = Math.min(totalAmount, initialDeposit + subsequentPaid);
           const dueDate = c.dueDate || '';
