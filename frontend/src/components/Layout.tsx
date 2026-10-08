@@ -11,7 +11,7 @@ import { useSyncEngine } from '../hooks/useSyncEngine';
 import { useThemeStore } from '../store/themeStore';
 import { toast } from 'sonner';
 import { initForegroundNotificationListener, dispatchSalePushNotification } from '../utils/pushNotifications';
-import { calcDailyRealizedProfit } from '../utils/profitUtils';
+import { calcDailyRealizedProfit, getRemittanceAppreciation } from '../utils/profitUtils';
 import ProfilePhotoModal from './ProfilePhotoModal';
 
 export default function Layout() {
@@ -363,9 +363,11 @@ export default function Layout() {
 
       localStorage.setItem(storageKey, 'true');
 
-      // Simplified, high-visibility reminder card with highlighted distinct amount color
-      const servingTitle = `Daily Savings Target`;
-      const servingBody = `Amount: ${currency || 'MWK'} ${servingAmount.toLocaleString()} • Closing in ${reminderMinutes}m`;
+      const appreciation = getRemittanceAppreciation(servingAmount, user?.name, currency);
+
+      // Simplified, high-visibility reminder card with highlighted distinct amount color and personal congratulations
+      const servingTitle = appreciation.headline;
+      const servingBody = `${appreciation.shortAppreciation} Remit: ${currency || 'MWK'} ${servingAmount.toLocaleString()} • Closing in ${reminderMinutes}m`;
 
       toast.custom((t) => (
         <div className="bg-slate-900 text-white border-2 border-emerald-500/80 rounded-2xl p-4 shadow-2xl w-full max-w-sm flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-4">
@@ -389,6 +391,16 @@ export default function Layout() {
             </span>
             <div className="text-2xl font-black font-mono text-emerald-400 tracking-tight">
               {currency || 'MWK'} {servingAmount.toLocaleString()}
+            </div>
+          </div>
+
+          {/* Personalized Appreciation Card */}
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2.5 text-center">
+            <div className="text-xs font-bold text-amber-300">
+              {appreciation.headline}
+            </div>
+            <div className="text-[11px] text-slate-300 mt-0.5 leading-snug">
+              {appreciation.message}
             </div>
           </div>
 

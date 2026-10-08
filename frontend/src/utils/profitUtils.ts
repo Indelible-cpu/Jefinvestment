@@ -145,3 +145,68 @@ export function calcDailyRealizedProfit(
     repaymentsCount,
   };
 }
+
+export interface RemittanceAppreciation {
+  tier: 'LEGENDARY' | 'HIGH' | 'SOLID' | 'GOOD';
+  badge: string;
+  headline: string;
+  message: string;
+  shortAppreciation: string;
+}
+
+/**
+ * Generates personalized, tiered congratulatory appreciation for the cashier
+ * based on the magnitude of the savings remittance target reached.
+ */
+export function getRemittanceAppreciation(
+  targetAmount: number,
+  cashierName?: string,
+  currency = 'MWK'
+): RemittanceAppreciation {
+  const name = cashierName?.trim() ? cashierName.trim().split(' ')[0] : 'Team';
+  const isMajor = ['USD', 'EUR', 'GBP'].includes(currency.toUpperCase());
+
+  // Thresholds: adapted for MWK and major currencies
+  const tHigh = isMajor ? 500 : 100000;
+  const tMed = isMajor ? 200 : 50000;
+  const tLow = isMajor ? 75 : 15000;
+
+  if (targetAmount >= tHigh) {
+    return {
+      tier: 'LEGENDARY',
+      badge: '🏆 Top Performer',
+      headline: `Outstanding Work, ${name}! 🚀🔥`,
+      message: `Incredible performance today! You reached a huge milestone with this target. Your dedication and hard work make a massive difference to the whole business!`,
+      shortAppreciation: `Outstanding work, ${name}! You crushed the target today with an exceptional performance. Your dedication makes a massive difference! 🚀🔥`,
+    };
+  }
+
+  if (targetAmount >= tMed) {
+    return {
+      tier: 'HIGH',
+      badge: '🌟 Star Performer',
+      headline: `Impressive Achievement, ${name}! 🌟💪`,
+      message: `Fantastic result today! You reached a remarkable target through your strong effort and focus. Your hard work is truly recognized and appreciated!`,
+      shortAppreciation: `Impressive achievement, ${name}! Fantastic job reaching such a great milestone today. Your effort is truly appreciated! 🌟💪`,
+    };
+  }
+
+  if (targetAmount >= tLow) {
+    return {
+      tier: 'SOLID',
+      badge: '🎉 Great Job',
+      headline: `Great Work Today, ${name}! 🎉✨`,
+      message: `Solid numbers and great consistency on shift today. Thank you for your energy and great dedication!`,
+      shortAppreciation: `Great work today, ${name}! Solid numbers and great dedication on shift. Thank you! 🎉✨`,
+    };
+  }
+
+  return {
+    tier: 'GOOD',
+    badge: '👏 Good Effort',
+    headline: `Well Done, ${name}! 👏✨`,
+    message: `Thank you for your steady effort and commitment today. Keep up the positive energy and momentum!`,
+    shortAppreciation: `Well done, ${name}! Thank you for your steady effort and commitment today. Keep it up! 👏✨`,
+  };
+}
+

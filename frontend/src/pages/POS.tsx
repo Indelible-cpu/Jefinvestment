@@ -11,7 +11,7 @@ import BarcodeScanner from '../components/BarcodeScanner';
 import { generateInvoiceNumber } from '../utils/invoiceNumber';
 import { toast } from 'sonner';
 import { dispatchSalePushNotification } from '../utils/pushNotifications';
-import { calcDailyRealizedProfit } from '../utils/profitUtils';
+import { calcDailyRealizedProfit, getRemittanceAppreciation } from '../utils/profitUtils';
 
 export default function POS() {
   const location = useLocation();
@@ -558,6 +558,18 @@ const playSound = (type: 'success' | 'error') => {
                 </div>
               )}
             </div>
+
+            {/* Personalized Appreciation Card */}
+            {posFinancials.dailySavingsTarget > 0 && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-center">
+                <div className="text-xs font-bold text-amber-300">
+                  {getRemittanceAppreciation(posFinancials.dailySavingsTarget, user?.name, settings.currency).headline}
+                </div>
+                <div className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                  {getRemittanceAppreciation(posFinancials.dailySavingsTarget, user?.name, settings.currency).message}
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-0.5">
               <span className="text-[11px] text-slate-400">

@@ -9,7 +9,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { useSyncEngine } from '../hooks/useSyncEngine';
 import { useState, useEffect, useMemo } from 'react';
-import { calcDailyRealizedProfit } from '../utils/profitUtils';
+import { calcDailyRealizedProfit, getRemittanceAppreciation } from '../utils/profitUtils';
 
 const ALL_ACTIONS = [
   { id: 'new-sale', label: 'New Sale (POS)', icon: ShoppingCart, link: '/pos', color: 'text-blue-500' },
@@ -184,16 +184,37 @@ export default function Dashboard() {
   // Multi-option Share modal state (allows choosing WhatsApp Business vs Messenger vs System Share)
   const [showShareModal, setShowShareModal] = useState(false);
 
+  // Identify cashier on duty today (default for remittance congratulations)
+  const todayCashiers = useMemo(() => {
+    return Array.from(new Set(todaysSales.map(s => s.cashier).filter(Boolean))) as string[];
+  }, [todaysSales]);
+
+  const defaultCashierName = todayCashiers[0] || (user?.role === 'CASHIER' ? user.name : '') || '';
+  const [recipientName, setRecipientName] = useState(defaultCashierName);
+
+  useEffect(() => {
+    if (defaultCashierName && !recipientName) {
+      setRecipientName(defaultCashierName);
+    }
+  }, [defaultCashierName]);
+
   const getRemittanceShareText = () => {
     const amount = todayFinancials.dailySavingsTarget;
     const cur = settings.currency || 'MWK';
     const compName = settings.companyName || 'MsikaFlo';
     const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const targetCashier = recipientName.trim() || defaultCashierName.trim() || 'Team';
+    const appreciation = getRemittanceAppreciation(amount, targetCashier, cur);
+
     return [
       `📊 *Daily Savings Remittance* — ${compName}`,
       `📅 ${dateStr}`,
+      `👤 *Cashier:* ${targetCashier}`,
       ``,
       `🎯 Remittance Target: *${cur} ${amount.toLocaleString()}*`,
+      ``,
+      `🌟 *Recognition & Appreciation:*`,
+      `"${appreciation.shortAppreciation}"`,
       ``,
       `Please remit the exact amount above. Thank you! ✅`,
     ].join('\n');
@@ -443,6 +464,18 @@ export default function Dashboard() {
               )}
             </div>
 
+            {/* Personalized Appreciation Card */}
+            {todayFinancials.dailySavingsTarget > 0 && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-center">
+                <div className="text-xs font-bold text-amber-300">
+                  {getRemittanceAppreciation(todayFinancials.dailySavingsTarget, user?.name, settings.currency).headline}
+                </div>
+                <div className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                  {getRemittanceAppreciation(todayFinancials.dailySavingsTarget, user?.name, settings.currency).message}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between pt-0.5">
               <span className="text-[11px] text-slate-400">
                 Please remit this exact amount.
@@ -500,6 +533,27 @@ export default function Dashboard() {
               <div className="text-2xl font-black font-mono text-emerald-400 tracking-tight">
                 {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
               </div>
+            </div>
+
+            {/* Cashier Name / Recipient */}
+            <div className="bg-slate-950/70 rounded-xl p-2.5 border border-slate-800">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Cashier on Duty (Addressed Directly)
+              </label>
+              <input
+                type="text"
+                value={recipientName}
+                onChange={e => setRecipientName(e.target.value)}
+                placeholder="Enter cashier name..."
+                className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg px-3 py-1.5 text-xs text-white font-medium outline-none"
+              />
+              {todayFinancials.dailySavingsTarget > 0 && (
+                <div className="mt-2 pt-1.5 border-t border-slate-800/80 text-[11px] text-amber-300 flex items-center gap-1.5 truncate">
+                  <span className="shrink-0">{getRemittanceAppreciation(todayFinancials.dailySavingsTarget, recipientName, settings.currency).badge}</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="truncate">{getRemittanceAppreciation(todayFinancials.dailySavingsTarget, recipientName, settings.currency).headline}</span>
+                </div>
+              )}
             </div>
 
             {/* App Options */}
