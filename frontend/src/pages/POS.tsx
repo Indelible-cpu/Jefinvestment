@@ -1,16 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCartStore, useProductStore, type CartItem } from '../store/cartStore';
-import { useSaleStore } from '../store/dataStore';
+import { useSaleStore, useExpenseStore } from '../store/dataStore';
 import { useStationeryStore, type StationeryService } from '../store/stationeryStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
-import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine, Printer, PlusCircle, Layers } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, AlertCircle, Clock, Save, X, ScanLine, Printer, PlusCircle, Layers, PiggyBank } from 'lucide-react';
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal';
 import BarcodeScanner from '../components/BarcodeScanner';
 import { generateInvoiceNumber } from '../utils/invoiceNumber';
 import { toast } from 'sonner';
 import { dispatchSalePushNotification } from '../utils/pushNotifications';
+import { calcDailyRealizedProfit } from '../utils/profitUtils';
 
 export default function POS() {
   const location = useLocation();
@@ -52,11 +53,23 @@ export default function POS() {
 
   const cart = useCartStore();
   const { products, isLoading: productsLoading, loadProducts } = useProductStore();
-  const { addSale } = useSaleStore();
+  const { sales, addSale } = useSaleStore();
+  const { expenses } = useExpenseStore();
   const { services: stationeryServices, loadStationeryServices } = useStationeryStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
   const { taxRate, taxName, taxType } = settings;
+
+  // Manual savings target modal — cashier can check today's remittance amount on demand
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const posFinancials = useMemo(() => calcDailyRealizedProfit(
+    today,
+    sales,
+    expenses,
+    settings.dailySavingsPercentage ?? 10,
+    settings.dailySavingsEnabled ?? true,
+  ), [today, sales, expenses, settings.dailySavingsPercentage, settings.dailySavingsEnabled]);
 
   const normalizeCategory = (cat: string) => {
     if (!cat) return 'General';
@@ -486,7 +499,81 @@ const playSound = (type: 'success' | 'error') => {
 
   return (
     <div className="flex h-full flex-col p-1.5 sm:p-3 md:p-4 bg-background">
-      <h1 className="text-xl md:text-3xl font-bold mb-2 md:mb-4 text-primary px-1 sm:px-0">Point of Sale</h1>
+      <div className="flex items-center justify-between mb-2 md:mb-4 px-1 sm:px-0">
+        <h1 className="text-xl md:text-3xl font-bold text-primary">Point of Sale</h1>
+        {/* Manual savings target button — tap to see today's remittance without waiting for notification */}
+        {settings.dailySavingsEnabled !== false && (
+          <button
+            type="button"
+            onClick={() => setShowTargetModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 active:scale-95 border border-emerald-200 text-emerald-700 rounded-xl font-bold text-xs transition cursor-pointer shrink-0 shadow-xs"
+            title="Check today's savings remittance target"
+          >
+            <PiggyBank size={14} />
+            Target
+          </button>
+        )}
+      </div>
+
+      {/* Manual Savings Target Modal for POS */}
+      {showTargetModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setShowTargetModal(false)}
+        >
+          <div
+            className="bg-slate-900 text-white border-2 border-emerald-500/80 rounded-2xl p-5 shadow-2xl w-full max-w-sm flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
+                  <PiggyBank size={18} />
+                </span>
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                  Daily Savings Target
+                </span>
+              </div>
+              <span className="text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full">
+                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+              </span>
+            </div>
+
+            <div className="bg-slate-950/90 rounded-xl p-4 border border-emerald-500/40 text-center shadow-inner">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Exact Remittance Amount
+              </span>
+              {posFinancials.dailySavingsTarget > 0 ? (
+                <div className="text-3xl font-black font-mono text-emerald-400 tracking-tight">
+                  {settings.currency} {posFinancials.dailySavingsTarget.toLocaleString()}
+                </div>
+              ) : (
+                <div className="text-sm font-semibold text-slate-400 py-2">
+                  No savings target yet for today.
+                </div>
+              )}
+              {posFinancials.dailySavingsTarget > 0 && (
+                <div className="text-[10px] text-slate-500 mt-1">
+                  {posFinancials.savingsPercentage}% of {settings.currency} {posFinancials.realizedNetProfit.toLocaleString()} net profit
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-0.5">
+              <span className="text-[11px] text-slate-400">
+                Please remit this exact amount.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowTargetModal(false)}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {errorMsg && (
         <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-800 rounded-lg flex items-center gap-2">

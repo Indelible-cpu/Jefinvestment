@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Gem, Store } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Gem, Store, PiggyBank, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -178,6 +178,29 @@ export default function Dashboard() {
     );
   }, [today, sales, expenses, settings.dailySavingsPercentage, settings.dailySavingsEnabled]);
 
+  // Manual savings target modal state (for offline / poor-network scenarios)
+  const [showManualTarget, setShowManualTarget] = useState(false);
+
+  // Share today's savings remittance via WhatsApp (admin can send to cashier manually)
+  const handleShareSavingsViaWhatsApp = () => {
+    const amount = todayFinancials.dailySavingsTarget;
+    const cur = settings.currency || 'MWK';
+    const pct = todayFinancials.savingsPercentage;
+    const compName = settings.companyName || 'MsikaFlo';
+    const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const msg = [
+      `📊 *Daily Savings Remittance* — ${compName}`,
+      `📅 ${dateStr}`,
+      ``,
+      `💰 Today's Net Profit: *${cur} ${todayFinancials.realizedNetProfit.toLocaleString()}*`,
+      `🎯 Target to Remit (${pct}%): *${cur} ${amount.toLocaleString()}*`,
+      ``,
+      `Please remit the exact amount above. Thank you! ✅`,
+    ].join('\n');
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+  };
+
   const stats = [
     { label: "Today's Sales", value: `${settings.currency} ${todayTotal.toLocaleString()}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', link: '/reports', adminOnly: false },
     { label: 'Outstanding Credit', value: `${settings.currency} ${outstandingCredit.toLocaleString()}`, icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', link: '/credits', adminOnly: true },
@@ -272,6 +295,110 @@ export default function Dashboard() {
                   {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
                 </div>
               </div>
+            </div>
+
+            {/* WhatsApp Share Row — admin can forward remittance when cashier has poor network */}
+            {todayFinancials.dailySavingsTarget > 0 && (
+              <div className="mt-3 pt-3 border-t border-violet-800/50 flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[11px] text-slate-400 leading-tight">
+                  Cashier offline? Share remittance via WhatsApp ↓
+                </span>
+                <button
+                  type="button"
+                  onClick={handleShareSavingsViaWhatsApp}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 active:scale-95 text-white rounded-xl font-bold text-xs transition shadow cursor-pointer shrink-0"
+                  title="Send savings remittance amount via WhatsApp"
+                >
+                  <Share2 size={13} />
+                  Share via WhatsApp
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Manual Savings Target Button — visible to cashiers & non-admin when savings is enabled */}
+      {/* Allows user to manually check today's remittance amount without relying on push notifications */}
+      {settings.dailySavingsEnabled !== false && !isAdmin && (
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => setShowManualTarget(true)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.99] border border-emerald-200 rounded-2xl transition shadow-xs cursor-pointer group"
+            title="Tap to see today's savings remittance target"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 bg-emerald-500/15 text-emerald-600 rounded-lg group-hover:bg-emerald-500/25 transition">
+                <PiggyBank size={18} />
+              </span>
+              <div className="text-left">
+                <div className="text-xs font-bold text-emerald-800 leading-tight">Today's Savings Target</div>
+                <div className="text-[10px] text-emerald-600 font-medium leading-tight mt-0.5">Tap to view remittance amount</div>
+              </div>
+            </div>
+            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full group-hover:bg-emerald-200 transition">
+              View
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Manual Savings Target Modal — shown when cashier taps the button above */}
+      {showManualTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setShowManualTarget(false)}
+        >
+          <div
+            className="bg-slate-900 text-white border-2 border-emerald-500/80 rounded-2xl p-5 shadow-2xl w-full max-w-sm flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
+                  <PiggyBank size={18} />
+                </span>
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                  Daily Savings Target
+                </span>
+              </div>
+              <span className="text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full">
+                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+              </span>
+            </div>
+
+            <div className="bg-slate-950/90 rounded-xl p-4 border border-emerald-500/40 text-center shadow-inner">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Exact Remittance Amount
+              </span>
+              {todayFinancials.dailySavingsTarget > 0 ? (
+                <div className="text-3xl font-black font-mono text-emerald-400 tracking-tight">
+                  {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
+                </div>
+              ) : (
+                <div className="text-sm font-semibold text-slate-400 py-2">
+                  No savings target for today yet.
+                </div>
+              )}
+              {todayFinancials.dailySavingsTarget > 0 && (
+                <div className="text-[10px] text-slate-500 mt-1">
+                  {todayFinancials.savingsPercentage}% of {settings.currency} {todayFinancials.realizedNetProfit.toLocaleString()} net profit
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-0.5">
+              <span className="text-[11px] text-slate-400">
+                Please remit this exact amount.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowManualTarget(false)}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
+              >
+                Got It
+              </button>
             </div>
           </div>
         </div>
