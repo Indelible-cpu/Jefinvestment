@@ -559,17 +559,19 @@ const playSound = (type: 'success' | 'error') => {
               )}
             </div>
 
-            {/* Personalized Appreciation Card */}
-            {posFinancials.dailySavingsTarget > 0 && (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-center">
-                <div className="text-xs font-bold text-amber-300">
-                  {getRemittanceAppreciation(posFinancials.dailySavingsTarget, user?.name, settings.currency).headline}
+            {/* Executive Appreciation Token */}
+            {posFinancials.dailySavingsTarget > 0 && (() => {
+              const appr = getRemittanceAppreciation(posFinancials.dailySavingsTarget, user?.name, settings.currency);
+              return (
+                <div className="flex flex-col items-center gap-1.5 py-1">
+                  <span className="text-xs font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-full">
+                    {appr.badge}
+                  </span>
+                  <span className="text-sm font-bold text-slate-100 text-center">{appr.headline}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">{appr.refCode}</span>
                 </div>
-                <div className="text-[11px] text-slate-300 mt-1 leading-relaxed">
-                  {getRemittanceAppreciation(posFinancials.dailySavingsTarget, user?.name, settings.currency).message}
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div className="flex items-center justify-between pt-0.5">
               <span className="text-[11px] text-slate-400">

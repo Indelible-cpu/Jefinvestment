@@ -394,14 +394,11 @@ export default function Layout() {
             </div>
           </div>
 
-          {/* Personalized Appreciation Card */}
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-2.5 text-center">
-            <div className="text-xs font-bold text-amber-300">
-              {appreciation.headline}
-            </div>
-            <div className="text-[11px] text-slate-300 mt-0.5 leading-snug">
-              {appreciation.message}
-            </div>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full">
+              {appreciation.badge}
+            </span>
+            <span className="text-xs font-semibold text-slate-200">{appreciation.headline}</span>
           </div>
 
           <div className="flex items-center justify-between pt-0.5">
