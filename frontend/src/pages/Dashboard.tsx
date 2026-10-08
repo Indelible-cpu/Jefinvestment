@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Gem, Store, PiggyBank, Share2, Copy, X } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Gem, Store, PiggyBank, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -181,8 +181,6 @@ export default function Dashboard() {
 
   // Manual savings target modal state (for offline / poor-network scenarios)
   const [showManualTarget, setShowManualTarget] = useState(false);
-  // Multi-option Share modal state (allows choosing WhatsApp Business vs Messenger vs System Share)
-  const [showShareModal, setShowShareModal] = useState(false);
 
   // Identify cashier on duty today (default for remittance congratulations)
   const todayCashiers = useMemo(() => {
@@ -190,26 +188,20 @@ export default function Dashboard() {
   }, [todaysSales]);
 
   const defaultCashierName = todayCashiers[0] || (user?.role === 'CASHIER' ? user.name : '') || '';
-  const [recipientName, setRecipientName] = useState(defaultCashierName);
 
-  useEffect(() => {
-    if (defaultCashierName && !recipientName) {
-      setRecipientName(defaultCashierName);
-    }
-  }, [defaultCashierName]);
-
-  const getRemittanceShareText = () => {
+  // Direct share: opens native system share drawer so user can select any app (WhatsApp, Business, etc.)
+  const handleShareRemittance = async () => {
     const amount = todayFinancials.dailySavingsTarget;
     const cur = settings.currency || 'MWK';
     const compName = settings.companyName || 'MsikaFlo';
     const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const targetCashier = recipientName.trim() || defaultCashierName.trim() || 'Team';
+    const targetCashier = defaultCashierName || (user?.role === 'CASHIER' ? user.name : '') || 'Team';
     const appreciation = getRemittanceAppreciation(amount, targetCashier, cur);
 
-    return [
+    const msg = [
       `📊 *Daily Savings Remittance* — ${compName}`,
       `📅 ${dateStr}`,
-      `👤 *Cashier:* ${targetCashier}`,
+      targetCashier ? `👤 *Cashier:* ${targetCashier}` : '',
       ``,
       `🎯 Remittance Target: *${cur} ${amount.toLocaleString()}*`,
       ``,
@@ -217,66 +209,27 @@ export default function Dashboard() {
       `"${appreciation.shortAppreciation}"`,
       ``,
       `Please remit the exact amount above. Thank you! ✅`,
-    ].join('\n');
-  };
+    ].filter(Boolean).join('\n');
 
-  const handleShareToWhatsAppBusiness = () => {
-    const msg = getRemittanceShareText();
-    const encoded = encodeURIComponent(msg);
-    const isAndroid = /android/i.test(navigator.userAgent);
-    if (isAndroid) {
-      window.location.href = `intent://send?text=${encoded}#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end`;
-    } else {
-      window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank', 'noopener,noreferrer');
-    }
-    setShowShareModal(false);
-  };
-
-  const handleShareToWhatsAppMessenger = () => {
-    const msg = getRemittanceShareText();
-    const encoded = encodeURIComponent(msg);
-    const isAndroid = /android/i.test(navigator.userAgent);
-    if (isAndroid) {
-      window.location.href = `intent://send?text=${encoded}#Intent;package=com.whatsapp;scheme=whatsapp;end`;
-    } else {
-      window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank', 'noopener,noreferrer');
-    }
-    setShowShareModal(false);
-  };
-
-  const handleShareSystem = async () => {
-    const msg = getRemittanceShareText();
-    const compName = settings.companyName || 'MsikaFlo';
     if (navigator.share) {
       try {
         await navigator.share({
           title: `Daily Savings Remittance — ${compName}`,
           text: msg,
         });
-        setShowShareModal(false);
         return;
       } catch (err: any) {
         if (err.name === 'AbortError') return;
       }
     }
-    try {
-      await navigator.clipboard.writeText(msg);
-      toast.success('Remittance message copied to clipboard!');
-    } catch {
-      toast.error('Could not copy message');
-    }
-    setShowShareModal(false);
-  };
 
-  const handleCopyShareText = async () => {
-    const msg = getRemittanceShareText();
+    // Fallback if native Web Share is unavailable (e.g. desktop)
     try {
       await navigator.clipboard.writeText(msg);
       toast.success('Remittance message copied to clipboard!');
     } catch {
-      toast.error('Could not copy message');
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
     }
-    setShowShareModal(false);
   };
 
   const stats = [
@@ -378,13 +331,11 @@ export default function Dashboard() {
                 <div className="pl-2 sm:pl-4 flex items-center justify-end shrink-0">
                   <button
                     type="button"
-                    onClick={() => setShowShareModal(true)}
+                    onClick={handleShareRemittance}
                     className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl font-bold text-xs transition shadow-md cursor-pointer shrink-0"
-                    title="Share remittance via WhatsApp"
+                    title="Share remittance"
                   >
-                    <svg className="w-3.5 h-3.5 shrink-0 fill-current" viewBox="0 0 24 24">
-                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                    </svg>
+                    <Share2 size={14} className="shrink-0" />
                     <span>Share</span>
                   </button>
                 </div>
@@ -486,156 +437,6 @@ export default function Dashboard() {
                 className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
               >
                 Got It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Multi-Option Share Modal (Choose WhatsApp Business, WhatsApp Messenger, or System App) */}
-      {showShareModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={() => setShowShareModal(false)}
-        >
-          <div
-            className="bg-slate-900 text-white border-2 border-emerald-500/80 rounded-2xl p-5 shadow-2xl w-full max-w-sm flex flex-col gap-3.5 animate-in fade-in slide-in-from-bottom-4"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
-                  <Share2 size={18} />
-                </span>
-                <div>
-                  <span className="font-bold text-xs uppercase tracking-wider text-slate-200 block">
-                    Share Remittance Target
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    Select your preferred app
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowShareModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg transition cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Target Amount Preview */}
-            <div className="bg-slate-950/90 rounded-xl p-3 border border-emerald-500/30 text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
-                Target to Remit
-              </span>
-              <div className="text-2xl font-black font-mono text-emerald-400 tracking-tight">
-                {settings.currency} {todayFinancials.dailySavingsTarget.toLocaleString()}
-              </div>
-            </div>
-
-            {/* Cashier Name / Recipient */}
-            <div className="bg-slate-950/70 rounded-xl p-2.5 border border-slate-800">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Cashier on Duty (Addressed Directly)
-              </label>
-              <input
-                type="text"
-                value={recipientName}
-                onChange={e => setRecipientName(e.target.value)}
-                placeholder="Enter cashier name..."
-                className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg px-3 py-1.5 text-xs text-white font-medium outline-none"
-              />
-              {todayFinancials.dailySavingsTarget > 0 && (
-                <div className="mt-2 pt-1.5 border-t border-slate-800/80 text-[11px] text-amber-300 flex items-center gap-1.5 truncate">
-                  <span className="shrink-0">{getRemittanceAppreciation(todayFinancials.dailySavingsTarget, recipientName, settings.currency).badge}</span>
-                  <span className="text-slate-500">•</span>
-                  <span className="truncate">{getRemittanceAppreciation(todayFinancials.dailySavingsTarget, recipientName, settings.currency).headline}</span>
-                </div>
-              )}
-            </div>
-
-            {/* App Options */}
-            <div className="flex flex-col gap-2 pt-1">
-              {/* WhatsApp Business Option */}
-              <button
-                type="button"
-                onClick={handleShareToWhatsAppBusiness}
-                className="w-full flex items-center justify-between p-3 bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-500/50 hover:border-emerald-400 rounded-xl transition cursor-pointer text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0 shadow-sm relative">
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                    </svg>
-                    <span className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center">B</span>
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-emerald-300">WhatsApp Business</div>
-                    <div className="text-[10px] text-slate-400">Open in your WhatsApp Business app</div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full">
-                  Open
-                </span>
-              </button>
-
-              {/* WhatsApp Messenger Option */}
-              <button
-                type="button"
-                onClick={handleShareToWhatsAppMessenger}
-                className="w-full flex items-center justify-between p-3 bg-slate-950/70 hover:bg-slate-800/80 border border-slate-700 hover:border-emerald-500/60 rounded-xl transition cursor-pointer text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-green-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-200">WhatsApp Messenger</div>
-                    <div className="text-[10px] text-slate-400">Open in standard WhatsApp</div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-semibold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full">
-                  Open
-                </span>
-              </button>
-
-              {/* System App Chooser */}
-              <button
-                type="button"
-                onClick={handleShareSystem}
-                className="w-full flex items-center justify-between p-3 bg-slate-950/70 hover:bg-slate-800/80 border border-slate-700 hover:border-blue-500/60 rounded-xl transition cursor-pointer text-left group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-sm">
-                    <Share2 size={18} />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-200">Choose Any App</div>
-                    <div className="text-[10px] text-slate-400">Use phone's share drawer</div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-semibold text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-full">
-                  Share
-                </span>
-              </button>
-
-              {/* Copy Message */}
-              <button
-                type="button"
-                onClick={handleCopyShareText}
-                className="w-full flex items-center justify-between p-2.5 bg-slate-950/40 hover:bg-slate-800/60 border border-slate-800 hover:border-slate-700 rounded-xl transition cursor-pointer text-left"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="p-1.5 bg-slate-800 text-slate-300 rounded-lg">
-                    <Copy size={14} />
-                  </span>
-                  <span className="text-xs font-medium text-slate-300">Copy Remittance Text</span>
-                </div>
-                <span className="text-[10px] text-slate-400">Copy</span>
               </button>
             </div>
           </div>
