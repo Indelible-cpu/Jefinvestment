@@ -1,4 +1,4 @@
-import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Gem, Store, PiggyBank, Share2, Copy, Briefcase, MessageSquare, X } from 'lucide-react';
+import { ShoppingCart, TrendingUp, Package, CreditCard, AlertTriangle, Printer, Wrench, Search, Download, Grip, Users, Layers, CloudUpload, Gem, Store, PiggyBank, Share2, Copy, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
