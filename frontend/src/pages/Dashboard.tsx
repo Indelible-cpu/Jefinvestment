@@ -185,15 +185,13 @@ export default function Dashboard() {
   const handleShareSavingsViaWhatsApp = () => {
     const amount = todayFinancials.dailySavingsTarget;
     const cur = settings.currency || 'MWK';
-    const pct = todayFinancials.savingsPercentage;
     const compName = settings.companyName || 'MsikaFlo';
     const dateStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const msg = [
       `📊 *Daily Savings Remittance* — ${compName}`,
       `📅 ${dateStr}`,
       ``,
-      `💰 Today's Net Profit: *${cur} ${todayFinancials.realizedNetProfit.toLocaleString()}*`,
-      `🎯 Target to Remit (${pct}%): *${cur} ${amount.toLocaleString()}*`,
+      `🎯 Remittance Target: *${cur} ${amount.toLocaleString()}*`,
       ``,
       `Please remit the exact amount above. Thank you! ✅`,
     ].join('\n');
@@ -383,7 +381,7 @@ export default function Dashboard() {
               )}
               {todayFinancials.dailySavingsTarget > 0 && (
                 <div className="text-[10px] text-slate-500 mt-1">
-                  {todayFinancials.savingsPercentage}% of {settings.currency} {todayFinancials.realizedNetProfit.toLocaleString()} net profit
+                  Daily remittance target for today
                 </div>
               )}
             </div>

@@ -554,7 +554,7 @@ const playSound = (type: 'success' | 'error') => {
               )}
               {posFinancials.dailySavingsTarget > 0 && (
                 <div className="text-[10px] text-slate-500 mt-1">
-                  {posFinancials.savingsPercentage}% of {settings.currency} {posFinancials.realizedNetProfit.toLocaleString()} net profit
+                  Daily remittance target for today
                 </div>
               )}
             </div>
