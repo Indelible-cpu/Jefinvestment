@@ -147,12 +147,21 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
   recalculatePending: () => {
     const { pendingSales } = get();
     const backupSales = getOfflineSalesBackup();
+    const backupIds = new Set(backupSales.map(s => s.id));
+
+    // Only count pendingSales entries that are STILL in the localStorage backup.
+    // If Firestore's persistent cache already synced a write (removing it from
+    // localStorage via removeSaleFromOfflineBackup), but the onSnapshot listener
+    // hasn't re-fired yet, we'd otherwise count those IDs as still-pending.
+    const stillPendingSales = pendingSales.filter(s => backupIds.has(s.id));
+
     const allPendingIds = new Set([
-      ...pendingSales.map(s => s.id),
+      ...stillPendingSales.map(s => s.id),
       ...backupSales.map(s => s.id)
     ]);
     set({
-      queue: pendingSales.length > 0 ? pendingSales : backupSales,
+      pendingSales: stillPendingSales,
+      queue: stillPendingSales.length > 0 ? stillPendingSales : backupSales,
       pendingCount: allPendingIds.size
     });
   },
@@ -209,13 +218,21 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
         console.warn('waitForPendingWrites notice:', waitErr?.message || waitErr);
       }
 
+      // After a successful sync + waitForPendingWrites, clear the in-memory
+      // pendingSales list as well. The Firestore onSnapshot listener will
+      // repopulate it if any writes are still genuinely pending; until then
+      // it should be empty so the banner dismisses immediately.
+      const remainingBackup = getOfflineSalesBackup();
       set({
         isSyncing: false,
         lastSyncedAt: Date.now(),
-        syncError: null
+        syncError: null,
+        // If localStorage backup is now empty, there are no more pending sales.
+        // pendingSales will be refreshed by the next onSnapshot from Firestore.
+        pendingSales: remainingBackup.length > 0 ? get().pendingSales : [],
+        queue: remainingBackup,
+        pendingCount: remainingBackup.length,
       });
-
-      get().recalculatePending();
 
       if (force || syncedCount > 0) {
         toast.success('Synced with Cloud', {
