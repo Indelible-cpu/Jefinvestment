@@ -51,7 +51,7 @@ export default function TermsOfService() {
 
           <section>
             <h3 className="font-bold text-gray-800 mb-2">6. Contact</h3>
-            <p>For questions regarding these terms, please contact Indelible Technologies at <span className="text-[#004bb4] font-semibold">support@indelibletechnologies.com</span>.</p>
+            <p>For questions regarding these terms, please contact Indelible Technologies at <a href="mailto:indelibletechnologiesmw@gmail.com" className="text-[#004bb4] font-semibold hover:underline">indelibletechnologiesmw@gmail.com</a>.</p>
           </section>
         </div>
       </div>
