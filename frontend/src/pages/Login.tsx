@@ -117,7 +117,7 @@ export default function Login() {
             radial-gradient(circle at 50% 16%, rgba(37, 99, 235, 0.16) 0%, rgba(14, 165, 233, 0.06) 40%, transparent 65%),
             radial-gradient(ellipse 90% 45% at 50% 98%, rgba(14, 165, 233, 0.22) 0%, rgba(30, 58, 138, 0.15) 35%, transparent 70%),
             linear-gradient(to bottom, rgba(2, 6, 23, 0.3) 0%, rgba(2, 6, 23, 0.1) 45%, rgba(2, 6, 23, 0.45) 100%),
-            url('/cosmic-bg.jpg')
+            url('/cosmic-bg.webp')
           `,
           backgroundSize: 'cover',
           backgroundPosition: 'center top',
