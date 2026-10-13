@@ -4,6 +4,7 @@ A complete, production-ready, custom Enterprise Resource Planning (ERP) and Poin
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
 > **Jurisdiction:** Republic of Malawi  
+> **Version:** 2.4.0 (Enterprise Release)  
 > **Last updated:** 13 October 2026
 
 ---

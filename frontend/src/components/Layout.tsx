@@ -12,6 +12,7 @@ import { useThemeStore } from '../store/themeStore';
 import { toast } from 'sonner';
 import { initForegroundNotificationListener, dispatchSalePushNotification } from '../utils/pushNotifications';
 import { calcDailyRealizedProfit, getRemittanceAppreciation } from '../utils/profitUtils';
+import { APP_VERSION } from '../utils/version';
 import ProfilePhotoModal from './ProfilePhotoModal';
 
 export default function Layout() {
@@ -1135,8 +1136,13 @@ export default function Layout() {
               <LogOut size={18} />
             </button>
           </div>
-          <div className="text-[10px] text-center text-white font-normal tracking-wide pb-4 md:pb-0 mt-2">
-            &copy; 2026 {companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies
+          <div className="text-[10px] text-center text-white/90 font-normal tracking-wide pb-4 md:pb-0 mt-2 space-y-1">
+            <div>&copy; 2026 {companyName}. All rights reserved.</div>
+            <div className="text-blue-300/80 flex items-center justify-center gap-1.5 font-mono text-[9.5px]">
+              <span>MsikaFlo v{APP_VERSION}</span>
+              <span>•</span>
+              <span>Indelible Technologies</span>
+            </div>
           </div>
         </div>
       </aside>

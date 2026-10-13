@@ -12,6 +12,7 @@ import { useAuditStore } from '../store/auditStore';
 import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
 import { checkForAppUpdates } from '../utils/pwaUpdate';
+import { APP_VERSION, APP_BUILD_DATE } from '../utils/version';
 import { useThemeStore } from '../store/themeStore';
 import {
   requestPushPermission,
@@ -1844,18 +1845,33 @@ export default function Settings() {
       case 'updates':
         return (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
-            <RefreshCw size={18} /> System Updates
+          <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <RefreshCw size={18} /> System Updates
+            </div>
+            <span className="text-xs font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+              v{APP_VERSION}
+            </span>
           </div>
           <div className="p-6 flex flex-col sm:flex-row items-center gap-4">
             <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
               <RefreshCw className="text-blue-600" size={26} />
             </div>
             <div className="flex-1 text-center sm:text-left">
-              <h4 className="font-bold text-gray-700 mb-1">Check for Updates</h4>
-              <p className="text-sm text-gray-500">Check for the latest software updates and new features. Your app will reload if a new version is available.</p>
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                <h4 className="font-bold text-gray-800">MsikaFlo Enterprise</h4>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                  Stable
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 mb-1">
+                Version <strong className="font-mono text-gray-900">v{APP_VERSION}</strong> • Updated {APP_BUILD_DATE}
+              </p>
+              <p className="text-xs text-gray-400">
+                Offline-First PWA • Service Worker Cache enabled.
+              </p>
             </div>
-            <button onClick={() => checkForAppUpdates(true)} className="shrink-0 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition active:scale-95">
+            <button onClick={() => checkForAppUpdates(true)} className="shrink-0 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition active:scale-95 cursor-pointer shadow-xs">
               Check for Updates
             </button>
           </div>

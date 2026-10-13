@@ -5,6 +5,7 @@ import { Lock, User, Eye, EyeOff, ShieldCheck, WifiOff, AlertCircle, LogIn } fro
 import { toast } from 'sonner';
 import { setPersistence, browserLocalPersistence, browserSessionPersistence, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { APP_VERSION } from '../utils/version';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -299,6 +300,11 @@ export default function Login() {
           <span className="text-emerald-400 font-bold relative z-10">•</span>
           <span className="tracking-wide text-white relative z-10">Stronger Business</span>
           <span className="w-6 sm:w-8 h-[2px] bg-[#22c55e] rounded-full inline-block relative z-10" />
+        </div>
+
+        {/* Discreet Version Tag */}
+        <div className="text-center mt-2.5 text-[10px] text-white/40 font-mono tracking-widest select-none">
+          v{APP_VERSION}
         </div>
       </div>
     </div>

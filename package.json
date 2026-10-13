@@ -1,4 +1,6 @@
 {
+  "name": "msikaflo",
+  "version": "2.4.0",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
