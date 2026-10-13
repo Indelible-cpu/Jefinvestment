@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
             <ShieldCheck className="text-[#004bb4]" size={28} />
             <div>
               <h2 className="font-bold text-gray-900 text-base">Privacy & Data Protection Policy</h2>
-              <p className="text-gray-400 text-xs">Last updated: October 2026 • Jurisdiction: Republic of Malawi</p>
+              <p className="text-gray-400 text-xs">Last updated: 13 October 2026 • Jurisdiction: Republic of Malawi</p>
             </div>
           </div>
 

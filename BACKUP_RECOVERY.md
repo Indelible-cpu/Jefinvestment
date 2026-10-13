@@ -4,7 +4,7 @@ This document outlines backup strategies, data-retention policies, and recovery 
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
 > **Jurisdiction:** Republic of Malawi  
-> **Last updated:** October 2026
+> **Last updated:** 13 October 2026
 
 ---
 

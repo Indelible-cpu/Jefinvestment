@@ -4,6 +4,10 @@ Welcome to the **MsikaFlo** official user guide. MsikaFlo is a full-featured clo
 
 Built and maintained by **Indelible Technologies**.
 
+> **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
+> **Jurisdiction:** Republic of Malawi  
+> **Last updated:** 13 October 2026
+
 ---
 
 ## Table of Contents

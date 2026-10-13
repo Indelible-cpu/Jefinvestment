@@ -3,7 +3,7 @@
 **MsikaFlo** is engineered **Offline-First**, ensuring continuous Point of Sale operations even during complete internet outages.
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
-> **Last updated:** October 2026
+> **Last updated:** 13 October 2026
 
 ---
 

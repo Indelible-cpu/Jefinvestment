@@ -4,6 +4,10 @@ The **MsikaFlo** platform enforces a strict, multi-layered security posture acro
 
 Built and maintained by **Indelible Technologies**.
 
+> **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
+> **Jurisdiction:** Republic of Malawi  
+> **Last updated:** 13 October 2026
+
 ---
 
 ## 1. Authentication & Persistence Security

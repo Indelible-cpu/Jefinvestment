@@ -3,7 +3,7 @@
 **MsikaFlo** operates on a fully serverless architecture powered by **Firebase Authentication**, **Google Cloud Firestore**, **Firebase Storage**, **Firebase Cloud Messaging (FCM)**, and **Zustand** state management stores.
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
-> **Last updated:** October 2026
+> **Last updated:** 13 October 2026
 
 ---
 

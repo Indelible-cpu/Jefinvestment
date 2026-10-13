@@ -2,6 +2,10 @@
 
 A complete, production-ready, custom Enterprise Resource Planning (ERP) and Point of Sale (POS) system designed and built by **Indelible Technologies** for **MsikaFlo**. The system replaces legacy manual sales processes with a powerful, cloud-connected, offline-first digital platform.
 
+> **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
+> **Jurisdiction:** Republic of Malawi  
+> **Last updated:** 13 October 2026
+
 ---
 
 ## 🌟 Key Features
