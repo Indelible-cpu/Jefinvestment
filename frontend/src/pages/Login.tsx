@@ -26,6 +26,11 @@ export default function Login() {
       return;
     }
 
+    // Set Android status bar to dark cosmic with light icons
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    const prevTheme = metaTheme?.getAttribute('content') || '#004bb4';
+    if (metaTheme) metaTheme.setAttribute('content', '#020617');
+
     const savedEmail = localStorage.getItem('jef_remembered_email');
     if (savedEmail) {
       setEmail(savedEmail);
@@ -35,6 +40,10 @@ export default function Login() {
       setPassword('');
       setRememberMe(false);
     }
+
+    return () => {
+      if (metaTheme) metaTheme.setAttribute('content', prevTheme);
+    };
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -98,15 +107,16 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-x-hidden selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-4 sm:py-6 pt-[max(env(safe-area-inset-top),1.25rem)] pb-[max(env(safe-area-inset-bottom),1.5rem)] relative overflow-x-hidden selection:bg-blue-600 selection:text-white">
       {/* Cinematic Dark Cosmic Atmosphere Background */}
       <div 
         className="fixed inset-0 pointer-events-none z-0"
         style={{
           backgroundColor: '#020617',
           backgroundImage: `
-            radial-gradient(circle at 50% 15%, rgba(14, 165, 233, 0.12) 0%, transparent 50%),
-            linear-gradient(to bottom, rgba(2, 6, 23, 0.4) 0%, rgba(2, 6, 23, 0.2) 50%, rgba(2, 6, 23, 0.6) 100%),
+            radial-gradient(circle at 50% 16%, rgba(37, 99, 235, 0.16) 0%, rgba(14, 165, 233, 0.06) 40%, transparent 65%),
+            radial-gradient(ellipse 90% 45% at 50% 98%, rgba(14, 165, 233, 0.22) 0%, rgba(30, 58, 138, 0.15) 35%, transparent 70%),
+            linear-gradient(to bottom, rgba(2, 6, 23, 0.3) 0%, rgba(2, 6, 23, 0.1) 45%, rgba(2, 6, 23, 0.45) 100%),
             url('/cosmic-bg.jpg')
           `,
           backgroundSize: 'cover',
@@ -115,14 +125,14 @@ export default function Login() {
         }}
       />
 
-      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center my-auto py-6">
+      <div className="relative z-10 w-full max-w-[390px] sm:max-w-[400px] flex flex-col items-center my-auto">
         {/* Brand Header above card */}
-        <div className="text-center mb-5 flex flex-col items-center">
+        <div className="text-center mb-4 sm:mb-5 flex flex-col items-center">
           {/* Logo with Cyan / Electric Blue Atmospheric Halo */}
-          <div className="relative mb-3 flex items-center justify-center">
-            <div className="absolute w-28 h-28 rounded-full bg-cyan-400/30 blur-2xl pointer-events-none" />
-            <div className="w-24 h-24 sm:w-26 sm:h-26 rounded-full p-[3px] bg-gradient-to-tr from-cyan-400 via-blue-400 to-white shadow-[0_0_30px_rgba(56,189,248,0.55)] flex items-center justify-center relative">
-              <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center p-1.5 shadow-inner">
+          <div className="relative mb-2.5 flex items-center justify-center">
+            <div className="absolute w-24 h-24 sm:w-26 sm:h-26 rounded-full bg-cyan-400/25 blur-xl pointer-events-none" />
+            <div className="w-20 h-20 sm:w-[88px] sm:h-[88px] rounded-full p-[2.5px] bg-gradient-to-tr from-cyan-400 via-blue-400 to-white shadow-[0_0_26px_rgba(56,189,248,0.5)] flex items-center justify-center relative">
+              <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center p-1 shadow-inner">
                 <img 
                   src="/pwa-512x512.png" 
                   alt="MsikaFlo" 
@@ -133,45 +143,45 @@ export default function Login() {
           </div>
 
           {/* MsikaFlo Wordmark: White "Msika" and Green "Flo" */}
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight flex items-center justify-center">
-            <span className="text-white drop-shadow-md">Msika</span>
-            <span className="text-[#22c55e] drop-shadow-md">Flo</span>
+          <h1 className="text-3xl sm:text-[34px] font-extrabold tracking-tight flex items-center justify-center leading-none">
+            <span className="text-white drop-shadow-sm">Msika</span>
+            <span className="text-[#22c55e] drop-shadow-sm">Flo</span>
           </h1>
 
           {/* Tagline with subtle green accent lines */}
-          <div className="flex items-center justify-center gap-2.5 mt-2">
-            <span className="w-7 sm:w-9 h-[2px] bg-[#22c55e] rounded-full inline-block" />
-            <p className="text-white/95 text-xs sm:text-sm font-medium tracking-wide drop-shadow-sm">
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className="w-6 sm:w-8 h-[2px] bg-[#22c55e] rounded-full inline-block" />
+            <p className="text-white/95 text-xs sm:text-[13px] font-medium tracking-wide drop-shadow-sm">
               One system. Total control.
             </p>
-            <span className="w-7 sm:w-9 h-[2px] bg-[#22c55e] rounded-full inline-block" />
+            <span className="w-6 sm:w-8 h-[2px] bg-[#22c55e] rounded-full inline-block" />
           </div>
         </div>
 
         {/* Clean White Login Card */}
         <div 
-          className="w-full rounded-[26px] shadow-2xl p-6 sm:p-8 border border-white/40"
+          className="w-full rounded-[24px] shadow-xl shadow-slate-950/40 p-5 sm:p-7 border border-white/50"
           style={{ backgroundColor: '#ffffff' }}
         >
           {error && (
-            <div className={`p-3.5 rounded-xl text-sm mb-5 font-medium flex items-start gap-2.5 border ${
+            <div className={`p-3 rounded-xl text-sm mb-4 font-medium flex items-start gap-2.5 border ${
               isNetworkError 
                 ? 'bg-amber-50 text-amber-800 border-amber-200' 
                 : 'bg-red-50 text-red-700 border-red-200'
             }`}>
               {isNetworkError ? (
-                <WifiOff size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                <WifiOff size={18} className="text-amber-600 shrink-0 mt-0.5" />
               ) : (
-                <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
+                <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
               )}
-              <span className="leading-snug">{error}</span>
+              <span className="leading-snug text-xs sm:text-sm">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4" autoComplete={rememberMe ? "on" : "off"}>
+          <form onSubmit={handleLogin} className="space-y-3.5 sm:space-y-4" autoComplete={rememberMe ? "on" : "off"}>
             {/* Email Field */}
-            <div className="relative flex items-center rounded-xl border border-blue-200 bg-[#f0f6ff] px-3.5 py-3 transition focus-within:border-[#1d64ec] focus-within:ring-2 focus-within:ring-[#1d64ec]/20">
-              <User className="text-[#1d64ec] shrink-0 mr-3" size={20} />
+            <div className="relative flex items-center rounded-xl border border-blue-200/90 bg-[#f0f6ff] px-3.5 py-2.5 sm:py-3 transition focus-within:border-[#1d64ec] focus-within:ring-2 focus-within:ring-[#1d64ec]/20">
+              <User className="text-[#1d64ec] shrink-0 mr-2.5" size={19} />
               <input
                 id="email"
                 type="email"
@@ -185,8 +195,8 @@ export default function Login() {
             </div>
 
             {/* Password Field */}
-            <div className="relative flex items-center rounded-xl border border-blue-200 bg-[#f0f6ff] px-3.5 py-3 transition focus-within:border-[#1d64ec] focus-within:ring-2 focus-within:ring-[#1d64ec]/20">
-              <Lock className="text-[#1d64ec] shrink-0 mr-3" size={20} />
+            <div className="relative flex items-center rounded-xl border border-blue-200/90 bg-[#f0f6ff] px-3.5 py-2.5 sm:py-3 transition focus-within:border-[#1d64ec] focus-within:ring-2 focus-within:ring-[#1d64ec]/20">
+              <Lock className="text-[#1d64ec] shrink-0 mr-2.5" size={19} />
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
@@ -209,12 +219,12 @@ export default function Login() {
                 tabIndex={-1}
                 title="Toggle password visibility"
               >
-                {showPassword ? <Eye size={19} /> : <EyeOff size={19} />}
+                {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
               </button>
             </div>
 
             {/* Remember Me and Password Recovery */}
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between pt-0.5 pb-0.5">
               <label htmlFor="rememberMe" className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   id="rememberMe"
@@ -223,7 +233,7 @@ export default function Login() {
                   onChange={e => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded text-[#1d64ec] border-blue-300 accent-[#1d64ec] cursor-pointer"
                 />
-                <span className="text-sm font-semibold text-slate-800">
+                <span className="text-xs sm:text-[13px] font-semibold text-slate-700">
                   Remember me
                 </span>
               </label>
@@ -232,7 +242,7 @@ export default function Login() {
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={isResetting}
-                className="text-sm font-semibold text-[#1d64ec] hover:text-blue-800 transition hover:underline cursor-pointer disabled:opacity-50"
+                className="text-xs sm:text-[13px] font-semibold text-[#1d64ec] hover:text-blue-800 transition hover:underline cursor-pointer disabled:opacity-50"
               >
                 {isResetting ? 'Sending...' : 'Forgot password?'}
               </button>
@@ -242,7 +252,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 bg-gradient-to-r from-[#1d64ec] via-[#1a56db] to-[#0f3ea3] hover:from-[#1754c7] hover:to-[#0c3182] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-base tracking-wide disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full mt-1.5 bg-gradient-to-r from-[#1d64ec] via-[#1a56db] to-[#0f3ea3] hover:from-[#1754c7] hover:to-[#0c3182] text-white font-bold py-3 sm:py-3.5 px-6 rounded-xl shadow-md shadow-blue-600/25 hover:shadow-blue-600/40 hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-sm sm:text-base tracking-wide disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <>
@@ -254,7 +264,7 @@ export default function Login() {
                 </>
               ) : (
                 <>
-                  <LogIn size={20} className="text-white stroke-[2.5]" />
+                  <LogIn size={19} className="text-white stroke-[2.5]" />
                   <span>Sign In</span>
                 </>
               )}
@@ -262,7 +272,7 @@ export default function Login() {
           </form>
 
           {/* Legal Links */}
-          <p className="text-center text-xs text-slate-500 mt-5 leading-relaxed">
+          <p className="text-center text-[11px] sm:text-xs text-slate-500 mt-4 leading-relaxed">
             By signing in, you agree to our{' '}
             <Link to="/terms" className="text-[#1d64ec] underline underline-offset-2 hover:text-blue-800 transition font-semibold">
               Terms of Service
@@ -274,19 +284,21 @@ export default function Login() {
           </p>
 
           {/* Attribution Footer inside Card */}
-          <div className="flex items-center justify-center gap-1.5 mt-5 pt-1 text-slate-500 text-xs font-medium">
-            <ShieldCheck size={18} className="text-[#16a34a] stroke-[2.5] shrink-0" />
+          <div className="flex items-center justify-center gap-1.5 mt-4 pt-0.5 text-slate-500 text-[11px] sm:text-xs font-medium">
+            <ShieldCheck size={16} className="text-[#16a34a] stroke-[2.5] shrink-0" />
             <span>Powered by <span className="text-[#1e1b4b] font-bold">Indelible Technologies</span></span>
           </div>
         </div>
 
         {/* Brand Tagline Footer below Card */}
-        <div className="flex items-center justify-center gap-2.5 mt-6 text-xs sm:text-sm font-medium text-white/90">
-          <span className="w-8 sm:w-12 h-[2px] bg-[#22c55e] rounded-full inline-block" />
-          <span className="tracking-wide text-white">Smarter Tools</span>
-          <span className="text-emerald-400 font-bold">•</span>
-          <span className="tracking-wide text-white">Stronger Business</span>
-          <span className="w-8 sm:w-12 h-[2px] bg-[#22c55e] rounded-full inline-block" />
+        <div className="relative flex items-center justify-center gap-2 mt-4 sm:mt-5 text-[11.5px] sm:text-xs font-medium text-white/95 select-none">
+          {/* Restrained subtle blue glow aura behind slogan */}
+          <div className="absolute inset-0 -inset-x-3 bg-blue-500/15 blur-md rounded-full pointer-events-none" />
+          <span className="w-6 sm:w-8 h-[2px] bg-[#22c55e] rounded-full inline-block relative z-10" />
+          <span className="tracking-wide text-white relative z-10">Smarter Tools</span>
+          <span className="text-emerald-400 font-bold relative z-10">•</span>
+          <span className="tracking-wide text-white relative z-10">Stronger Business</span>
+          <span className="w-6 sm:w-8 h-[2px] bg-[#22c55e] rounded-full inline-block relative z-10" />
         </div>
       </div>
     </div>

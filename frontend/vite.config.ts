@@ -12,7 +12,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,jpg,jpeg,webp}'],
         globIgnores: ['**/firebase-messaging-sw.js'],
         maximumFileSizeToCacheInBytes: 5000000, // 5 MB — covers Firebase SDK
         // Cache Firebase Storage images at runtime so product images load instantly
