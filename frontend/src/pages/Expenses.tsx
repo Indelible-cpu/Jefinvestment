@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Receipt, X, Trash2, Share2, Printer, Filter, Search, Loader2 } from 'lucide-react';
+import { Plus, Receipt, X, Trash2, Share2, Printer, Filter, Search, Loader2, RotateCcw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas-pro';
 import { useSettingsStore } from '../store/settingsStore';
@@ -17,7 +17,7 @@ const today = new Date().toISOString().slice(0, 10);
 type DatePreset = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'all' | 'custom';
 
 export default function Expenses() {
-  const { expenses, isLoading, addExpense, deleteExpense, loadExpenses } = useExpenseStore();
+  const { expenses, isLoading, addExpense, deleteExpense, restoreExpense, loadExpenses } = useExpenseStore();
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
   const { user } = useAuthStore();
@@ -42,6 +42,7 @@ export default function Expenses() {
   const [endDate, setEndDate] = useState(today);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [viewTrash, setViewTrash] = useState(false); // Toggle to view deleted expenses / advances
 
   const [showModal, setShowModal] = useState(false);
   const [isSharingExpenses, setIsSharingExpenses] = useState(false);
@@ -102,9 +103,19 @@ export default function Expenses() {
     }
   };
 
-  // Filtered expenses
+  // Count of deleted records
+  const deletedCount = useMemo(() => expenses.filter(e => e.isDeleted).length, [expenses]);
+
+  // Filtered expenses (separates active from trash)
   const filtered = useMemo(() => {
     return expenses.filter(e => {
+      // Trash toggle filter:
+      // In active mode, hide deleted records.
+      // In trash mode, show ONLY deleted records.
+      if (viewTrash ? !e.isDeleted : e.isDeleted) {
+        return false;
+      }
+
       // Date filter
       if (datePreset === 'all') {
         // all time
@@ -131,7 +142,7 @@ export default function Expenses() {
 
       return true;
     });
-  }, [expenses, datePreset, startDate, endDate, categoryFilter, searchTerm]);
+  }, [expenses, viewTrash, datePreset, startDate, endDate, categoryFilter, searchTerm]);
 
   const totalFiltered = useMemo(() => {
     return filtered.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
@@ -474,21 +485,59 @@ Total Entries: ${filtered.length}
     }
   };
 
-  const handleDelete = (id: string, description: string) => {
-    toast('Remove this expense entry?', {
+  const handleDelete = (id: string, description: string, isAdvance = false) => {
+    toast(isAdvance ? 'Delete salary advance payment?' : 'Remove this expense entry?', {
+      description: isAdvance
+        ? 'The advance will be moved to Trash and can be restored at any time. Employee advance balance will be adjusted.'
+        : 'Entry will be moved to Trash and can be restored.',
       action: {
-        label: 'Remove',
+        label: 'Delete',
         onClick: async () => {
           try {
-            await deleteExpense(id);
-            addLog('DELETE_EXPENSE', `Deleted expense: ${description}`);
-            toast.success('Expense removed');
+            await deleteExpense(id, false);
+            addLog('DELETE_EXPENSE', `Deleted ${isAdvance ? 'salary advance' : 'expense'}: ${description}`);
+            toast.success(isAdvance ? 'Salary advance deleted' : 'Expense removed', {
+              description: 'You can restore it anytime from Trash.',
+              action: {
+                label: 'Undo',
+                onClick: async () => {
+                  await restoreExpense(id);
+                  addLog('RESTORE_EXPENSE', `Restored ${isAdvance ? 'salary advance' : 'expense'}: ${description}`);
+                  toast.success('Restored successfully');
+                }
+              }
+            });
           } catch (err: any) {
-            if (err.message === 'OFFLINE_QUEUED') {
-              toast.warning('Offline', { description: 'Delete queued and will sync when online.' });
-            } else {
-              toast.error('Failed to delete expense', { description: err.message });
-            }
+            toast.error('Failed to delete', { description: err.message });
+          }
+        }
+      },
+      cancel: { label: 'Cancel', onClick: () => {} }
+    });
+  };
+
+  const handleRestore = async (id: string, description: string, isAdvance = false) => {
+    try {
+      await restoreExpense(id);
+      addLog('RESTORE_EXPENSE', `Restored ${isAdvance ? 'salary advance' : 'expense'}: ${description}`);
+      toast.success(isAdvance ? 'Salary advance restored to active records!' : 'Expense restored successfully!');
+    } catch (err: any) {
+      toast.error('Failed to restore', { description: err.message });
+    }
+  };
+
+  const handlePermanentDelete = (id: string, description: string) => {
+    toast('Permanently delete this entry?', {
+      description: 'This action cannot be undone.',
+      action: {
+        label: 'Delete Forever',
+        onClick: async () => {
+          try {
+            await deleteExpense(id, true);
+            addLog('PERMANENT_DELETE_EXPENSE', `Permanently deleted: ${description}`);
+            toast.success('Entry permanently deleted');
+          } catch (err: any) {
+            toast.error('Failed to delete permanently', { description: err.message });
           }
         }
       },
@@ -584,6 +633,27 @@ Total Entries: ${filtered.length}
               {p.label}
             </button>
           ))}
+
+          {/* Trash Toggle */}
+          <button
+            onClick={() => setViewTrash(!viewTrash)}
+            className={`ml-auto px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
+              viewTrash
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-muted/50 hover:bg-muted text-gray-600 border'
+            }`}
+            title="View deleted expenses and salary advances"
+          >
+            <Trash2 size={13} />
+            <span>{viewTrash ? 'Viewing Trash' : 'Trash'}</span>
+            {deletedCount > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                viewTrash ? 'bg-white text-amber-800' : 'bg-red-100 text-red-700'
+              }`}>
+                {deletedCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Date Inputs & Category Select & Search */}
@@ -655,6 +725,24 @@ Total Entries: ${filtered.length}
         </div>
       </div>
 
+      {/* Trash Mode Banner */}
+      {viewTrash && (
+        <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-3 text-amber-900 text-xs sm:text-sm">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} className="text-amber-600 shrink-0" />
+            <span>
+              <strong>Trash Bin:</strong> Showing {filtered.length} deleted records. You can restore them to active records at any time.
+            </span>
+          </div>
+          <button
+            onClick={() => setViewTrash(false)}
+            className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs transition cursor-pointer"
+          >
+            Back to Active Records
+          </button>
+        </div>
+      )}
+
       {/* Table - wrapped for horizontal scroll on mobile */}
       <div className="bg-card rounded-2xl border shadow-xs overflow-x-auto">
         <table className="w-full text-left min-w-[700px]">
@@ -683,40 +771,84 @@ Total Entries: ${filtered.length}
               <tr>
                 <td colSpan={6} className="p-12 text-center text-gray-400">
                   <Receipt size={36} className="mx-auto mb-2 opacity-40" />
-                  <p className="font-semibold text-gray-600">No expenses found for this criteria.</p>
-                  <p className="text-xs text-gray-400 mt-1">Try switching to "All Time" or adjusting the category/search.</p>
+                  <p className="font-semibold text-gray-600">
+                    {viewTrash ? 'Trash bin is empty.' : 'No expenses found for this criteria.'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {viewTrash ? 'Deleted items will appear here and can be restored.' : 'Try switching to "All Time" or adjusting the category/search.'}
+                  </p>
                 </td>
               </tr>
-            ) : filtered.map(e => (
-              <tr key={e.id} className="border-b hover:bg-muted/30 transition text-sm">
-                <td className="p-4 text-gray-600 font-mono text-xs">{e.date}</td>
-                <td className="p-4">
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                    e.category === 'Salary / Advance Pay'
-                      ? 'bg-amber-100 text-amber-800 border-amber-300'
-                      : 'bg-blue-50 text-blue-700 border-blue-200'
-                  }`}>
-                    {e.category}
-                  </span>
-                </td>
-                <td className="p-4 text-gray-900 font-medium">{e.description}</td>
-                <td className="p-4 text-gray-500 text-xs">{e.loggedBy}</td>
-                <td className="p-4 text-right font-bold text-red-600 font-mono text-sm">
-                  {e.amount.toLocaleString()}
-                </td>
-                <td className="p-4 text-right">
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleDelete(e.id, e.description)}
-                      className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition"
-                      title="Delete expense"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
+            ) : filtered.map(e => {
+              const isAdv = e.isSalaryAdvance || e.category === 'Salary / Advance Pay';
+              return (
+                <tr key={e.id} className={`border-b transition text-sm ${e.isDeleted ? 'bg-amber-50/20 hover:bg-amber-50/40 text-gray-500' : 'hover:bg-muted/30'}`}>
+                  <td className="p-4 text-gray-600 font-mono text-xs">{e.date}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                        e.category === 'Salary / Advance Pay'
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}>
+                        {e.category}
+                      </span>
+                      {e.isDeleted && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                          Deleted
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-4 font-medium">
+                    <div className={e.isDeleted ? 'line-through text-gray-400' : 'text-gray-900'}>
+                      {e.description}
+                    </div>
+                    {e.isDeleted && (
+                      <div className="text-[11px] text-amber-600 font-normal mt-0.5">
+                        Deleted {e.deletedAt ? new Date(e.deletedAt).toLocaleDateString() : ''} by {e.deletedBy || 'Admin'}
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-4 text-gray-500 text-xs">{e.loggedBy}</td>
+                  <td className={`p-4 text-right font-bold font-mono text-sm ${e.isDeleted ? 'text-gray-400 line-through' : 'text-red-600'}`}>
+                    {e.amount.toLocaleString()}
+                  </td>
+                  <td className="p-4 text-right">
+                    {isAdmin && (
+                      <div className="flex items-center justify-end gap-1.5">
+                        {e.isDeleted ? (
+                          <>
+                            <button
+                              onClick={() => handleRestore(e.id, e.description, isAdv)}
+                              className="inline-flex items-center gap-1 text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 border border-green-200 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer"
+                              title="Restore record"
+                            >
+                              <RotateCcw size={13} /> Restore
+                            </button>
+                            <button
+                              onClick={() => handlePermanentDelete(e.id, e.description)}
+                              className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                              title="Delete permanently"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleDelete(e.id, e.description, isAdv)}
+                            className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                            title={isAdv ? 'Delete salary advance' : 'Delete expense'}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length > 0 && (
               <tr className="bg-muted/20 font-bold border-t-2">
                 <td colSpan={4} className="p-4 text-right text-gray-700 text-xs sm:text-sm">

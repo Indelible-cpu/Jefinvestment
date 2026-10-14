@@ -50,6 +50,45 @@ export interface DailyRealizedFinancials {
 }
 
 /**
+ * Universal helper that reliably identifies if an expense entry is a recoverable salary advance.
+ * Supports:
+ *  1. Explicit isSalaryAdvance flag (for new records)
+ *  2. Historical / legacy records created before the upgrade (by checking title, category, and notes)
+ *  3. Explicitly excludes net salary payments/settlements
+ */
+export function isSalaryAdvanceExpense(e: {
+  isSalaryAdvance?: boolean;
+  category?: string;
+  title?: string;
+  description?: string;
+}): boolean {
+  if (e.isSalaryAdvance === true) return true;
+  if (e.isSalaryAdvance === false) return false;
+
+  const title = (e.title || '').toLowerCase();
+  const desc = (e.description || '').toLowerCase();
+  const cat = (e.category || '').toLowerCase();
+
+  // Exclude actual salary payouts / settlements
+  const isSalaryPayment =
+    title.includes('salary payment') ||
+    desc.includes('net salary payment') ||
+    desc.includes('salary payment') ||
+    (title.includes('salary') && !title.includes('advance') && !desc.includes('advance'));
+
+  if (isSalaryPayment) return false;
+
+  // Identify advance records by title, description, or category
+  return (
+    title.includes('salary advance') ||
+    title.includes('advance pay') ||
+    desc.includes('salary advance') ||
+    desc.includes('advance payment') ||
+    (cat.includes('advance') && !isSalaryPayment)
+  );
+}
+
+/**
  * Calculates daily financial metrics strictly based on REALIZED profit.
  * Excludes uncollected credit sales from profit calculations.
  */
@@ -62,7 +101,8 @@ export function calcDailyRealizedProfit(
 ): DailyRealizedFinancials {
   const completedSales = sales.filter(s => (s.status ?? 'completed') === 'completed');
   const daySales = completedSales.filter(s => s.date === reportDate);
-  const dayExpenses = expenses.filter(e => e.date === reportDate);
+  // Exclude soft-deleted expenses from active financial calculations
+  const dayExpenses = expenses.filter(e => e.date === reportDate && !(e as any).isDeleted);
 
   let directCashSales = 0;
   let directTransferSales = 0;
@@ -131,8 +171,8 @@ export function calcDailyRealizedProfit(
   //   • Salary advances     → funded from accumulated business cash; NOT deducted from today's profit
   //     (A salary advance is a recoverable loan to an employee — a balance-sheet asset movement,
   //      not an income-statement charge. Deducting it from today's profit is incorrect accounting.)
-  const operatingExpenses = dayExpenses.filter(e => !e.isSalaryAdvance);
-  const advanceExpenses   = dayExpenses.filter(e =>  e.isSalaryAdvance);
+  const operatingExpenses = dayExpenses.filter(e => !isSalaryAdvanceExpense(e));
+  const advanceExpenses   = dayExpenses.filter(e =>  isSalaryAdvanceExpense(e));
 
   const totalExpenses      = operatingExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const salaryAdvancesPaid = advanceExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);

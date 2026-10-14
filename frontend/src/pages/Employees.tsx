@@ -17,7 +17,7 @@ export default function Employees() {
   const {
     employees, isLoading, loadEmployees, addEmployee, updateEmployee,
     updateStatus, recordAdvancePay, recordSalaryPay, clearAdvancePay,
-    deleteEmployee, getTotalAdvancePay
+    restoreClearedAdvancePay, deleteEmployee, getTotalAdvancePay
   } = useEmployeeStore();
   const { loadExpenses } = useExpenseStore();
   const settings = useSettingsStore();
@@ -355,12 +355,21 @@ export default function Employees() {
 
   const handleClearAdvance = async (emp: Employee) => {
     if (!emp.advancePay || emp.advancePay <= 0) return;
-    toast(`Reset advance pay balance (${settings.currency} ${emp.advancePay.toLocaleString()}) for ${emp.firstName}?`, {
+    const oldBalance = emp.advancePay;
+    toast(`Reset advance pay balance (${settings.currency} ${oldBalance.toLocaleString()}) for ${emp.firstName}?`, {
       action: {
         label: 'Confirm Reset',
         onClick: async () => {
           await clearAdvancePay(emp.id);
-          toast.success(`Advance pay balance cleared for ${emp.firstName}.`);
+          toast.success(`Advance pay balance cleared for ${emp.firstName}.`, {
+            action: {
+              label: 'Undo',
+              onClick: async () => {
+                await restoreClearedAdvancePay(emp.id);
+                toast.success(`Restored advance balance of ${settings.currency} ${oldBalance.toLocaleString()} for ${emp.firstName}`);
+              }
+            }
+          });
         }
       },
       cancel: { label: 'Cancel', onClick: () => {} }

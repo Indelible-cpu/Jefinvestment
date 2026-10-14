@@ -2,21 +2,33 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, History, Share2, Printer, Banknote, CheckCircle,
-  Filter, Search, User, Loader2, FileText
+  Filter, Search, User, Loader2, FileText, RotateCcw, Trash2, AlertCircle
 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import { toast } from 'sonner';
 import { useEmployeeStore, useExpenseStore, type Employee, type SalaryPayRecord, type AdvancePayRecord } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useAuthStore } from '../store/authStore';
 
 export default function EmployeeHistory() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { employees, isLoading, loadEmployees, loadAdvanceHistory, loadSalaryHistory } = useEmployeeStore();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+  const {
+    employees,
+    isLoading,
+    loadEmployees,
+    loadAdvanceHistory,
+    loadSalaryHistory,
+    deleteAdvancePay,
+    restoreAdvancePay,
+  } = useEmployeeStore();
   const { loadExpenses } = useExpenseStore();
   const settings = useSettingsStore();
 
   const [historyTab, setHistoryTab] = useState<'advances' | 'salaries' | 'statement'>('advances');
+  const [showDeletedAdv, setShowDeletedAdv] = useState(false);
   const [isSharingPayroll, setIsSharingPayroll] = useState(false);
   const [historyPreset, setHistoryPreset] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'CUSTOM'>('ALL');
   const [historyStartDate, setHistoryStartDate] = useState('');
@@ -143,10 +155,14 @@ export default function EmployeeHistory() {
 
   // Advance records
   const allAdv: AdvancePayRecord[] = emp.advanceHistory || [];
-  const filteredAdv = allAdv.length > 0
-    ? [...allAdv].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes || '', r.loggedBy, r.amount))
+  const activeAdv = allAdv.filter(r => !r.isDeleted);
+  const deletedAdv = allAdv.filter(r => r.isDeleted);
+  const displayAdv = showDeletedAdv ? deletedAdv : activeAdv;
+
+  const filteredAdv = displayAdv.length > 0
+    ? [...displayAdv].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes || '', r.loggedBy, r.amount))
     : [];
-  const totalAdvances = allAdv.reduce((s, r) => s + r.amount, 0);
+  const totalAdvances = activeAdv.reduce((s, r) => s + r.amount, 0);
   const filteredAdvTotal = filteredAdv.reduce((s, r) => s + r.amount, 0);
 
   // Salary records
@@ -168,9 +184,45 @@ export default function EmployeeHistory() {
 
   const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();
 
+  const handleDeleteAdvance = (rec: AdvancePayRecord) => {
+    toast(`Delete advance payment of ${cur} ${rec.amount.toLocaleString()}?`, {
+      description: 'The advance will be moved to Trash and the employee advance balance will be adjusted. You can restore it anytime.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await deleteAdvancePay(emp.id, rec.id, rec.amount);
+            toast.success('Advance payment moved to Trash', {
+              description: 'You can restore it anytime.',
+              action: {
+                label: 'Undo',
+                onClick: async () => {
+                  await restoreAdvancePay(emp.id, rec.id, rec.amount);
+                  toast.success('Advance payment restored!');
+                }
+              }
+            });
+          } catch (e: any) {
+            toast.error('Failed to delete advance', { description: e.message });
+          }
+        }
+      },
+      cancel: { label: 'Cancel', onClick: () => {} }
+    });
+  };
+
+  const handleRestoreAdvance = async (rec: AdvancePayRecord) => {
+    try {
+      await restoreAdvancePay(emp.id, rec.id, rec.amount);
+      toast.success(`Advance payment of ${cur} ${rec.amount.toLocaleString()} restored to active records!`);
+    } catch (e: any) {
+      toast.error('Failed to restore advance', { description: e.message });
+    }
+  };
+
   // Print Full Payroll History (optimized for 1-page A4 printing)
   const handlePrintPayrollHistory = (targetEmp: Employee) => {
-    const advList = targetEmp.advanceHistory || [];
+    const advList = (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
     const salList = targetEmp.salaryHistory || [];
 
     const advTotal = advList.reduce((s, r) => s + r.amount, 0);
@@ -586,7 +638,7 @@ export default function EmployeeHistory() {
     setIsSharingPayroll(true);
     const toastId = toast.loading('Generating payroll statement card...');
     try {
-      const advList = targetEmp.advanceHistory || [];
+      const advList = (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
       const salList = targetEmp.salaryHistory || [];
       const advTotal = advList.reduce((s, r) => s + r.amount, 0);
       const salTotal = salList.reduce((s, r) => s + r.netPaid, 0);
@@ -1101,22 +1153,66 @@ export default function EmployeeHistory() {
           {/* ── ADVANCES TAB BODY (Section 2: Clean Table) ── */}
           {(historyTab === 'advances' || historyTab === 'statement') && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
-                  <Banknote size={16} className="text-amber-700" />
-                  <span>Advance Pay Records ({filteredAdv.length})</span>
-                </h3>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                    <Banknote size={16} className="text-amber-700" />
+                    <span>Advance Pay Records ({filteredAdv.length})</span>
+                  </h3>
+                  {/* Deleted Advances Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowDeletedAdv(!showDeletedAdv)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer ${
+                      showDeletedAdv
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}
+                    title="View deleted advance payments that can be restored"
+                  >
+                    <Trash2 size={12} />
+                    <span>{showDeletedAdv ? 'Viewing Deleted' : 'Trash'}</span>
+                    {deletedAdv.length > 0 && (
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        showDeletedAdv ? 'bg-white text-amber-800' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {deletedAdv.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
                 <span className="text-xs font-mono font-bold text-amber-800">
                   Total: {cur} {filteredAdvTotal.toLocaleString()}
                 </span>
               </div>
 
+              {/* Deleted Advances Banner */}
+              {showDeletedAdv && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-900">
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle size={15} className="text-amber-600 shrink-0" />
+                    <span>Showing deleted advances. You can restore any record back to active records at any time.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeletedAdv(false)}
+                    className="text-amber-800 hover:underline font-semibold cursor-pointer shrink-0"
+                  >
+                    Back to Active
+                  </button>
+                </div>
+              )}
+
               {filteredAdv.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 border border-dashed rounded-2xl bg-muted/20">
                   <History size={36} className="mx-auto mb-2 opacity-30 text-amber-600" />
-                  <p className="text-sm font-semibold text-gray-700">No genuine advance records for this selection</p>
+                  <p className="text-sm font-semibold text-gray-700">
+                    {showDeletedAdv ? 'No deleted advance records on file' : 'No genuine advance records for this selection'}
+                  </p>
                   <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-                    Only authentic employee advances appear here. Normal salary payments are never mixed into this section.
+                    {showDeletedAdv
+                      ? 'Deleted advance payments will appear here and can be restored.'
+                      : 'Only authentic employee advances appear here. Normal salary payments are never mixed into this section.'}
                   </p>
                 </div>
               ) : (
@@ -1130,25 +1226,58 @@ export default function EmployeeHistory() {
                           <th className="py-2.5 px-3 w-32 text-right">Amount</th>
                           <th className="py-2.5 px-3">Reason / Notes</th>
                           <th className="py-2.5 px-3 w-32">Logged By</th>
+                          <th className="py-2.5 px-3 w-24 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {filteredAdv.map((rec, i) => (
-                          <tr key={rec.id} className="hover:bg-amber-50/40 transition">
+                          <tr key={rec.id} className={`transition ${rec.isDeleted ? 'bg-amber-50/30 hover:bg-amber-50/50 text-gray-500' : 'hover:bg-amber-50/40'}`}>
                             <td className="py-2.5 px-3 text-center font-bold text-gray-400">
                               #{filteredAdv.length - i}
                             </td>
                             <td className="py-2.5 px-3 font-semibold text-gray-800 font-mono">
                               {rec.date}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-800">
+                            <td className={`py-2.5 px-3 text-right font-mono font-bold ${rec.isDeleted ? 'text-gray-400 line-through' : 'text-amber-800'}`}>
                               {cur} {rec.amount.toLocaleString()}
                             </td>
                             <td className="py-2.5 px-3 text-gray-600">
-                              {rec.notes || <span className="text-gray-400 italic">—</span>}
+                              <div className={rec.isDeleted ? 'line-through text-gray-400' : ''}>
+                                {rec.notes || <span className="text-gray-400 italic">—</span>}
+                              </div>
+                              {rec.isDeleted && (
+                                <span className="inline-block mt-0.5 text-[10px] font-bold uppercase px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 border border-red-200">
+                                  Deleted
+                                </span>
+                              )}
                             </td>
                             <td className="py-2.5 px-3 text-gray-500 text-[11px]">
                               {rec.loggedBy}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              {isAdmin && (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {rec.isDeleted ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRestoreAdvance(rec)}
+                                      className="inline-flex items-center gap-1 text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 border border-green-200 px-2 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+                                      title="Restore advance"
+                                    >
+                                      <RotateCcw size={12} /> Restore
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteAdvance(rec)}
+                                      className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                                      title="Delete advance"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -1161,7 +1290,7 @@ export default function EmployeeHistory() {
                           <td className="py-2.5 px-3 text-right font-mono text-sm text-amber-900">
                             {cur} {filteredAdvTotal.toLocaleString()}
                           </td>
-                          <td colSpan={2}></td>
+                          <td colSpan={3}></td>
                         </tr>
                       </tfoot>
                     </table>

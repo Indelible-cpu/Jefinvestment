@@ -44,14 +44,19 @@ export interface Expense {
    * It is tracked here only for cash-flow and audit purposes.
    */
   isSalaryAdvance?: boolean;
+  /** When true, this entry has been soft-deleted and can be restored. */
+  isDeleted?: boolean;
+  deletedAt?: number;
+  deletedBy?: string;
 }
 
 interface ExpenseState {
   expenses: Expense[];
   isLoading: boolean;
   loadExpenses: () => Promise<void>;
-  addExpense: (expense: Omit<Expense, 'id' | 'date'>) => void;
-  deleteExpense: (id: string) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<string | void>;
+  deleteExpense: (id: string, permanent?: boolean) => Promise<void>;
+  restoreExpense: (id: string) => Promise<void>;
   getTodayTotal: () => number;
 }
 
@@ -78,17 +83,43 @@ export const useExpenseStore = create<ExpenseState>()(
           const data = doc.data();
           const rawTitle = data.title || '';
           const rawDesc = data.description || '';
+          const rawCat = data.category || 'General';
+
+          // Backward-compatible advance detection:
+          // Detects advances created both after AND before the upgrade so historical recordings never cause -profit
+          const titleLower = rawTitle.toLowerCase();
+          const descLower = rawDesc.toLowerCase();
+          const catLower = rawCat.toLowerCase();
+          const isSalaryPayment =
+            titleLower.includes('salary payment') ||
+            descLower.includes('net salary payment') ||
+            descLower.includes('salary payment') ||
+            (titleLower.includes('salary') && !titleLower.includes('advance') && !descLower.includes('advance'));
+
+          const isAdvance = data.isSalaryAdvance === true || (
+            !isSalaryPayment && (
+              titleLower.includes('salary advance') ||
+              titleLower.includes('advance pay') ||
+              descLower.includes('salary advance') ||
+              descLower.includes('advance payment') ||
+              (catLower.includes('advance') && !isSalaryPayment)
+            )
+          );
+
           return {
             id: doc.id,
             date: data.date || new Date().toISOString().slice(0, 10),
-            category: data.category || 'General',
+            category: rawCat,
             title: rawTitle,
             description: rawDesc,
             loggedBy: data.loggedBy || 'Admin',
             amount: Number(data.amount) || 0,
             employeeId: data.employeeId || '',
             createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
-            isSalaryAdvance: data.isSalaryAdvance === true,
+            isSalaryAdvance: isAdvance,
+            isDeleted: data.isDeleted === true,
+            deletedAt: data.deletedAt || undefined,
+            deletedBy: data.deletedBy || undefined,
           };
         });
         set({ expenses: mapped, isLoading: false });
@@ -105,15 +136,67 @@ export const useExpenseStore = create<ExpenseState>()(
         branchId,
         date: new Date().toISOString().slice(0, 10),
         createdAt: Date.now(),
+        isDeleted: false,
       };
-      addDoc(collection(db, 'expenses'), newExpense).catch(e => console.warn('Offline write deferred or failed:', e));
+      const docRef = await addDoc(collection(db, 'expenses'), newExpense).catch(e => {
+        console.warn('Offline write deferred or failed:', e);
+        return null;
+      });
+      return docRef ? docRef.id : undefined;
     },
-    deleteExpense: async (id) => {
-      deleteDoc(doc(db, 'expenses', id)).catch(e => console.warn('Offline write deferred or failed:', e));
+    deleteExpense: async (id, permanent = false) => {
+      const target = get().expenses.find(e => e.id === id);
+      const currentUser = useAuthStore.getState().user?.name || 'Admin';
+
+      if (permanent) {
+        await deleteDoc(doc(db, 'expenses', id)).catch(e => console.warn('Offline write deferred or failed:', e));
+        set(state => ({ expenses: state.expenses.filter(e => e.id !== id) }));
+        return;
+      }
+
+      // Soft delete: marks record as deleted so it can be restored at any time
+      const now = Date.now();
+      await updateDoc(doc(db, 'expenses', id), {
+        isDeleted: true,
+        deletedAt: now,
+        deletedBy: currentUser,
+      }).catch(e => console.warn('Offline soft-delete deferred:', e));
+
+      // If this was an employee salary advance, also decrement the employee's advance balance
+      if (target && target.isSalaryAdvance && target.employeeId && target.amount > 0) {
+        updateDoc(doc(db, 'employees', target.employeeId), {
+          advancePay: increment(-target.amount)
+        }).catch(e => console.warn('Failed to adjust employee advancePay on delete:', e));
+      }
+
+      set(state => ({
+        expenses: state.expenses.map(e => e.id === id ? { ...e, isDeleted: true, deletedAt: now, deletedBy: currentUser } : e)
+      }));
+    },
+    restoreExpense: async (id) => {
+      const target = get().expenses.find(e => e.id === id);
+
+      // Restore: remove deleted flag
+      await updateDoc(doc(db, 'expenses', id), {
+        isDeleted: false,
+        deletedAt: null,
+        deletedBy: null,
+      }).catch(e => console.warn('Offline restore deferred:', e));
+
+      // If this was an employee salary advance, re-increment the employee's advance balance
+      if (target && target.isSalaryAdvance && target.employeeId && target.amount > 0) {
+        updateDoc(doc(db, 'employees', target.employeeId), {
+          advancePay: increment(target.amount)
+        }).catch(e => console.warn('Failed to restore employee advancePay:', e));
+      }
+
+      set(state => ({
+        expenses: state.expenses.map(e => e.id === id ? { ...e, isDeleted: false, deletedAt: undefined, deletedBy: undefined } : e)
+      }));
     },
     getTodayTotal: () => {
       const today = new Date().toISOString().slice(0, 10);
-      return get().expenses.filter(e => e.date === today).reduce((sum, e) => sum + e.amount, 0);
+      return get().expenses.filter(e => e.date === today && !e.isDeleted).reduce((sum, e) => sum + e.amount, 0);
     }
   })
 );
@@ -800,6 +883,10 @@ export interface AdvancePayRecord {
   notes?: string;
   loggedBy: string;
   createdAt: number;    // epoch ms for sorting
+  isDeleted?: boolean;  // Soft-deleted advance that can be restored
+  deletedAt?: number;
+  deletedBy?: string;
+  expenseId?: string;
 }
 
 export interface SalaryPayRecord {
@@ -824,6 +911,7 @@ export interface Employee {
   salary: number;
   status: 'PRESENT' | 'ABSENT' | 'LEAVE';
   advancePay?: number;
+  previousAdvancePay?: number; // Allows undo/restore when advance is reset
   branchId?: string;
   department?: string;
   photoUrl?: string;
@@ -853,6 +941,9 @@ interface EmployeeState {
   recordAdvancePay: (id: string, amount: number, notes?: string) => Promise<void>;
   recordSalaryPay: (id: string, netAmount: number, notes?: string, paymentMethod?: string) => Promise<void>;
   clearAdvancePay: (id: string) => Promise<void>;
+  restoreClearedAdvancePay: (id: string) => Promise<void>;
+  deleteAdvancePay: (employeeId: string, advanceRecordId: string, amount: number) => Promise<void>;
+  restoreAdvancePay: (employeeId: string, advanceRecordId: string, amount: number) => Promise<void>;
   loadAdvanceHistory: (id: string) => Promise<void>;
   loadSalaryHistory: (id: string) => Promise<void>;
   getActiveCount: () => number;
@@ -946,21 +1037,10 @@ export const useEmployeeStore = create<EmployeeState>()(
         advancePay: increment(amount)
       }).catch(e => console.warn('Offline write deferred or failed:', e));
 
-      // ── Save to advance history subcollection (permanent record) ──
-      const historyRecord = {
-        amount: Number(amount),
-        date: dateStr,
-        notes: notes || '',
-        loggedBy: currentUser,
-        createdAt: now,
-      };
-      addDoc(collection(db, 'employees', id, 'advanceHistory'), historyRecord)
-        .catch(e => console.warn('Offline write deferred or failed (advance history):', e));
-
-      // Record the advance as a cash-flow transaction in the expenses ledger.
+      // 1. Record the advance as a cash-flow transaction in the expenses ledger.
       // isSalaryAdvance: true marks this as a RECOVERABLE ADVANCE (balance-sheet movement),
       // NOT an operating expense. Profit calculations must exclude it from gross profit deductions.
-      addDoc(collection(db, 'expenses'), {
+      const expDocRef = await addDoc(collection(db, 'expenses'), {
         title: `Salary Advance: ${emp.firstName} ${emp.lastName}`,
         amount: Number(amount),
         category: 'Salary / Advance Pay',
@@ -972,12 +1052,101 @@ export const useEmployeeStore = create<EmployeeState>()(
         employeeId: id,
         createdAt: now,
         isSalaryAdvance: true,  // ← KEY FLAG: excludes this from profit deductions
-      }).catch(e => console.warn('Offline write deferred or failed:', e));
+        isDeleted: false,
+      }).catch(e => {
+        console.warn('Offline expense write deferred or failed:', e);
+        return null;
+      });
+
+      // 2. Save to advance history subcollection with link to expenseId and restorable state
+      const historyRecord = {
+        amount: Number(amount),
+        date: dateStr,
+        notes: notes || '',
+        loggedBy: currentUser,
+        createdAt: now,
+        expenseId: expDocRef?.id || '',
+        isDeleted: false,
+      };
+      addDoc(collection(db, 'employees', id, 'advanceHistory'), historyRecord)
+        .catch(e => console.warn('Offline write deferred or failed (advance history):', e));
     },
     clearAdvancePay: async (id) => {
+      const emp = get().employees.find(e => e.id === id);
+      // Save previous balance in previousAdvancePay to allow instant restore/undo
       updateDoc(doc(db, 'employees', id), {
+        previousAdvancePay: emp?.advancePay || 0,
         advancePay: 0
       }).catch(e => console.warn('Offline write deferred or failed:', e));
+    },
+    restoreClearedAdvancePay: async (id) => {
+      const emp = get().employees.find(e => e.id === id);
+      if (!emp || !emp.previousAdvancePay) return;
+      await updateDoc(doc(db, 'employees', id), {
+        advancePay: emp.previousAdvancePay,
+        previousAdvancePay: 0,
+      }).catch(e => console.warn('Offline write deferred or failed:', e));
+    },
+    deleteAdvancePay: async (employeeId: string, advanceRecordId: string, amount: number) => {
+      const currentUser = useAuthStore.getState().user?.name || 'Admin';
+      const now = Date.now();
+
+      // 1. If it was linked from legacy expenses
+      if (advanceRecordId.startsWith('exp_')) {
+        const rawExpId = advanceRecordId.replace('exp_', '');
+        await useExpenseStore.getState().deleteExpense(rawExpId);
+      } else {
+        // Mark subcollection record as soft-deleted
+        await updateDoc(doc(db, 'employees', employeeId, 'advanceHistory', advanceRecordId), {
+          isDeleted: true,
+          deletedAt: now,
+          deletedBy: currentUser,
+        }).catch(e => console.warn('Failed to delete advanceHistory doc:', e));
+
+        // Decrement the employee's running advancePay balance
+        await updateDoc(doc(db, 'employees', employeeId), {
+          advancePay: increment(-amount)
+        }).catch(e => console.warn('Failed to reduce employee advancePay balance:', e));
+      }
+
+      // Also soft-delete any corresponding expense in expenses collection
+      const matchingExp = useExpenseStore.getState().expenses.find(
+        e => e.employeeId === employeeId && e.amount === amount && e.isSalaryAdvance && !e.isDeleted
+      );
+      if (matchingExp && !advanceRecordId.startsWith('exp_')) {
+        await useExpenseStore.getState().deleteExpense(matchingExp.id);
+      }
+
+      await get().loadAdvanceHistory(employeeId);
+    },
+    restoreAdvancePay: async (employeeId: string, advanceRecordId: string, amount: number) => {
+      // 1. If it was linked from legacy expenses
+      if (advanceRecordId.startsWith('exp_')) {
+        const rawExpId = advanceRecordId.replace('exp_', '');
+        await useExpenseStore.getState().restoreExpense(rawExpId);
+      } else {
+        // Restore subcollection record
+        await updateDoc(doc(db, 'employees', employeeId, 'advanceHistory', advanceRecordId), {
+          isDeleted: false,
+          deletedAt: null,
+          deletedBy: null,
+        }).catch(e => console.warn('Failed to restore advanceHistory doc:', e));
+
+        // Re-increment the employee's running advancePay balance
+        await updateDoc(doc(db, 'employees', employeeId), {
+          advancePay: increment(amount)
+        }).catch(e => console.warn('Failed to restore employee advancePay balance:', e));
+      }
+
+      // Also restore any corresponding deleted expense in expenses collection
+      const matchingDeletedExp = useExpenseStore.getState().expenses.find(
+        e => e.employeeId === employeeId && e.amount === amount && e.isSalaryAdvance && e.isDeleted
+      );
+      if (matchingDeletedExp && !advanceRecordId.startsWith('exp_')) {
+        await useExpenseStore.getState().restoreExpense(matchingDeletedExp.id);
+      }
+
+      await get().loadAdvanceHistory(employeeId);
     },
     recordSalaryPay: async (id, netAmount, notes, paymentMethod = 'CASH') => {
       const emp = get().employees.find(e => e.id === id);
@@ -1019,6 +1188,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         branchId,
         employeeId: id,
         createdAt: now,
+        isDeleted: false,
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
@@ -1046,6 +1216,10 @@ export const useEmployeeStore = create<EmployeeState>()(
             notes: data.notes || '',
             loggedBy: data.loggedBy || 'System',
             createdAt: created || Date.now(),
+            isDeleted: data.isDeleted === true,
+            deletedAt: data.deletedAt || undefined,
+            deletedBy: data.deletedBy || undefined,
+            expenseId: data.expenseId || '',
           };
         });
 
@@ -1109,6 +1283,10 @@ export const useEmployeeStore = create<EmployeeState>()(
                   notes: data.description || data.title || 'Salary Advance',
                   loggedBy: data.loggedBy || 'System',
                   createdAt: expCreated || (expDate ? new Date(expDate).getTime() : Date.now()),
+                  isDeleted: data.isDeleted === true,
+                  deletedAt: data.deletedAt || undefined,
+                  deletedBy: data.deletedBy || undefined,
+                  expenseId: ed.id,
                 });
               }
             });

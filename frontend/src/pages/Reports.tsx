@@ -3,7 +3,7 @@ import { BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard, ShoppingBa
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from 'recharts';
 import { useSaleStore, useExpenseStore } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { calcDailyRealizedProfit, calcSaleProfit } from '../utils/profitUtils';
+import { calcDailyRealizedProfit, calcSaleProfit, isSalaryAdvanceExpense } from '../utils/profitUtils';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -43,9 +43,9 @@ export default function Reports() {
       });
       
       const daySalesTotal = directAndInitial + repayments;
-      // Exclude salary advances (isSalaryAdvance:true) — they are not operating expenses
+      // Exclude soft-deleted expenses and salary advances (both new and legacy) — they are not operating expenses
       const dayExpenses = expenses
-        .filter(e => e.date === dateStr && !e.isSalaryAdvance)
+        .filter(e => e.date === dateStr && !e.isDeleted && !isSalaryAdvanceExpense(e))
         .reduce((sum, e) => sum + e.amount, 0);
       const dayProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - dayExpenses;
       data.push({
@@ -62,7 +62,7 @@ export default function Reports() {
   /* ── Daily report (completed only) ── */
   const data = useMemo(() => {
     const daySales = completedSales.filter(s => s.date === reportDate);
-    const dayExpenses = expenses.filter(e => e.date === reportDate);
+    const dayExpenses = expenses.filter(e => e.date === reportDate && !e.isDeleted);
 
     // 1. Direct fully paid sales for the day (strictly non-credit)
     const directCashSales = daySales.filter(s => s.paymentMethod === 'CASH' && !s.isCredit).reduce((sum, s) => sum + s.total, 0);
@@ -110,7 +110,7 @@ export default function Reports() {
 
     // Exclude salary advances from operating expenses — advances are balance-sheet movements,
     // not income-statement charges. They do not reduce today's profit.
-    const operatingExpenses = dayExpenses.filter(e => !e.isSalaryAdvance);
+    const operatingExpenses = dayExpenses.filter(e => !isSalaryAdvanceExpense(e));
     const totalExpenses = operatingExpenses.reduce((sum, e) => sum + e.amount, 0);
     const netCash = cashSales - totalExpenses;
     const netRevenue = realizedRevenue - totalExpenses;
@@ -151,9 +151,9 @@ export default function Reports() {
       if (s.paymentMethod === 'CREDIT') return sum + (s.amountPaid || 0) + ((s as any).creditPaid || 0);
       return sum + s.total;
     }, 0);
-    // Exclude salary advances from cumulative operating expenses
+    // Exclude soft-deleted and salary advances from cumulative operating expenses
     const totalExpenses = expenses
-      .filter(e => !e.isSalaryAdvance)
+      .filter(e => !e.isDeleted && !isSalaryAdvanceExpense(e))
       .reduce((sum, e) => sum + e.amount, 0);
     const totalProfit = completedSales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
     return { totalRevenue, totalExpenses, totalProfit };
