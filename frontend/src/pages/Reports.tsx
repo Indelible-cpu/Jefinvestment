@@ -43,7 +43,10 @@ export default function Reports() {
       });
       
       const daySalesTotal = directAndInitial + repayments;
-      const dayExpenses = expenses.filter(e => e.date === dateStr).reduce((sum, e) => sum + e.amount, 0);
+      // Exclude salary advances (isSalaryAdvance:true) — they are not operating expenses
+      const dayExpenses = expenses
+        .filter(e => e.date === dateStr && !e.isSalaryAdvance)
+        .reduce((sum, e) => sum + e.amount, 0);
       const dayProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - dayExpenses;
       data.push({
         name: d.toLocaleDateString('en-GB', { weekday: 'short' }),
@@ -105,7 +108,10 @@ export default function Reports() {
     
     const newCreditIssued = daySales.filter(s => s.paymentMethod === 'CREDIT').reduce((sum, s) => sum + (s.total - (s.amountPaid || 0)), 0);
 
-    const totalExpenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
+    // Exclude salary advances from operating expenses — advances are balance-sheet movements,
+    // not income-statement charges. They do not reduce today's profit.
+    const operatingExpenses = dayExpenses.filter(e => !e.isSalaryAdvance);
+    const totalExpenses = operatingExpenses.reduce((sum, e) => sum + e.amount, 0);
     const netCash = cashSales - totalExpenses;
     const netRevenue = realizedRevenue - totalExpenses;
     const dailyProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
@@ -145,7 +151,10 @@ export default function Reports() {
       if (s.paymentMethod === 'CREDIT') return sum + (s.amountPaid || 0) + ((s as any).creditPaid || 0);
       return sum + s.total;
     }, 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    // Exclude salary advances from cumulative operating expenses
+    const totalExpenses = expenses
+      .filter(e => !e.isSalaryAdvance)
+      .reduce((sum, e) => sum + e.amount, 0);
     const totalProfit = completedSales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - totalExpenses;
     return { totalRevenue, totalExpenses, totalProfit };
   }, [completedSales, expenses]);

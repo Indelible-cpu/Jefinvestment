@@ -31,8 +31,15 @@ export interface DailyRealizedFinancials {
   newCreditIssued: number; // Uncollected credit debt issued today
   // Costs & Profit
   realizedGrossProfit: number;
+  /** Operating expenses only — salary advances are excluded (see salaryAdvancesPaid). */
   totalExpenses: number;
   realizedNetProfit: number;
+  /**
+   * Total salary advance cash paid out today.
+   * These are recoverable advances — balance-sheet movements funded from accumulated
+   * business cash. They do NOT reduce gross or net profit from today's sales.
+   */
+  salaryAdvancesPaid: number;
   // Daily Savings / Reserve
   savingsPercentage: number;
   dailySavingsTarget: number;
@@ -118,7 +125,18 @@ export function calcDailyRealizedProfit(
   const totalRealizedRevenue = cashRevenue + transferRevenue;
 
   const realizedGrossProfit = directRealizedGrossProfit + repaymentRealizedGrossProfit;
-  const totalExpenses = dayExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+  // Split today's expenses into:
+  //   • Operating expenses  → deducted from gross profit (rent, supplies, electricity, staff meals, etc.)
+  //   • Salary advances     → funded from accumulated business cash; NOT deducted from today's profit
+  //     (A salary advance is a recoverable loan to an employee — a balance-sheet asset movement,
+  //      not an income-statement charge. Deducting it from today's profit is incorrect accounting.)
+  const operatingExpenses = dayExpenses.filter(e => !e.isSalaryAdvance);
+  const advanceExpenses   = dayExpenses.filter(e =>  e.isSalaryAdvance);
+
+  const totalExpenses      = operatingExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const salaryAdvancesPaid = advanceExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
   const realizedNetProfit = realizedGrossProfit - totalExpenses;
 
   // Savings Target: only from positive realized net profit
@@ -138,6 +156,7 @@ export function calcDailyRealizedProfit(
     realizedGrossProfit: Math.round(realizedGrossProfit),
     totalExpenses,
     realizedNetProfit: Math.round(realizedNetProfit),
+    salaryAdvancesPaid,
     savingsPercentage: pct,
     dailySavingsTarget,
     netRetainedProfit: Math.round(netRetainedProfit),

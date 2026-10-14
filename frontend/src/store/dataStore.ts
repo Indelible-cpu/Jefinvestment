@@ -37,6 +37,13 @@ export interface Expense {
   amount: number;
   employeeId?: string;
   createdAt?: number;
+  /**
+   * When true, this expense is a recoverable salary advance principal payment.
+   * It must NOT be deducted from gross profit — it is funded from accumulated
+   * business cash (a balance-sheet movement, not an income-statement expense).
+   * It is tracked here only for cash-flow and audit purposes.
+   */
+  isSalaryAdvance?: boolean;
 }
 
 interface ExpenseState {
@@ -81,6 +88,7 @@ export const useExpenseStore = create<ExpenseState>()(
             amount: Number(data.amount) || 0,
             employeeId: data.employeeId || '',
             createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
+            isSalaryAdvance: data.isSalaryAdvance === true,
           };
         });
         set({ expenses: mapped, isLoading: false });
@@ -949,7 +957,9 @@ export const useEmployeeStore = create<EmployeeState>()(
       addDoc(collection(db, 'employees', id, 'advanceHistory'), historyRecord)
         .catch(e => console.warn('Offline write deferred or failed (advance history):', e));
 
-      // Automatically record as an expense for accounting
+      // Record the advance as a cash-flow transaction in the expenses ledger.
+      // isSalaryAdvance: true marks this as a RECOVERABLE ADVANCE (balance-sheet movement),
+      // NOT an operating expense. Profit calculations must exclude it from gross profit deductions.
       addDoc(collection(db, 'expenses'), {
         title: `Salary Advance: ${emp.firstName} ${emp.lastName}`,
         amount: Number(amount),
@@ -961,6 +971,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         branchId,
         employeeId: id,
         createdAt: now,
+        isSalaryAdvance: true,  // ← KEY FLAG: excludes this from profit deductions
       }).catch(e => console.warn('Offline write deferred or failed:', e));
     },
     clearAdvancePay: async (id) => {

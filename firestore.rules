@@ -26,20 +26,20 @@ service cloud.firestore {
       return isAuthenticated() && userRole() == 'MANAGER';
     }
 
-    // Settings - Public read allowed for storefront branding & WhatsApp contact
+    // Settings — Public read allowed so storefront can load company name, phone & banner
     match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Users — authenticated users can update their own profile, FCM tokens, and notification preferences
+    // Users
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow update: if request.auth.uid == userId || isAdmin();
       allow create, delete: if isAdmin();
     }
 
-    // Products (Inventory) - Public read allowed for customer catalog browsing
+    // Products (Inventory) — Public read allowed so customers can browse catalog
     match /products/{productId} {
       allow read: if true;
       allow create, delete: if isAdmin() || isManager();
@@ -65,7 +65,7 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
-    // Stationery Services - Public read allowed for storefront catalog
+    // Stationery Services — Public read allowed so printing/copying services appear in store
     match /stationeryServices/{serviceId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -77,9 +77,10 @@ service cloud.firestore {
       allow create, delete: if isAdmin() || isManager();
       allow update: if isAdmin() || isManager();
 
+      // Subcollections: advanceHistory, salaryHistory
       match /{subcollection=**} {
         allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
+        allow write: if isAdmin() || isManager();
       }
     }
     
@@ -107,16 +108,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Online Orders (WhatsApp Storefront)
+    // Online Orders (WhatsApp Storefront) — Public customers can submit orders; staff can manage
     match /onlineOrders/{orderId} {
-      allow create: if true; // Public customers placing orders
-      allow read, update, delete: if isAuthenticated(); // Staff only
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated();
     }
 
     // Storefront Traffic & Visitor Analytics
     match /storefrontAnalytics/{docId} {
-      allow read: if isAuthenticated(); // Staff and admin can view analytics
-      allow create, update: if true; // Public visitors can record visits
+      allow read: if isAuthenticated();
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 
@@ -126,4 +127,3 @@ service cloud.firestore {
     }
   }
 }
-
