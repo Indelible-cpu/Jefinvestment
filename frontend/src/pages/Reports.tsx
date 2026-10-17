@@ -1,20 +1,23 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   BarChart3, TrendingUp, TrendingDown, DollarSign, CreditCard,
   ShoppingBag, AlertCircle, Printer, Calendar, Package, Activity,
-  ChevronLeft, ChevronRight, PiggyBank, ChevronDown, Filter,
+  ChevronLeft, ChevronRight, PiggyBank, ChevronDown, Filter, Loader2,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, BarChart, Bar,
 } from 'recharts';
-import { useSaleStore, useExpenseStore } from '../store/dataStore';
+import { collection, query, where, getDocs, orderBy, type Query } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { useAuthStore } from '../store/authStore';
+import { useSaleStore, useExpenseStore, type SaleRecord, type Expense } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { calcSaleProfit, isSalaryAdvanceExpense } from '../utils/profitUtils';
 
-// ─── Date Filter Types ──────────────────────────────────────────────────────────
+// ─── Date Filter Types & Helpers ───────────────────────────────────────────────
 
-type PeriodPreset =
+export type PeriodPreset =
   | 'this_month'
   | 'last_month'
   | 'prev_3_months'
@@ -25,12 +28,12 @@ type PeriodPreset =
   | 'custom_range'
   | 'specific_month';
 
-interface DateRange {
+export interface DateRange {
   start: string; // YYYY-MM-DD
   end: string;   // YYYY-MM-DD
 }
 
-const PRESET_LABELS: Record<PeriodPreset, string> = {
+export const PRESET_LABELS: Record<PeriodPreset, string> = {
   this_month:     'This Month',
   last_month:     'Last Month',
   prev_3_months:  'Previous 3 Complete Months',
@@ -42,22 +45,25 @@ const PRESET_LABELS: Record<PeriodPreset, string> = {
   specific_month: 'Specific Month',
 };
 
-/** Returns ISO YYYY-MM-DD for a Date */
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/** Formats a local Date object into YYYY-MM-DD string without UTC shift */
+function formatYMD(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-/** Returns YYYY-MM-DD for the last day of a given month */
+/** Returns YYYY-MM-DD for the last day of a given year and 0-indexed month */
 function lastDayOfMonth(year: number, month: number): string {
-  return toDateStr(new Date(year, month + 1, 0));
+  return formatYMD(new Date(year, month + 1, 0));
 }
 
-/** Returns YYYY-MM-DD for the first day of a given month */
+/** Returns YYYY-MM-DD for the first day of a given year and 0-indexed month */
 function firstDayOfMonth(year: number, month: number): string {
-  return toDateStr(new Date(year, month, 1));
+  return formatYMD(new Date(year, month, 1));
 }
 
-function getDateRange(
+export function getDateRange(
   preset: PeriodPreset,
   customStart: string,
   customEnd: string,
@@ -70,7 +76,7 @@ function getDateRange(
 
   switch (preset) {
     case 'this_month':
-      return { start: firstDayOfMonth(y, m), end: toDateStr(now) };
+      return { start: firstDayOfMonth(y, m), end: formatYMD(now) };
 
     case 'last_month': {
       const lm = m === 0 ? 11 : m - 1;
@@ -79,10 +85,10 @@ function getDateRange(
     }
 
     case 'prev_3_months': {
-      // Previous 3 complete calendar months, not including the current month
+      // Previous 3 complete calendar months, excluding the current month
       const endMonth = m === 0 ? 11 : m - 1;
       const endYear  = m === 0 ? y - 1 : y;
-      const startRaw = new Date(endYear, endMonth - 2, 1); // go back 2 more months
+      const startRaw = new Date(endYear, endMonth - 2, 1);
       return {
         start: firstDayOfMonth(startRaw.getFullYear(), startRaw.getMonth()),
         end:   lastDayOfMonth(endYear, endMonth),
@@ -90,6 +96,7 @@ function getDateRange(
     }
 
     case 'prev_6_months': {
+      // Previous 6 complete calendar months, excluding the current month
       const endMonth = m === 0 ? 11 : m - 1;
       const endYear  = m === 0 ? y - 1 : y;
       const startRaw = new Date(endYear, endMonth - 5, 1);
@@ -100,6 +107,7 @@ function getDateRange(
     }
 
     case 'prev_12_months': {
+      // Previous 12 complete calendar months, excluding the current month
       const endMonth = m === 0 ? 11 : m - 1;
       const endYear  = m === 0 ? y - 1 : y;
       const startRaw = new Date(endYear, endMonth - 11, 1);
@@ -110,10 +118,10 @@ function getDateRange(
     }
 
     case 'year_to_date':
-      return { start: `${y}-01-01`, end: toDateStr(now) };
+      return { start: `${y}-01-01`, end: formatYMD(now) };
 
     case 'all_time':
-      return null; // signals "no filter — use everything"
+      return null; // signals no date boundary — all available records
 
     case 'custom_range':
       if (!customStart || !customEnd) return null;
@@ -133,7 +141,7 @@ function inRange(dateStr: string, range: DateRange | null): boolean {
   return dateStr >= range.start && dateStr <= range.end;
 }
 
-// Build list of months back to a reasonable start (e.g. 5 years)
+// Build list of months back to 5 years
 function buildMonthOptions(): { label: string; year: number; month: number }[] {
   const options: { label: string; year: number; month: number }[] = [];
   const now = new Date();
@@ -149,10 +157,7 @@ function buildMonthOptions(): { label: string; year: number; month: number }[] {
 }
 
 const MONTH_OPTIONS = buildMonthOptions();
-
-// ─── Helpers ────────────────────────────────────────────────────────────────────
-
-const today = new Date().toISOString().slice(0, 10);
+const today = formatYMD(new Date());
 
 function rangeLabel(range: DateRange | null, preset: PeriodPreset): string {
   if (preset === 'all_time') return 'All Time';
@@ -164,8 +169,6 @@ function rangeLabel(range: DateRange | null, preset: PeriodPreset): string {
 // ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function Reports() {
-  // Legacy single-date (daily) state — kept for backward compat with daily view
-  const [reportDate, setReportDate] = useState(today);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
 
@@ -177,9 +180,16 @@ export default function Reports() {
   const [specificMonth, setSpecificMonth] = useState(new Date().getMonth());
   const [filterOpen, setFilterOpen]       = useState(false);
 
+  // Store data (default holds last 90 days for fast UI performance)
   const { sales, isLoading: isLoadingSales } = useSaleStore();
   const { expenses, isLoading: isLoadingExpenses } = useExpenseStore();
   const settings = useSettingsStore();
+  const user = useAuthStore(state => state.user);
+
+  // Historical data loaded dynamically from Firestore when user requests data older than 90 days or All Time
+  const [historicalSales, setHistoricalSales] = useState<SaleRecord[]>([]);
+  const [historicalExpenses, setHistoricalExpenses] = useState<Expense[]>([]);
+  const [isLoadingHistorical, setIsLoadingHistorical] = useState(false);
 
   // ── Derived date range ──
   const dateRange = useMemo(
@@ -187,25 +197,207 @@ export default function Reports() {
     [preset, customStart, customEnd, specificYear, specificMonth],
   );
 
+  // ── Query Firestore for historical data if filter extends beyond standard 90-day window ──
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchHistorical() {
+      const now = Date.now();
+      const cutoff90Days = now - 85 * 24 * 60 * 60 * 1000; // 85-day threshold with 5-day safety margin
+      const needsAllTime = preset === 'all_time';
+      const rangeStartsBeforeCutoff = dateRange && new Date(dateRange.start + 'T00:00:00').getTime() < cutoff90Days;
+
+      if (!needsAllTime && !rangeStartsBeforeCutoff) {
+        // Current in-memory store already covers this period completely
+        setHistoricalSales([]);
+        setHistoricalExpenses([]);
+        return;
+      }
+
+      setIsLoadingHistorical(true);
+
+      try {
+        const branchId = user?.branchId || 'main';
+        const isAdmin = user?.role === 'ADMIN';
+
+        // 1. Fetch Sales
+        let salesDocs: any[] = [];
+        try {
+          let salesQ: Query;
+          if (needsAllTime) {
+            salesQ = isAdmin
+              ? query(collection(db, 'sales'), orderBy('createdAt', 'desc'))
+              : query(collection(db, 'sales'), where('branchId', '==', branchId), orderBy('createdAt', 'desc'));
+          } else {
+            const startMs = new Date(dateRange!.start + 'T00:00:00').getTime();
+            const endMs = new Date(dateRange!.end + 'T23:59:59.999').getTime();
+            salesQ = isAdmin
+              ? query(collection(db, 'sales'), where('createdAt', '>=', startMs), where('createdAt', '<=', endMs))
+              : query(collection(db, 'sales'), where('branchId', '==', branchId), where('createdAt', '>=', startMs), where('createdAt', '<=', endMs));
+          }
+          const snap = await getDocs(salesQ);
+          salesDocs = snap.docs;
+        } catch (e) {
+          // Fallback query if composite index is pending
+          console.warn('Composite historical sales query fallback:', e);
+          const rawQ = isAdmin
+            ? query(collection(db, 'sales'))
+            : query(collection(db, 'sales'), where('branchId', '==', branchId));
+          const snap = await getDocs(rawQ);
+          salesDocs = snap.docs;
+        }
+
+        const mappedSales: SaleRecord[] = salesDocs.map(doc => {
+          const s = doc.data();
+          const d = new Date(s.createdAt || Date.now());
+          return {
+            id: doc.id,
+            invoiceNumber: s.invoiceNumber || doc.id,
+            date: s.date || d.toISOString().slice(0, 10),
+            time: s.time || d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+            cashier: s.cashier || 'Unknown',
+            items: s.items || [],
+            subtotal: Number(s.subtotal || 0),
+            discount: Number(s.discount || 0),
+            taxAmount: Number(s.taxAmount || 0),
+            total: Number(s.total || 0),
+            paymentMethod: s.paymentMethod || 'CASH',
+            amountPaid: (s.amountPaid !== undefined && s.amountPaid !== null)
+              ? Number(s.amountPaid)
+              : (s.paymentMethod === 'CREDIT' || s.isCredit ? 0 : Number(s.total || 0)),
+            customerName: s.customerName,
+            customerPhone: s.customerPhone,
+            customerId: s.customerId,
+            isCredit: s.isCredit || false,
+            dueDate: s.dueDate,
+            creditPaid: s.creditPaid !== undefined && s.creditPaid !== null ? Number(s.creditPaid) : undefined,
+            repayments: Array.isArray(s.repayments) ? s.repayments : undefined,
+            status: (s.status || 'completed').toLowerCase() as SaleRecord['status'],
+            syncStatus: 'synced',
+            branch: s.branch || s.branchId,
+          };
+        });
+
+        // 2. Fetch Expenses
+        let expenseDocs: any[] = [];
+        try {
+          let expQ: Query;
+          if (needsAllTime) {
+            expQ = isAdmin
+              ? query(collection(db, 'expenses'), orderBy('createdAt', 'desc'))
+              : query(collection(db, 'expenses'), where('branchId', '==', branchId), orderBy('createdAt', 'desc'));
+          } else {
+            const startMs = new Date(dateRange!.start + 'T00:00:00').getTime();
+            const endMs = new Date(dateRange!.end + 'T23:59:59.999').getTime();
+            expQ = isAdmin
+              ? query(collection(db, 'expenses'), where('createdAt', '>=', startMs), where('createdAt', '<=', endMs))
+              : query(collection(db, 'expenses'), where('branchId', '==', branchId), where('createdAt', '>=', startMs), where('createdAt', '<=', endMs));
+          }
+          const snap = await getDocs(expQ);
+          expenseDocs = snap.docs;
+        } catch (e) {
+          console.warn('Composite historical expenses query fallback:', e);
+          const rawQ = isAdmin
+            ? query(collection(db, 'expenses'))
+            : query(collection(db, 'expenses'), where('branchId', '==', branchId));
+          const snap = await getDocs(rawQ);
+          expenseDocs = snap.docs;
+        }
+
+        const mappedExpenses: Expense[] = expenseDocs.map(doc => {
+          const data = doc.data();
+          const rawTitle = data.title || '';
+          const rawDesc = data.description || '';
+          const rawCat = data.category || 'General';
+          const titleLower = rawTitle.toLowerCase();
+          const descLower = rawDesc.toLowerCase();
+          const catLower = rawCat.toLowerCase();
+          const isSalaryPayment =
+            titleLower.includes('salary payment') ||
+            descLower.includes('net salary payment') ||
+            descLower.includes('salary payment') ||
+            (titleLower.includes('salary') && !titleLower.includes('advance') && !descLower.includes('advance'));
+
+          const isAdvance = data.isSalaryAdvance === true || (
+            !isSalaryPayment && (
+              titleLower.includes('salary advance') ||
+              titleLower.includes('advance pay') ||
+              descLower.includes('salary advance') ||
+              descLower.includes('advance payment') ||
+              (catLower.includes('advance') && !isSalaryPayment)
+            )
+          );
+
+          return {
+            id: doc.id,
+            date: data.date || new Date().toISOString().slice(0, 10),
+            category: rawCat,
+            title: rawTitle,
+            description: rawDesc,
+            loggedBy: data.loggedBy || 'Admin',
+            amount: Number(data.amount) || 0,
+            employeeId: data.employeeId || '',
+            createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
+            isSalaryAdvance: isAdvance,
+            isDeleted: data.isDeleted === true,
+          };
+        });
+
+        if (!isCancelled) {
+          setHistoricalSales(mappedSales);
+          setHistoricalExpenses(mappedExpenses);
+        }
+      } catch (err) {
+        console.error('Error fetching historical records from Firestore:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingHistorical(false);
+        }
+      }
+    }
+
+    fetchHistorical();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [preset, dateRange, user?.role, user?.branchId]);
+
+  // ── Unified Sales and Expenses (deduplicated by ID) ──
+  const effectiveSales = useMemo(() => {
+    if (historicalSales.length === 0) return sales;
+    const map = new Map<string, SaleRecord>();
+    for (const s of sales) map.set(s.id, s);
+    for (const s of historicalSales) map.set(s.id, s);
+    return Array.from(map.values());
+  }, [sales, historicalSales]);
+
+  const effectiveExpenses = useMemo(() => {
+    if (historicalExpenses.length === 0) return expenses;
+    const map = new Map<string, Expense>();
+    for (const e of expenses) map.set(e.id, e);
+    for (const e of historicalExpenses) map.set(e.id, e);
+    return Array.from(map.values());
+  }, [expenses, historicalExpenses]);
+
   // Only count completed sales everywhere
   const completedSales = useMemo(
-    () => sales.filter(s => (s.status ?? 'completed') === 'completed'),
-    [sales],
+    () => effectiveSales.filter(s => (s.status ?? 'completed') === 'completed'),
+    [effectiveSales],
   );
 
-  // Sales and expenses filtered to the selected period
+  // Sales and expenses strictly filtered to the selected period
   const periodSales = useMemo(
     () => completedSales.filter(s => inRange(s.date, dateRange)),
     [completedSales, dateRange],
   );
 
   const periodExpenses = useMemo(
-    () => expenses.filter(e => !e.isDeleted && inRange(e.date, dateRange)),
-    [expenses, dateRange],
+    () => effectiveExpenses.filter(e => !e.isDeleted && inRange(e.date, dateRange)),
+    [effectiveExpenses, dateRange],
   );
 
   // ── Period financial summary ────────────────────────────────────────────────
-
   const summary = useMemo(() => {
     // 1. Direct non-credit sales
     const directCashSales = periodSales
@@ -248,18 +440,18 @@ export default function Reports() {
       }
     });
 
-    const cashSales      = directCashSales + creditInitialPayments + repaymentCash;
-    const bankSales      = directBankSales  + repaymentBank;
-    const momoSales      = directMomoSales  + repaymentMomo;
-    const transferSales  = bankSales + momoSales;
-    const totalSales     = cashSales + transferSales;
+    const cashSales       = directCashSales + creditInitialPayments + repaymentCash;
+    const bankSales       = directBankSales + repaymentBank;
+    const momoSales       = directMomoSales + repaymentMomo;
+    const transferSales   = bankSales + momoSales;
+    const totalSales      = cashSales + transferSales;
     const realizedRevenue = totalSales;
 
-    // Operating expenses only (exclude salary advances)
+    // Operating expenses only (exclude recoverable salary advances)
     const operatingExpenses = periodExpenses.filter(e => !isSalaryAdvanceExpense(e));
     const totalExpenses = operatingExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // Gross profit (accrual per-sale) over the period
+    // Gross profit (revenue - cost of goods sold - discounts) over the period
     const grossProfit = periodSales.reduce((sum, s) => sum + calcSaleProfit(s), 0);
     const netProfit   = grossProfit - totalExpenses;
     const netRevenue  = realizedRevenue - totalExpenses;
@@ -273,13 +465,13 @@ export default function Reports() {
     };
   }, [periodSales, periodExpenses, completedSales, dateRange]);
 
-  // ── 7-day trend chart (always last 7 calendar days — independent of filter) ──
+  // ── 7-day trend chart (always last 7 calendar days — independent of reporting period) ──
   const trendData = useMemo(() => {
     const data = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = formatYMD(d);
       const daySales = completedSales.filter(s => s.date === dateStr);
 
       const directAndInitial = daySales.reduce((sum, s) => {
@@ -297,7 +489,7 @@ export default function Reports() {
       });
 
       const daySalesTotal = directAndInitial + repayments;
-      const dayExpenses = expenses
+      const dayExpenses = effectiveExpenses
         .filter(e => e.date === dateStr && !e.isDeleted && !isSalaryAdvanceExpense(e))
         .reduce((sum, e) => sum + e.amount, 0);
       const dayProfit = daySales.reduce((sum, s) => sum + calcSaleProfit(s), 0) - dayExpenses;
@@ -311,7 +503,7 @@ export default function Reports() {
       });
     }
     return data;
-  }, [completedSales, expenses]);
+  }, [completedSales, effectiveExpenses]);
 
   // ── Item analytics for selected period ──
   const itemData = useMemo(() => {
@@ -342,9 +534,7 @@ export default function Reports() {
     return { itemRows, chartData };
   }, [periodSales]);
 
-  // ── Daily transactions (for the single-day view under the period summary) ──
-  // When the user has selected a specific preset, the transactions table shows
-  // all transactions in the selected period, paginated.
+  // ── Period transactions (paginated, sorted newest first) ──
   const periodTransactions = useMemo(() => {
     return periodSales.slice().sort((a, b) => {
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
@@ -357,10 +547,12 @@ export default function Reports() {
   const cur = settings.currency;
   const label = rangeLabel(dateRange, preset);
 
-  // Margin percentage
+  // Profit margin percentage
   const marginPct = summary.totalSales > 0
     ? Math.round(summary.netProfit / summary.totalSales * 100)
     : 0;
+
+  const isGlobalLoading = isLoadingSales || isLoadingExpenses || isLoadingHistorical;
 
   return (
     <div className="p-1.5 sm:p-3 md:p-6 pb-24">
@@ -371,10 +563,26 @@ export default function Reports() {
             <BarChart3 size={24} className="sm:w-7 sm:h-7" /> Business Reports
           </h1>
           <p className="text-gray-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">
-            Financial summary, cash reconciliation, and analytics
+            Financial summary, cash reconciliation, and period analytics
           </p>
         </div>
         <div className="flex gap-2 items-center flex-wrap">
+          {/* Quick period dropdown */}
+          <select
+            value={preset}
+            onChange={e => {
+              setPreset(e.target.value as PeriodPreset);
+              setPage(1);
+            }}
+            className="border rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm bg-white font-medium text-gray-700 shadow-xs cursor-pointer"
+          >
+            {(Object.keys(PRESET_LABELS) as PeriodPreset[]).map(p => (
+              <option key={p} value={p}>
+                {PRESET_LABELS[p]}
+              </option>
+            ))}
+          </select>
+
           <button
             onClick={handlePrint}
             className="flex items-center gap-1.5 border px-3 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition text-xs sm:text-sm shadow-xs"
@@ -383,6 +591,14 @@ export default function Reports() {
           </button>
         </div>
       </div>
+
+      {/* ── Historical Query Loading Banner ── */}
+      {isLoadingHistorical && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs sm:text-sm animate-pulse">
+          <Loader2 size={16} className="animate-spin text-blue-600" />
+          <span>Fetching historical records from Firestore for <strong>{PRESET_LABELS[preset]}</strong>...</span>
+        </div>
+      )}
 
       {/* ── Date Filter Panel ── */}
       <div className="bg-white border rounded-xl shadow-sm mb-5">
@@ -395,15 +611,20 @@ export default function Reports() {
             <span>Reporting Period:</span>
             <span className="text-primary font-bold">{PRESET_LABELS[preset]}</span>
             {label && (
-              <span className="hidden sm:inline text-gray-400 font-normal text-xs ml-1">
+              <span className="hidden sm:inline text-gray-500 font-normal text-xs ml-1">
                 ({label})
               </span>
             )}
           </span>
-          <ChevronDown
-            size={16}
-            className={`text-gray-400 transition-transform ${filterOpen ? 'rotate-180' : ''}`}
-          />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-primary font-medium hover:underline hidden sm:inline">
+              {filterOpen ? 'Collapse filter' : 'Change filter'}
+            </span>
+            <ChevronDown
+              size={16}
+              className={`text-gray-400 transition-transform ${filterOpen ? 'rotate-180' : ''}`}
+            />
+          </div>
         </button>
 
         {filterOpen && (
@@ -427,26 +648,26 @@ export default function Reports() {
 
             {/* Custom date range inputs */}
             {preset === 'custom_range' && (
-              <div className="flex flex-wrap gap-3 items-center pt-1">
+              <div className="flex flex-wrap gap-3 items-center pt-1 bg-gray-50 p-3 rounded-lg border">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-500 font-medium">Start Date</label>
+                  <label className="text-xs text-gray-600 font-medium">Start Date</label>
                   <input
                     type="date"
                     value={customStart}
                     max={customEnd || today}
                     onChange={e => { setCustomStart(e.target.value); setPage(1); }}
-                    className="border rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm"
+                    className="border bg-white rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-500 font-medium">End Date</label>
+                  <label className="text-xs text-gray-600 font-medium">End Date</label>
                   <input
                     type="date"
                     value={customEnd}
                     min={customStart}
                     max={today}
                     onChange={e => { setCustomEnd(e.target.value); setPage(1); }}
-                    className="border rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm"
+                    className="border bg-white rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm"
                   />
                 </div>
               </div>
@@ -454,8 +675,8 @@ export default function Reports() {
 
             {/* Specific month selector */}
             {preset === 'specific_month' && (
-              <div className="flex flex-col gap-1 pt-1">
-                <label className="text-xs text-gray-500 font-medium">Select Month &amp; Year</label>
+              <div className="flex flex-col gap-1 pt-1 bg-gray-50 p-3 rounded-lg border">
+                <label className="text-xs text-gray-600 font-medium">Select Month &amp; Year</label>
                 <select
                   value={`${specificYear}-${specificMonth}`}
                   onChange={e => {
@@ -464,7 +685,7 @@ export default function Reports() {
                     setSpecificMonth(mo);
                     setPage(1);
                   }}
-                  className="border rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm max-w-xs"
+                  className="border bg-white rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-primary outline-none text-xs sm:text-sm max-w-xs"
                 >
                   {MONTH_OPTIONS.map(opt => (
                     <option key={`${opt.year}-${opt.month}`} value={`${opt.year}-${opt.month}`}>
@@ -476,20 +697,20 @@ export default function Reports() {
             )}
 
             {/* Period clarification notes */}
-            <div className="text-xs text-gray-400 border-t pt-2 space-y-0.5">
+            <div className="text-xs text-gray-500 border-t pt-2 space-y-0.5">
               <p>
-                <strong className="text-gray-500">Previous N Complete Months</strong>
-                {' '}— covers full calendar months that have already ended, not including the current month.
+                <strong className="text-gray-700">Previous N Complete Months</strong>
+                {' '}— covers full calendar months that have completely concluded, excluding the current month.
               </p>
               <p>
-                <strong className="text-gray-500">This Month</strong>
+                <strong className="text-gray-700">This Month</strong>
                 {' '}— from the 1st of the current month to today.
-                <strong className="text-gray-500"> Year to Date</strong>
+                <strong className="text-gray-700"> Year to Date</strong>
                 {' '}— from January 1 of this year to today.
               </p>
               {label && (
-                <p className="text-primary font-semibold pt-0.5">
-                  Active period: {label}
+                <p className="text-primary font-semibold pt-1">
+                  Active Period: {label}
                 </p>
               )}
             </div>
@@ -532,7 +753,7 @@ export default function Reports() {
         >
           <div>
             <div className="text-emerald-100 font-medium mb-1.5 sm:mb-2 flex items-center gap-1.5 text-xs sm:text-sm">
-              <Activity size={16} /> Net Profit (Period)
+              <Activity size={16} /> Net Profit ({PRESET_LABELS[preset]})
             </div>
             <div className="text-3xl sm:text-5xl font-extrabold mb-1">
               {cur} {summary.netProfit.toLocaleString()}
@@ -761,7 +982,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* ── All-Time / Period Summary Banner ── */}
+      {/* ── Cumulative All-Time Banner (when All Time is active) ── */}
       {preset === 'all_time' && (
         <div className="bg-gradient-to-r from-slate-700 to-slate-900 text-white rounded-xl p-6 mb-6 shadow-lg">
           <h2 className="font-bold text-slate-200 mb-4 flex items-center gap-2">
@@ -794,7 +1015,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* ── Daily Savings box — shown only for single-day-equivalent periods ── */}
+      {/* ── Daily Savings box — shown contextually for month-based periods ── */}
       {(preset === 'this_month' || preset === 'last_month' || preset === 'specific_month') && settings.dailySavingsEnabled !== false && (
         <div className="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 text-white rounded-xl p-4 sm:p-6 shadow-lg mb-6 border border-violet-700/50 relative overflow-hidden">
           <div className="absolute right-0 top-0 translate-x-6 -translate-y-6 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
@@ -843,13 +1064,13 @@ export default function Reports() {
             </tr>
           </thead>
           <tbody>
-            {isLoadingSales || isLoadingExpenses ? (
+            {isGlobalLoading && periodTransactions.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-12 text-center text-gray-500">
                   <div className="flex flex-col items-center justify-center">
                     <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
                     <p className="text-lg font-medium text-gray-600">Loading reports...</p>
-                    <p className="text-sm">Please wait while we fetch the records.</p>
+                    <p className="text-sm">Please wait while records are loaded.</p>
                   </div>
                 </td>
               </tr>
