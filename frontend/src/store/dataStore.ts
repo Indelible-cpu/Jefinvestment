@@ -23,6 +23,8 @@ import { registerListener, useAuthStore } from './authStore';
 import { 
   saveSaleToOfflineBackup, 
   removeSaleFromOfflineBackup, 
+  removeSalesFromOfflineBackup,
+  getOfflineSalesBackup,
   useSyncQueueStore 
 } from './syncQueueStore';
 
@@ -329,6 +331,31 @@ export const useSaleStore = create<SaleState>()(
           return timeB - timeA;
         });
 
+        // Instant Zero-Latency Reconciliation:
+        // As soon as Firestore commits writes to the cloud (!hasPendingWrites),
+        // immediately purge them from localStorage emergency backup so pendingCount drops to 0.
+        try {
+          const backupSales = getOfflineSalesBackup();
+          if (backupSales.length > 0) {
+            const syncedDocIds = new Set(
+              snapshot.docs
+                .filter(d => !d.metadata.hasPendingWrites)
+                .map(d => d.id)
+            );
+            const toPurge: string[] = [];
+            for (const b of backupSales) {
+              if (syncedDocIds.has(b.id)) {
+                toPurge.push(b.id);
+              }
+            }
+            if (toPurge.length > 0) {
+              removeSalesFromOfflineBackup(toPurge);
+            }
+          }
+        } catch (purgeErr) {
+          console.warn('Snapshot backup purge notice:', purgeErr);
+        }
+
         set({ sales: mappedSales, isLoading: false });
         useSyncQueueStore.getState().setPendingSales(pendingSalesList);
       };
@@ -441,7 +468,12 @@ export const useSaleStore = create<SaleState>()(
           }));
         })
         .catch(e => {
-          console.warn('Offline sale write queued or deferred:', e);
+          if (e?.code === 'permission-denied') {
+            // Already created on Firestore server; cashiers cannot update
+            removeSaleFromOfflineBackup(saleId);
+          } else {
+            console.warn('Offline sale write queued or deferred:', e);
+          }
         });
 
       // Step 4: Optimistically decrement product stock in memory immediately

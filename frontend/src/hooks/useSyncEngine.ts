@@ -32,8 +32,8 @@ export const useSyncEngine = () => {
         syncAll().catch(e => console.warn('Auto-sync cycle notice:', e));
       }
 
-      // Schedule next pulse: 6 seconds if offline or has pending writes, 25 seconds if fully idle
-      const nextInterval = (!realOnline || pendingCountRef.current > 0) ? 6000 : 25000;
+      // Schedule next pulse: 8 seconds if offline or has pending writes, 30 seconds if fully idle
+      const nextInterval = (!realOnline || pendingCountRef.current > 0) ? 8000 : 30000;
       timer = setTimeout(runHeartbeat, nextInterval);
     };
 
@@ -43,8 +43,8 @@ export const useSyncEngine = () => {
     // ─── Event-Driven Triggers (Immediate Reaction) ──────────────────────────
     const handleOnline = () => {
       setOnline(true);
-      // Immediately flush upon network return without waiting for user prompt
-      syncAll(false).catch(e => console.warn('Online event sync notice:', e));
+      // Immediately flush upon network return with force flag
+      syncAll(true).catch(e => console.warn('Online event sync notice:', e));
     };
 
     const handleOffline = () => {
@@ -61,7 +61,7 @@ export const useSyncEngine = () => {
     // When the browser window gets focus
     const handleFocus = () => {
       if (pendingCountRef.current > 0 && !isSyncingRef.current) {
-        syncAll(false).catch(() => {});
+        syncAll(true).catch(() => {});
       }
     };
 

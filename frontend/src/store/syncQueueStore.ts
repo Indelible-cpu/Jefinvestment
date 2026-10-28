@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { 
   waitForPendingWrites, 
   doc, 
-  setDoc 
+  setDoc,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
@@ -43,22 +44,31 @@ export const saveSaleToOfflineBackup = (saleId: string, saleData: any) => {
   }
 };
 
-export const removeSaleFromOfflineBackup = (saleId: string) => {
+export const removeSalesFromOfflineBackup = (saleIds: string[]) => {
   try {
-    const list = getOfflineSalesBackup().filter(s => s.id !== saleId);
+    if (!saleIds || saleIds.length === 0) return;
+    const removeSet = new Set(saleIds);
+    const list = getOfflineSalesBackup().filter(s => !removeSet.has(s.id));
     localStorage.setItem(OFFLINE_SALES_STORAGE_KEY, JSON.stringify(list));
     useSyncQueueStore.getState().recalculatePending();
   } catch (e) {
-    console.error('Failed to remove offline sale backup:', e);
+    console.error('Failed to remove offline sales backup:', e);
   }
 };
 
-// ─── Real Network Reachability Ping ──────────────────────────────────────────
+export const removeSaleFromOfflineBackup = (saleId: string) => {
+  removeSalesFromOfflineBackup([saleId]);
+};
+
+// ─── High-Speed Real Network Reachability Ping ──────────────────────────────
 export const checkRealConnectivity = async (): Promise<boolean> => {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return false;
+  }
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3500);
-    // Use no-cors mode to ping Google's ultra-reliable 204 endpoint
+    const timeout = setTimeout(() => controller.abort(), 1800);
+    // Ping Google's ultra-reliable 204 endpoint with a strict 1.8s timeout
     await fetch(`https://www.gstatic.com/generate_204?t=${Date.now()}`, {
       method: 'HEAD',
       cache: 'no-store',
@@ -68,24 +78,9 @@ export const checkRealConnectivity = async (): Promise<boolean> => {
     clearTimeout(timeout);
     return true;
   } catch {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return false;
-    }
-    // Secondary fallback probe
-    try {
-      const controller2 = new AbortController();
-      const timeout2 = setTimeout(() => controller2.abort(), 3500);
-      await fetch(`https://www.google.com/favicon.ico?t=${Date.now()}`, {
-        method: 'HEAD',
-        cache: 'no-store',
-        mode: 'no-cors',
-        signal: controller2.signal,
-      });
-      clearTimeout(timeout2);
-      return true;
-    } catch {
-      return false;
-    }
+    // If the ping timed out or failed (e.g. captive portal or blocked ping endpoint),
+    // but the browser reports online, trust navigator.onLine so sync is not blocked.
+    return typeof navigator !== 'undefined' ? navigator.onLine : false;
   }
 };
 
@@ -149,10 +144,7 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
     const backupSales = getOfflineSalesBackup();
     const backupIds = new Set(backupSales.map(s => s.id));
 
-    // Only count pendingSales entries that are STILL in the localStorage backup.
-    // If Firestore's persistent cache already synced a write (removing it from
-    // localStorage via removeSaleFromOfflineBackup), but the onSnapshot listener
-    // hasn't re-fired yet, we'd otherwise count those IDs as still-pending.
+    // Only count pendingSales entries that are still in local backup or uncommitted
     const stillPendingSales = pendingSales.filter(s => backupIds.has(s.id));
 
     const allPendingIds = new Set([
@@ -174,64 +166,140 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
 
     set({ isSyncing: true, syncError: null });
 
-    // Step 1: Verify true internet connectivity
-    const online = await checkRealConnectivity();
-    set({ isOnline: online });
-
-    if (!online) {
-      set({ isSyncing: false });
-      if (force) {
-        toast.error('Offline', { description: 'Cannot sync. No active internet connection detected.' });
+    // Failsafe watchdog timer to ensure isSyncing never hangs
+    const watchdog = setTimeout(() => {
+      if (get().isSyncing) {
+        console.warn('Sync watchdog: reset hanging isSyncing state.');
+        set({ isSyncing: false });
       }
-      return { success: false, syncedCount: 0, error: 'No internet connection' };
-    }
-
-    let syncedCount = 0;
+    }, 12000);
 
     try {
-      // Step 2: (Removed network cycling) — calling disableNetwork/enableNetwork
-      // was disrupting Firestore's offline persistent cache, aborting pending writes.
-      // Firestore handles reconnect automatically and safely on its own.
+      // Step 1: Verify internet connectivity
+      const online = await checkRealConnectivity();
+      set({ isOnline: online });
 
-      // Step 3: Flush durable emergency backup sales from LocalStorage
-      // Using plain setDoc (no merge:true) so Firestore evaluates as a CREATE,
-      // not an UPDATE — cashiers have 'create' permission but not 'update'.
-      const backupSales = getOfflineSalesBackup();
-      for (const sale of backupSales) {
-        try {
+      if (!online) {
+        clearTimeout(watchdog);
+        set({ isSyncing: false });
+        if (force) {
+          toast.error('Offline', { description: 'Cannot sync. No active internet connection detected.' });
+        }
+        return { success: false, syncedCount: 0, error: 'No internet connection' };
+      }
+
+      let syncedCount = 0;
+
+      // Step 2: Instant zero-latency reconciliation with in-memory synced sales
+      try {
+        const { useSaleStore } = await import('./dataStore');
+        const inMemorySales = useSaleStore.getState().sales;
+        const syncedInMemoryIds = new Set(
+          inMemorySales.filter(s => s.syncStatus === 'synced').map(s => s.id)
+        );
+        const currentBackup = getOfflineSalesBackup();
+        const alreadySyncedIds = currentBackup
+          .filter(s => syncedInMemoryIds.has(s.id))
+          .map(s => s.id);
+
+        if (alreadySyncedIds.length > 0) {
+          removeSalesFromOfflineBackup(alreadySyncedIds);
+          syncedCount += alreadySyncedIds.length;
+        }
+      } catch (reconErr) {
+        console.warn('In-memory reconciliation notice:', reconErr);
+      }
+
+      // Step 3: High-throughput parallel flush of remaining backup sales
+      const remainingBackup = getOfflineSalesBackup();
+      if (remainingBackup.length > 0) {
+        const syncPromises = remainingBackup.map(async (sale) => {
           const { backupAt, ...cleanData } = sale;
-          await setDoc(doc(db, 'sales', sale.id), cleanData);
-          removeSaleFromOfflineBackup(sale.id);
-          syncedCount++;
-        } catch (err) {
-          console.warn(`Failed to flush backup sale ${sale.id}:`, err);
+          const saleRef = doc(db, 'sales', sale.id);
+
+          try {
+            // Attempt write to Firestore
+            await setDoc(saleRef, cleanData);
+            return { id: sale.id, success: true };
+          } catch (writeErr: any) {
+            // If permission-denied: cashiers have 'create' permissions; an existing document
+            // triggers 'update' rule (admin only). This proves the sale was ALREADY safely
+            // committed to Firestore by persistent cache or another device!
+            const isPermissionError = writeErr?.code === 'permission-denied' || 
+              (typeof writeErr?.message === 'string' && writeErr.message.includes('permission'));
+            
+            if (isPermissionError) {
+              return { id: sale.id, success: true };
+            }
+
+            // Secondary check: directly check if document exists in Firestore
+            try {
+              const snap = await getDoc(saleRef);
+              if (snap.exists()) {
+                return { id: sale.id, success: true };
+              }
+            } catch {
+              // Ignore check error
+            }
+
+            console.warn(`Sync deferred for sale ${sale.id}:`, writeErr);
+            return { id: sale.id, success: false };
+          }
+        });
+
+        // Run all pending sale uploads simultaneously
+        const settled = await Promise.allSettled(syncPromises);
+        const flushedIds: string[] = [];
+
+        settled.forEach((res) => {
+          if (res.status === 'fulfilled' && res.value.success) {
+            flushedIds.push(res.value.id);
+          }
+        });
+
+        if (flushedIds.length > 0) {
+          removeSalesFromOfflineBackup(flushedIds);
+          syncedCount += flushedIds.length;
+
+          // Immediately reflect 'synced' status in the live sales list
+          try {
+            const { useSaleStore } = await import('./dataStore');
+            const flushedSet = new Set(flushedIds);
+            useSaleStore.setState((prev) => ({
+              sales: prev.sales.map((s) =>
+                flushedSet.has(s.id) ? { ...s, syncStatus: 'synced' as const } : s
+              ),
+            }));
+          } catch {
+            // Non-critical
+          }
         }
       }
 
-      // Step 4: Force Firestore to upload pending persistent cache writes
+      // Step 4: Flush Firestore internal persistent cache writes (bounded to 4s)
       try {
         await Promise.race([
           waitForPendingWrites(db),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Sync timeout: network slow')), 12000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Persistent write timeout')), 4000))
         ]);
       } catch (waitErr: any) {
         console.warn('waitForPendingWrites notice:', waitErr?.message || waitErr);
       }
 
-      // After a successful sync + waitForPendingWrites, clear the in-memory
-      // pendingSales list as well. The Firestore onSnapshot listener will
-      // repopulate it if any writes are still genuinely pending; until then
-      // it should be empty so the banner dismisses immediately.
-      const remainingBackup = getOfflineSalesBackup();
+      // Step 5: Immediately clear in-memory pending counts
+      clearTimeout(watchdog);
+      const finalRemainingBackup = getOfflineSalesBackup();
+      const stillPendingSales = get().pendingSales.filter(s =>
+        finalRemainingBackup.some(b => b.id === s.id)
+      );
+
       set({
         isSyncing: false,
         lastSyncedAt: Date.now(),
         syncError: null,
-        // If localStorage backup is now empty, there are no more pending sales.
-        // pendingSales will be refreshed by the next onSnapshot from Firestore.
-        pendingSales: remainingBackup.length > 0 ? get().pendingSales : [],
-        queue: remainingBackup,
-        pendingCount: remainingBackup.length,
+        pendingSales: stillPendingSales,
+        queue: finalRemainingBackup,
+        pendingCount: finalRemainingBackup.length,
       });
 
       if (force || syncedCount > 0) {
@@ -244,13 +312,14 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
 
       return { success: true, syncedCount };
     } catch (error: any) {
+      clearTimeout(watchdog);
       const errMsg = error?.message || 'Sync encountered an error';
       console.error('syncAll error:', error);
       set({ isSyncing: false, syncError: errMsg });
       if (force) {
         toast.error('Sync Error', { description: errMsg });
       }
-      return { success: false, syncedCount, error: errMsg };
+      return { success: false, syncedCount: 0, error: errMsg };
     }
   },
 
