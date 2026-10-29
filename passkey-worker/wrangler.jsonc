@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "msikaflo-passkeys",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-28",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "PASSKEYS_DB",
+      "database_name": "msikaflo-passkeys",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+  "vars": {
+    "RP_ID": "jefinvestment-e1fc1.web.app",
+    "RP_NAME": "MsikaFlo",
+    "EXPECTED_ORIGIN": "https://jefinvestment-e1fc1.web.app",
+    "FIREBASE_PROJECT_ID": "jefinvestment-e1fc1"
+  }
+}
