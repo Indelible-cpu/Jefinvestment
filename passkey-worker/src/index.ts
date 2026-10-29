@@ -215,7 +215,7 @@ export default {
           (credential_id, user_id, user_email, webauthn_user_id, public_key, counter, transports, device_type, backed_up, device_name, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
-          credential.id, identity.uid, identity.email, pending.webauthn_user_id,
+          credential.id, identity.uid, identity.email.trim().toLowerCase(), pending.webauthn_user_id,
           credential.publicKey, credential.counter, JSON.stringify(transports),
           info.credentialDeviceType, info.credentialBackedUp ? 1 : 0, deviceName, now(),
         ).run();
