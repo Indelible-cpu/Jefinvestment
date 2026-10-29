@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { 
   signInWithEmailAndPassword, 
+  signInWithCustomToken,
   signOut, 
   createUserWithEmailAndPassword,
   updatePassword,
@@ -106,6 +107,7 @@ interface AuthState {
   isLoading: boolean;
   // Actions
   login: (email: string, password: string) => Promise<LoginResult>;
+  passkeyLogin: (customToken: string) => Promise<LoginResult>;
   logout: () => void;
   updateProfile: (name: string, profilePic?: string) => Promise<void>;
   loadProfile: () => Promise<void>;
@@ -338,6 +340,48 @@ export const useAuthStore = create<AuthState>()(
             error: 'Invalid username or password. Please check your credentials.',
             isNetworkError: false
           };
+        }
+      },
+
+      passkeyLogin: async (customToken) => {
+        set({ isLoading: true });
+        try {
+          const credential = await signInWithCustomToken(auth, customToken);
+          const firebaseUser = credential.user;
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (!userDoc.exists()) {
+            await signOut(auth);
+            set({ isLoading: false });
+            return { success: false, error: 'Your MsikaFlo profile could not be found.' };
+          }
+          const userData = userDoc.data();
+          if (userData.isSuspended === true || userData.isActive === false) {
+            await signOut(auth);
+            set({ isLoading: false });
+            return { success: false, error: userData.isSuspended === true
+              ? 'Your account has been suspended. Please contact an administrator.'
+              : 'Your account has been deactivated. Please contact an administrator.' };
+          }
+          const email = firebaseUser.email || userData.email || '';
+          const userObj: User = {
+            id: firebaseUser.uid,
+            name: userData.name || email.split('@')[0],
+            email,
+            role: userData.role as 'ADMIN' | 'CASHIER' | 'MANAGER',
+            branchId: userData.branchId || 'main',
+            branchName: userData.branchName || 'Main Branch',
+            profilePic: userData.profilePic || '',
+            requiresPasswordChange: userData.requiresPasswordChange === true,
+            warnings: Array.isArray(userData.warnings) ? userData.warnings : [],
+          };
+          const token = await firebaseUser.getIdToken();
+          updateDoc(doc(db, 'users', firebaseUser.uid), { lastActiveAt: Date.now(), email }).catch(() => {});
+          set({ token, user: userObj, isAuthenticated: true, isLoading: false });
+          return { success: true };
+        } catch (err: any) {
+          console.error('Firebase Passkey Login Error:', err);
+          set({ isLoading: false });
+          return { success: false, error: err?.message || 'Passkey sign-in failed.' };
         }
       },
 
