@@ -131,11 +131,14 @@ async function saveChallenge(env: Env, challenge: string, purpose: string, userI
   return id;
 }
 async function takeChallenge(env: Env, id: string, purpose: string, userId: string | null) {
+  // A single DELETE ... RETURNING statement makes each challenge one-time even
+  // when two verification requests arrive concurrently.
   const row = await env.PASSKEYS_DB.prepare(
-    'SELECT challenge, user_id, webauthn_user_id FROM challenges WHERE challenge_id = ? AND purpose = ? AND created_at >= ?',
-  ).bind(id, purpose, now() - 300).first<{ challenge: string; user_id: string | null; webauthn_user_id: string | null }>();
-  await env.PASSKEYS_DB.prepare('DELETE FROM challenges WHERE challenge_id = ?').bind(id).run();
-  if (!row || row.user_id !== userId) throw new Error('Challenge expired or invalid. Please try again.');
+    'DELETE FROM challenges WHERE challenge_id = ? AND purpose = ? AND user_id IS ? AND created_at >= ? RETURNING challenge, user_id, webauthn_user_id',
+  ).bind(id, purpose, userId, now() - 300).first<{
+    challenge: string; user_id: string | null; webauthn_user_id: string | null;
+  }>();
+  if (!row) throw new Error('Challenge expired or invalid. Please try again.');
   return row;
 }
 async function getUserPasskeys(env: Env, uid: string) {
