@@ -10,7 +10,7 @@ This service is intentionally separate from Firebase Hosting and the existing Ms
 - Authentication challenges expire after five minutes and are consumed once.
 - The RP ID and origin are exact-match configuration values.
 - The React login screen now has an optional passkey sign-in action.
-- The shared Profile section now includes passkey registration, listing, and removal controls for Admin, Manager, and Cashier users.
+- The shared Security section now includes passkey registration, listing, and removal controls for Admin, Manager, and Cashier users.
 - The browser client uses the native WebAuthn API and exchanges the verified Firebase custom token through the existing Firebase Auth client.
 - The Worker and React changes have not been built, security-tested, or deployed.
 - The frontend requires `VITE_PASSKEY_API_URL` to point to the deployed Worker URL; leave it unset until the Worker is configured and tested.
