@@ -9,8 +9,11 @@ This service is intentionally separate from Firebase Hosting and the existing Ms
 - Account active/suspended state is checked against Firestore before registration and again before issuing a Firebase custom token.
 - Authentication challenges expire after five minutes and are consumed once.
 - The RP ID and origin are exact-match configuration values.
-- The React login and Settings UI are not connected yet.
-- This service has not been deployed or tested against the live Firebase project.
+- The React login screen now has an optional passkey sign-in action.
+- The shared Profile section now includes passkey registration, listing, and removal controls for Admin, Manager, and Cashier users.
+- The browser client uses the native WebAuthn API and exchanges the verified Firebase custom token through the existing Firebase Auth client.
+- The Worker and React changes have not been built, security-tested, or deployed.
+- The frontend requires `VITE_PASSKEY_API_URL` to point to the deployed Worker URL; leave it unset until the Worker is configured and tested.
 
 Do not deploy until the verification checklist below has passed.
 
@@ -59,10 +62,11 @@ The browser client must exchange the returned custom token with Firebase Auth's 
 1. Test with separate Admin, Manager, and Cashier accounts, including inactive and suspended accounts.
 2. Test registration, repeated registration, invalid challenge, expired challenge, replay, wrong origin, wrong RP ID, unknown credential, and counter update.
 3. Verify the service account has least privilege and is stored only as a Cloudflare secret.
-4. Add request throttling at the edge for authentication options and verification; do not expose detailed account lookup results publicly in the final UI.
+4. Add request throttling at the edge for authentication options and verification; this is still outstanding. Do not expose detailed account lookup results publicly in the final UI.
 5. Test on Android Chrome and supported desktop browsers; confirm passkey availability is feature-detected.
 6. Confirm password login and offline fallback are unchanged.
-7. Only then connect the React UI and consider a separate staging deployment. Do not merge or deploy production without explicit approval.
+7. Complete a frontend build and Worker typecheck, resolve any failures, then run the full verification checklist.
+8. Deploy only to an isolated staging configuration first. Do not merge or deploy production without explicit approval.
 
 ## Important operational notes
 
