@@ -8,7 +8,7 @@
     {
       "binding": "PASSKEYS_DB",
       "database_name": "msikaflo-passkeys",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "3c2c9496-8d71-4e98-8cdf-8a6e74ab461d"
     }
   ],
   "vars": {
