@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS challenges (
   challenge_id TEXT PRIMARY KEY,
   challenge TEXT NOT NULL,
   user_id TEXT,
+  webauthn_user_id TEXT,
   purpose TEXT NOT NULL CHECK (purpose IN ('registration', 'authentication')),
   created_at INTEGER NOT NULL
 );
