@@ -858,15 +858,15 @@ export default function Settings() {
                   </button>
                   <div className="space-y-2">
                     {registeredPasskeys.map((item: any) => (
-                      <div key={item.credentialId} className="flex items-center justify-between gap-3 border rounded-lg p-3">
+                      <div key={item.credential_id} className="flex items-center justify-between gap-3 border rounded-lg p-3">
                         <div>
-                          <p className="text-sm font-semibold text-gray-800">{item.deviceName || 'Registered device'}</p>
-                          <p className="text-xs text-gray-500">Added {item.createdAt ? new Date(item.createdAt * 1000).toLocaleDateString() : 'previously'}</p>
+                          <p className="text-sm font-semibold text-gray-800">{item.device_name || 'Registered device'}</p>
+                          <p className="text-xs text-gray-500">Added {item.created_at ? new Date(item.created_at * 1000).toLocaleDateString() : 'previously'}</p>
                         </div>
                         <button type="button" disabled={passkeyBusy} onClick={async () => {
                           setPasskeyBusy(true);
                           try {
-                            await removePasskey(token!, item.credentialId);
+                            await removePasskey(token!, item.credential_id);
                             toast.success('Passkey removed.');
                             await refreshPasskeys();
                           } catch (error: any) { toast.error(error?.message || 'Could not remove passkey.'); }
