@@ -123,20 +123,20 @@ async function createFirebaseCustomToken(env: Env, uid: string): Promise<string>
     .sign(key);
 }
 
-async function saveChallenge(env: Env, challenge: string, purpose: string, userId: string | null) {
+async function saveChallenge(env: Env, challenge: string, purpose: string, userId: string | null, webauthnUserId: string | null = null) {
   const id = randomId();
   await env.PASSKEYS_DB.prepare(
-    'INSERT INTO challenges (challenge_id, challenge, user_id, purpose, created_at) VALUES (?, ?, ?, ?, ?)',
-  ).bind(id, challenge, userId, purpose, now()).run();
+    'INSERT INTO challenges (challenge_id, challenge, user_id, webauthn_user_id, purpose, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+  ).bind(id, challenge, userId, webauthnUserId, purpose, now()).run();
   return id;
 }
 async function takeChallenge(env: Env, id: string, purpose: string, userId: string | null) {
   const row = await env.PASSKEYS_DB.prepare(
-    'SELECT challenge, user_id FROM challenges WHERE challenge_id = ? AND purpose = ? AND created_at >= ?',
-  ).bind(id, purpose, now() - 300).first<{ challenge: string; user_id: string | null }>();
+    'SELECT challenge, user_id, webauthn_user_id FROM challenges WHERE challenge_id = ? AND purpose = ? AND created_at >= ?',
+  ).bind(id, purpose, now() - 300).first<{ challenge: string; user_id: string | null; webauthn_user_id: string | null }>();
   await env.PASSKEYS_DB.prepare('DELETE FROM challenges WHERE challenge_id = ?').bind(id).run();
   if (!row || row.user_id !== userId) throw new Error('Challenge expired or invalid. Please try again.');
-  return row.challenge;
+  return row;
 }
 async function getUserPasskeys(env: Env, uid: string) {
   return env.PASSKEYS_DB.prepare(
@@ -183,7 +183,7 @@ export default {
           },
           supportedAlgorithmIDs: [-7, -257],
         });
-        const challengeId = await saveChallenge(env, options.challenge, 'registration', identity.uid);
+        const challengeId = await saveChallenge(env, options.challenge, 'registration', identity.uid, options.user.id);
         return response(request, env, { options, challengeId });
       }
 
@@ -193,10 +193,10 @@ export default {
         if (!accountIsUsable(user)) return response(request, env, { error: 'This account is inactive or suspended.' }, 403);
         const input = await body(request);
         const challengeId = String(input.challengeId || '');
-        const expectedChallenge = await takeChallenge(env, challengeId, 'registration', identity.uid);
+        const pending = await takeChallenge(env, challengeId, 'registration', identity.uid);
         const verification = await verifyRegistrationResponse({
           response: input.credential as any,
-          expectedChallenge,
+          expectedChallenge: pending.challenge,
           expectedOrigin: env.EXPECTED_ORIGIN,
           expectedRPID: env.RP_ID,
         });
@@ -212,7 +212,7 @@ export default {
           (credential_id, user_id, user_email, webauthn_user_id, public_key, counter, transports, device_type, backed_up, device_name, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         ).bind(
-          credential.id, identity.uid, identity.email, optionsUserId(identity.uid),
+          credential.id, identity.uid, identity.email, pending.webauthn_user_id,
           credential.publicKey, credential.counter, JSON.stringify(transports),
           info.credentialDeviceType, info.credentialBackedUp ? 1 : 0, deviceName, now(),
         ).run();
@@ -249,10 +249,10 @@ export default {
           'SELECT * FROM passkeys WHERE credential_id = ?',
         ).bind(credentialId).first<any>();
         if (!row) return response(request, env, { error: 'Passkey not recognized.' }, 401);
-        const expectedChallenge = await takeChallenge(env, challengeId, 'authentication', null);
+        const pending = await takeChallenge(env, challengeId, 'authentication', null);
         const verification = await verifyAuthenticationResponse({
           response: credentialInput,
-          expectedChallenge,
+          expectedChallenge: pending.challenge,
           expectedOrigin: env.EXPECTED_ORIGIN,
           expectedRPID: env.RP_ID,
           credential: {
@@ -297,7 +297,3 @@ export default {
     }
   },
 };
-
-function optionsUserId(uid: string): string {
-  return uid;
-}
