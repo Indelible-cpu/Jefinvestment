@@ -13,6 +13,7 @@ import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
 import { checkForAppUpdates } from '../utils/pwaUpdate';
 import { APP_VERSION, APP_BUILD_DATE } from '../utils/version';
+import { listPasskeys, registerPasskey, removePasskey, passkeysAvailable } from '../utils/passkeys';
 import { useThemeStore } from '../store/themeStore';
 import {
   requestPushPermission,
@@ -25,7 +26,7 @@ import {
 
 export default function Settings() {
   const { 
-    user, updateProfile, users, resetPassword, addUser, deleteUser, updateUser, warnUser, loadUsers, passwordRequests, approvePasswordRequest, rejectPasswordRequest
+    user, token, updateProfile, users, resetPassword, addUser, deleteUser, updateUser, warnUser, loadUsers, passwordRequests, approvePasswordRequest, rejectPasswordRequest
   } = useAuthStore();
   const { addLog } = useAuditStore();
   const settings = useSettingsStore();
@@ -55,6 +56,17 @@ export default function Settings() {
     ];
     return sec && valid.includes(sec) ? sec : null;
   });
+
+  const [registeredPasskeys, setRegisteredPasskeys] = useState<any[]>([]);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const refreshPasskeys = async () => {
+    if (!token || !passkeysAvailable()) return;
+    try { setRegisteredPasskeys(await listPasskeys(token)); }
+    catch (error: any) { toast.error(error?.message || 'Could not load passkeys.'); }
+  };
+  useEffect(() => {
+    if (activeSection === 'profile') refreshPasskeys();
+  }, [activeSection, token]);
 
   const handleSelectSection = (sectionId: SettingsSectionId | null) => {
     setActiveSection(sectionId);
@@ -820,6 +832,55 @@ export default function Settings() {
               </div>
               <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Profile</button>
             </form>
+            <div className="p-6 border-t bg-white space-y-3">
+              <div className="flex items-center gap-2 text-gray-800 font-bold">
+                <KeyRound size={18} /> Passkey / Biometric Sign-in
+              </div>
+              <p className="text-sm text-gray-600">
+                Register this device's fingerprint, face unlock or screen-lock passkey as an additional sign-in method. Your biometric data stays on your device.
+              </p>
+              {!passkeysAvailable() ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  Passkey service is not configured yet. Password sign-in remains available.
+                </p>
+              ) : (
+                <>
+                  <button type="button" disabled={passkeyBusy || !token} onClick={async () => {
+                    setPasskeyBusy(true);
+                    try {
+                      await registerPasskey(token!, 'MsikaFlo device');
+                      toast.success('Passkey registered on this device.');
+                      await refreshPasskeys();
+                    } catch (error: any) { toast.error(error?.message || 'Passkey registration failed.'); }
+                    finally { setPasskeyBusy(false); }
+                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50">
+                    {passkeyBusy ? 'Please wait...' : 'Add this device'}
+                  </button>
+                  <div className="space-y-2">
+                    {registeredPasskeys.map((item: any) => (
+                      <div key={item.credentialId} className="flex items-center justify-between gap-3 border rounded-lg p-3">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{item.deviceName || 'Registered device'}</p>
+                          <p className="text-xs text-gray-500">Added {item.createdAt ? new Date(item.createdAt * 1000).toLocaleDateString() : 'previously'}</p>
+                        </div>
+                        <button type="button" disabled={passkeyBusy} onClick={async () => {
+                          setPasskeyBusy(true);
+                          try {
+                            await removePasskey(token!, item.credentialId);
+                            toast.success('Passkey removed.');
+                            await refreshPasskeys();
+                          } catch (error: any) { toast.error(error?.message || 'Could not remove passkey.'); }
+                          finally { setPasskeyBusy(false); }
+                        }} className="text-red-600 hover:bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {registeredPasskeys.length === 0 && <p className="text-xs text-gray-500">No passkeys registered yet.</p>}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         );
 
