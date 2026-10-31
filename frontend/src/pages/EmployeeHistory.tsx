@@ -30,7 +30,8 @@ export default function EmployeeHistory() {
   const [historyTab, setHistoryTab] = useState<'advances' | 'salaries' | 'statement'>('advances');
   const [showDeletedAdv, setShowDeletedAdv] = useState(false);
   const [isSharingPayroll, setIsSharingPayroll] = useState(false);
-  const [historyPreset, setHistoryPreset] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'CUSTOM'>('ALL');
+  const [historyPreset, setHistoryPreset] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'MONTH' | 'CUSTOM'>('ALL');
+  const [historySelectedMonth, setHistorySelectedMonth] = useState('');
   const [historyStartDate, setHistoryStartDate] = useState('');
   const [historyEndDate, setHistoryEndDate] = useState('');
   const [historySearch, setHistorySearch] = useState('');
@@ -115,15 +116,57 @@ export default function EmployeeHistory() {
     return '';
   };
 
-  const isMatchPeriod = (dateStr: string, createdAt?: number) => {
+  // Helper to accurately format salary month / period
+  const formatSalaryMonth = (r: SalaryPayRecord) => {
+    if (r.salaryMonth) {
+      const parts = r.salaryMonth.split('-');
+      if (parts.length === 2) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        }
+      }
+      return r.salaryMonth;
+    }
+    const notesStr = `${r.notes || ''}`;
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    for (const m of months) {
+      if (new RegExp(`\\b${m}\\b`, 'i').test(notesStr)) {
+        const yearMatch = notesStr.match(/\b(20\d{2})\b/);
+        const yr = yearMatch ? yearMatch[1] : (r.date ? new Date(r.date).getFullYear() : new Date().getFullYear());
+        return `${m} ${yr}`;
+      }
+    }
+    if (r.date) {
+      const d = new Date(r.date);
+      if (!isNaN(d.getTime())) {
+        // In payroll practice, salary paid on day 1 to 15 is for previous month
+        if (d.getDate() <= 15) {
+          const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+          return prev.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        }
+        return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      }
+    }
+    return 'Current Period';
+  };
+
+  const isMatchPeriod = (dateStr: string, createdAt?: number, salaryMonth?: string) => {
     if (historyPreset === 'ALL') return true;
     const norm = normalizeDate(dateStr, createdAt);
-    if (!norm) return false;
-    if (historyPreset === 'THIS_MONTH') return norm.startsWith(thisMonthPrefix);
-    if (historyPreset === 'LAST_MONTH') return norm.startsWith(lastMonthPrefix);
+    if (historyPreset === 'THIS_MONTH') {
+      return norm.startsWith(thisMonthPrefix) || salaryMonth === thisMonthPrefix;
+    }
+    if (historyPreset === 'LAST_MONTH') {
+      return norm.startsWith(lastMonthPrefix) || salaryMonth === lastMonthPrefix;
+    }
+    if (historyPreset === 'MONTH') {
+      if (!historySelectedMonth) return true;
+      return norm.startsWith(historySelectedMonth) || salaryMonth === historySelectedMonth;
+    }
     if (historyPreset === 'CUSTOM') {
-      if (historyStartDate && norm < historyStartDate) return false;
-      if (historyEndDate && norm > historyEndDate) return false;
+      if (historyStartDate && norm && norm < historyStartDate) return false;
+      if (historyEndDate && norm && norm > historyEndDate) return false;
       return true;
     }
     return true;
@@ -139,13 +182,12 @@ export default function EmployeeHistory() {
     );
   };
 
-  // ── Calculation helpers to guarantee clear, non-confusing calculations ──
+  // ── Calculation helpers (Total Earned − Advances Deducted = Net Payout) ──
   const getSalaryDeduction = (r: SalaryPayRecord) => {
-    if (typeof r.advanceDeducted === 'number' && r.advanceDeducted > 0) {
+    if (typeof r.advanceDeducted === 'number' && r.advanceDeducted >= 0) {
       return r.advanceDeducted;
     }
-    const gross = r.grossSalary || emp.salary;
-    return gross > r.netPaid ? gross - r.netPaid : 0;
+    return 0;
   };
 
   const getSalaryGross = (r: SalaryPayRecord) => {
@@ -169,17 +211,17 @@ export default function EmployeeHistory() {
   const allSal: SalaryPayRecord[] = emp.salaryHistory || [];
   const sortedSalDesc = [...allSal].sort((a, b) => b.createdAt - a.createdAt);
   const filteredSal = allSal.length > 0
-    ? [...allSal].reverse().filter(r => isMatchPeriod(r.date, r.createdAt) && isMatchSearch(r.notes || '', r.loggedBy, r.netPaid))
+    ? [...allSal].reverse().filter(r => isMatchPeriod(r.date, r.createdAt, r.salaryMonth) && isMatchSearch(r.notes || '', r.loggedBy, r.netPaid))
     : [];
   const totalSalariesPaid = allSal.reduce((s, r) => s + r.netPaid, 0);
   const filteredSalTotal = filteredSal.reduce((s, r) => s + r.netPaid, 0);
 
   // Overall summary metrics
   const totalAdvancesRecovered = allSal.reduce((sum, r) => sum + getSalaryDeduction(r), 0);
-  const currentAdvanceBalance = emp.advancePay || 0;
-  // Salary After Advances = Monthly Salary minus all advances actually recovered via salary deductions
-  // This matches: Monthly Salary − Advances Recovered = Net Salary Paid
-  const salaryAfterAdvances = Math.max(0, emp.salary - totalAdvancesRecovered);
+  // Current Advance Balance: Total Advances Taken minus Advances actually recovered (strictly non-negative)
+  const currentAdvanceBalance = Math.max(0, totalAdvances - totalAdvancesRecovered);
+  // Salary After Advances = Monthly Salary minus current advance balance
+  const salaryAfterAdvances = Math.max(0, emp.salary - currentAdvanceBalance);
   const latestNetSalaryPaid = sortedSalDesc.length > 0 ? sortedSalDesc[0].netPaid : 0;
 
   const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();
@@ -222,15 +264,49 @@ export default function EmployeeHistory() {
 
   // Print Full Payroll History (optimized for 1-page A4 printing)
   const handlePrintPayrollHistory = (targetEmp: Employee) => {
-    const advList = (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
-    const salList = targetEmp.salaryHistory || [];
+    // If a filter is active, print the filtered records! If ALL, print all.
+    const isFiltered = hasActiveFilter;
+    const advList = isFiltered ? filteredAdv : (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
+    const salList = isFiltered ? filteredSal : (targetEmp.salaryHistory || []);
 
     const advTotal = advList.reduce((s, r) => s + r.amount, 0);
     const salTotal = salList.reduce((s, r) => s + r.netPaid, 0);
     const advRecovered = salList.reduce((s, r) => s + getSalaryDeduction(r), 0);
     const latestNet = salList.length > 0 ? [...salList].sort((a, b) => b.createdAt - a.createdAt)[0].netPaid : 0;
-    // Salary After Advances: Monthly Salary minus advances actually recovered via salary deductions
-    const salBal = Math.max(0, targetEmp.salary - advRecovered);
+    
+    // Overall running metrics (for header balance)
+    const allActiveAdv = (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
+    const allTotalAdvances = allActiveAdv.reduce((s, r) => s + r.amount, 0);
+    const allTotalRecovered = (targetEmp.salaryHistory || []).reduce((s, r) => s + getSalaryDeduction(r), 0);
+    const currentAdvBalance = Math.max(0, allTotalAdvances - allTotalRecovered);
+    const salBal = Math.max(0, targetEmp.salary - currentAdvBalance);
+
+    let periodTitle = 'ALL TIME';
+    if (historyPreset === 'THIS_MONTH') periodTitle = `THIS MONTH (${thisMonthName.toUpperCase()} ${now.getFullYear()})`;
+    else if (historyPreset === 'LAST_MONTH') periodTitle = `LAST MONTH (${lastMonthName.toUpperCase()} ${lastMonthDate.getFullYear()})`;
+    else if (historyPreset === 'MONTH' && historySelectedMonth) {
+      const parts = historySelectedMonth.split('-');
+      if (parts.length === 2) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+        periodTitle = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
+      } else {
+        periodTitle = historySelectedMonth;
+      }
+    } else if (historyPreset === 'CUSTOM') {
+      periodTitle = `${historyStartDate || 'START'} TO ${historyEndDate || 'TODAY'}`;
+    }
+
+    // Authority Details based on logged in user and role access
+    const preparedByName = user?.name || 'Administrator';
+    const preparedByRole = user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'MANAGER' ? 'Manager' : 'Accountant / Cashier';
+    const employeeFullName = `${targetEmp.firstName} ${targetEmp.lastName}`;
+    const authorizedByName = (user?.role === 'ADMIN' || user?.role === 'MANAGER')
+      ? (user?.name || 'Managing Director')
+      : 'Managing Director / Management';
+    const authorizedByRole = (user?.role === 'ADMIN' || user?.role === 'MANAGER')
+      ? (user?.role === 'ADMIN' ? 'Managing Director (Authorized)' : 'General Manager (Authorized)')
+      : 'Authorized Authority';
+    const currentDateFormatted = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     const advRowsHtml = advList.length
       ? advList.map((r, i) => `
@@ -247,18 +323,20 @@ export default function EmployeeHistory() {
       ? salList.map((r, i) => {
           const gross = getSalaryGross(r);
           const deduction = getSalaryDeduction(r);
+          const period = formatSalaryMonth(r);
           return `
           <tr>
             <td style="padding:4px 6px;text-align:center;font-size:11px;">#${i + 1}</td>
-            <td style="padding:4px 6px;font-size:11px;font-weight:600;">${r.date}</td>
+            <td style="padding:4px 6px;font-size:11px;font-weight:700;color:#1e3a8a;">${period}</td>
+            <td style="padding:4px 6px;font-size:10.5px;color:#334155;">${r.date}</td>
             <td style="padding:4px 6px;font-size:11px;text-align:right;font-family:monospace;">${cur} ${gross.toLocaleString()}</td>
-            <td style="padding:4px 6px;font-size:11px;color:#b45309;text-align:right;font-family:monospace;">-${cur} ${deduction.toLocaleString()}</td>
+            <td style="padding:4px 6px;font-size:11px;color:${deduction > 0 ? '#b45309' : '#64748b'};text-align:right;font-family:monospace;">${deduction > 0 ? `-${cur} ${deduction.toLocaleString()}` : '—'}</td>
             <td style="padding:4px 6px;font-size:11px;font-weight:700;color:#166534;text-align:right;font-family:monospace;">${cur} ${r.netPaid.toLocaleString()}</td>
             <td style="padding:4px 6px;font-size:11px;color:#334155;">${r.notes || '—'}</td>
             <td style="padding:4px 6px;font-size:10px;color:#64748b;">${r.loggedBy}</td>
           </tr>`;
         }).join('')
-      : '<tr><td colspan="7" style="padding:8px;text-align:center;color:#94a3b8;font-size:11px;">No salary payment records on file.</td></tr>';
+      : '<tr><td colspan="8" style="padding:8px;text-align:center;color:#94a3b8;font-size:11px;">No salary payment records on file.</td></tr>';
 
     const html = `<!DOCTYPE html>
 <html>
@@ -433,21 +511,36 @@ export default function EmployeeHistory() {
     .signatures-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
+      gap: 8px;
       margin-top: 12px;
       padding-top: 8px;
-      border-top: 1px solid #cbd5e1;
+      border-top: 1.5px solid #cbd5e1;
     }
-    .sig-line {
-      border-bottom: 1px solid #94a3b8;
-      height: 28px;
-      margin-bottom: 2px;
+    .sig-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 5px 7px;
+      background: #f8fafc;
     }
-    .sig-label {
-      font-size: 9px;
-      font-weight: 600;
+    .sig-title {
+      font-size: 8px;
+      font-weight: 700;
       color: #64748b;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 2px;
+      margin-bottom: 3px;
+    }
+    .sig-name {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .sig-sub {
+      font-size: 8.5px;
+      color: #64748b;
+      margin-top: 1px;
     }
     .footer {
       margin-top: 10px;
@@ -467,7 +560,7 @@ export default function EmployeeHistory() {
         ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="max-height:46px;max-width:130px;object-fit:contain;background:#fff;padding:2px;border-radius:4px;" />` : ''}
         <div>
           <h1 class="company-title">${companyName}</h1>
-          <div class="doc-subtitle">EMPLOYEE PAYROLL HISTORY</div>
+          <div class="doc-subtitle">EMPLOYEE PAYROLL HISTORY &middot; <span style="font-size:11px;color:#047857;">${periodTitle}</span></div>
         </div>
       </div>
       <div style="text-align:right;">
@@ -476,7 +569,7 @@ export default function EmployeeHistory() {
       </div>
     </div>
 
-    <!-- Section 1: Improved Employee Payroll History Header -->
+    <!-- Section 1: Employee Header Information -->
     <div class="emp-info-grid">
       <div class="info-cell">
         <span class="info-lbl">Employee Name</span>
@@ -490,31 +583,25 @@ export default function EmployeeHistory() {
         <span class="info-lbl">Position</span>
         <span class="info-val">${targetEmp.role}</span>
       </div>
-      ${targetEmp.department ? `
-      <div class="info-cell">
-        <span class="info-lbl">Department</span>
-        <span class="info-val">${targetEmp.department}</span>
-      </div>` : `
       <div class="info-cell">
         <span class="info-lbl">Monthly Salary</span>
         <span class="info-val font-mono">${cur} ${targetEmp.salary.toLocaleString()}</span>
-      </div>`}
-      ${targetEmp.department ? `
-      <div class="info-cell">
-        <span class="info-lbl">Monthly Salary</span>
-        <span class="info-val font-mono">${cur} ${targetEmp.salary.toLocaleString()}</span>
-      </div>` : ''}
+      </div>
       <div class="info-cell">
         <span class="info-lbl">Total Advances</span>
         <span class="info-val font-mono" style="color:#b45309;">${cur} ${advTotal.toLocaleString()}</span>
       </div>
       <div class="info-cell">
         <span class="info-lbl">Current Advance Balance</span>
-        <span class="info-val font-mono" style="color:${(targetEmp.advancePay || 0) > 0 ? '#b45309' : '#0f172a'};">${cur} ${(targetEmp.advancePay || 0).toLocaleString()}</span>
+        <span class="info-val font-mono" style="color:${currentAdvBalance > 0 ? '#b45309' : '#0f172a'};">${cur} ${currentAdvBalance.toLocaleString()}</span>
       </div>
       <div class="info-cell">
         <span class="info-lbl">Latest Net Salary Paid</span>
         <span class="info-val font-mono" style="color:#15803d;">${cur} ${latestNet.toLocaleString()}</span>
+      </div>
+      <div class="info-cell">
+        <span class="info-lbl">Statement Period</span>
+        <span class="info-val" style="color:#1e3a8a;font-size:10px;">${periodTitle}</span>
       </div>
     </div>
 
@@ -551,11 +638,12 @@ export default function EmployeeHistory() {
     <table>
       <thead>
         <tr>
-          <th style="width:30px;text-align:center;">#</th>
-          <th style="width:90px;">Date</th>
-          <th style="width:105px;text-align:right;">Gross Salary</th>
-          <th style="width:115px;text-align:right;">Advances Deducted</th>
-          <th style="width:110px;text-align:right;">Net Paid</th>
+          <th style="width:25px;text-align:center;">#</th>
+          <th style="width:110px;">Salary Period</th>
+          <th style="width:80px;">Paid Date</th>
+          <th style="width:95px;text-align:right;">Gross Salary</th>
+          <th style="width:95px;text-align:right;">Advances Deducted</th>
+          <th style="width:95px;text-align:right;">Net Paid</th>
           <th>Notes</th>
           <th style="width:90px;">Logged By</th>
         </tr>
@@ -563,7 +651,7 @@ export default function EmployeeHistory() {
       <tbody>${salRowsHtml}</tbody>
       <tfoot>
         <tr class="total-row">
-          <td colspan="4" style="text-align:right;text-transform:uppercase;font-size:10px;">Total Net Salaries Paid</td>
+          <td colspan="5" style="text-align:right;text-transform:uppercase;font-size:10px;">Total Net Salaries Paid</td>
           <td style="text-align:right;color:#166534;font-weight:700;font-family:monospace;">${cur} ${salTotal.toLocaleString()}</td>
           <td colspan="2"></td>
         </tr>
@@ -597,23 +685,27 @@ export default function EmployeeHistory() {
       </div>
     </div>
 
-    <!-- Section 7: Signatures Area -->
+    <!-- Section 6: Official Authority Verification Details -->
     <div class="signatures-row">
-      <div>
-        <div class="sig-line"></div>
-        <div class="sig-label">Prepared By</div>
+      <div class="sig-box">
+        <div class="sig-title">Prepared By</div>
+        <div class="sig-name">${preparedByName}</div>
+        <div class="sig-sub">${preparedByRole}</div>
       </div>
-      <div>
-        <div class="sig-line"></div>
-        <div class="sig-label">Employee Signature</div>
+      <div class="sig-box">
+        <div class="sig-title">Employee Name</div>
+        <div class="sig-name">${employeeFullName}</div>
+        <div class="sig-sub">Position: ${targetEmp.role}</div>
       </div>
-      <div>
-        <div class="sig-line"></div>
-        <div class="sig-label">Authorized By</div>
+      <div class="sig-box">
+        <div class="sig-title">Authorized By</div>
+        <div class="sig-name">${authorizedByName}</div>
+        <div class="sig-sub">${authorizedByRole}</div>
       </div>
-      <div>
-        <div class="sig-line"></div>
-        <div class="sig-label">Date</div>
+      <div class="sig-box">
+        <div class="sig-title">Date</div>
+        <div class="sig-name">${currentDateFormatted}</div>
+        <div class="sig-sub">Official System Timestamp</div>
       </div>
     </div>
 
@@ -638,13 +730,45 @@ export default function EmployeeHistory() {
     setIsSharingPayroll(true);
     const toastId = toast.loading('Generating payroll statement card...');
     try {
-      const advList = (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
-      const salList = targetEmp.salaryHistory || [];
+      const isFiltered = hasActiveFilter;
+      const advList = isFiltered ? filteredAdv : (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
+      const salList = isFiltered ? filteredSal : (targetEmp.salaryHistory || []);
       const advTotal = advList.reduce((s, r) => s + r.amount, 0);
       const salTotal = salList.reduce((s, r) => s + r.netPaid, 0);
       const advRecovered = salList.reduce((s, r) => s + getSalaryDeduction(r), 0);
       const latestNet = salList.length > 0 ? [...salList].sort((a, b) => b.createdAt - a.createdAt)[0].netPaid : 0;
-      const salBal = Math.max(0, targetEmp.salary - (targetEmp.advancePay || 0));
+      
+      const allActiveAdv = (targetEmp.advanceHistory || []).filter(r => !r.isDeleted);
+      const allTotalAdvances = allActiveAdv.reduce((s, r) => s + r.amount, 0);
+      const allTotalRecovered = (targetEmp.salaryHistory || []).reduce((s, r) => s + getSalaryDeduction(r), 0);
+      const currentAdvBalance = Math.max(0, allTotalAdvances - allTotalRecovered);
+      const salBal = Math.max(0, targetEmp.salary - currentAdvBalance);
+
+      let periodTitle = 'ALL TIME';
+      if (historyPreset === 'THIS_MONTH') periodTitle = `THIS MONTH (${thisMonthName.toUpperCase()} ${now.getFullYear()})`;
+      else if (historyPreset === 'LAST_MONTH') periodTitle = `LAST MONTH (${lastMonthName.toUpperCase()} ${lastMonthDate.getFullYear()})`;
+      else if (historyPreset === 'MONTH' && historySelectedMonth) {
+        const parts = historySelectedMonth.split('-');
+        if (parts.length === 2) {
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+          periodTitle = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
+        } else {
+          periodTitle = historySelectedMonth;
+        }
+      } else if (historyPreset === 'CUSTOM') {
+        periodTitle = `${historyStartDate || 'START'} TO ${historyEndDate || 'TODAY'}`;
+      }
+
+      const preparedByName = user?.name || 'Administrator';
+      const preparedByRole = user?.role === 'ADMIN' ? 'Administrator' : user?.role === 'MANAGER' ? 'Manager' : 'Accountant / Cashier';
+      const employeeFullName = `${targetEmp.firstName} ${targetEmp.lastName}`;
+      const authorizedByName = (user?.role === 'ADMIN' || user?.role === 'MANAGER')
+        ? (user?.name || 'Managing Director')
+        : 'Managing Director / Management';
+      const authorizedByRole = (user?.role === 'ADMIN' || user?.role === 'MANAGER')
+        ? (user?.role === 'ADMIN' ? 'Managing Director' : 'General Manager')
+        : 'Authorized Authority';
+      const currentDateFormatted = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
       const container = document.createElement('div');
       container.style.position = 'fixed';
@@ -674,17 +798,19 @@ export default function EmployeeHistory() {
         ? salList.map((r, i) => {
             const gross = getSalaryGross(r);
             const deduction = getSalaryDeduction(r);
+            const period = formatSalaryMonth(r);
             return `
             <tr style="border-bottom:1px solid #f1f5f9;">
               <td style="padding:6px;color:#64748b;font-size:11px;">#${i + 1}</td>
-              <td style="padding:6px;font-size:11px;font-weight:600;">${r.date}</td>
+              <td style="padding:6px;font-size:11px;font-weight:700;color:#1e3a8a;">${period}</td>
+              <td style="padding:6px;font-size:10.5px;color:#475569;">${r.date}</td>
               <td style="padding:6px;font-size:11px;text-align:right;">${cur} ${gross.toLocaleString()}</td>
-              <td style="padding:6px;font-size:11px;color:#b45309;text-align:right;">-${cur} ${deduction.toLocaleString()}</td>
+              <td style="padding:6px;font-size:11px;color:${deduction > 0 ? '#b45309' : '#64748b'};text-align:right;">${deduction > 0 ? `-${cur} ${deduction.toLocaleString()}` : '—'}</td>
               <td style="padding:6px;font-size:11px;font-weight:700;color:#15803d;text-align:right;">${cur} ${r.netPaid.toLocaleString()}</td>
               <td style="padding:6px;font-size:11px;color:#475569;">${r.notes || '—'}</td>
             </tr>`;
           }).join('')
-        : '<tr><td colspan="6" style="padding:10px;text-align:center;color:#94a3b8;font-size:11px;">No salary payments recorded.</td></tr>';
+        : '<tr><td colspan="7" style="padding:10px;text-align:center;color:#94a3b8;font-size:11px;">No salary payments recorded.</td></tr>';
 
       container.innerHTML = `
         <div style="border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
@@ -692,7 +818,7 @@ export default function EmployeeHistory() {
             ${settings.companyLogo ? `<img src="${settings.companyLogo}" style="max-height:42px;max-width:110px;object-fit:contain;background:#fff;padding:2px;border-radius:4px;" />` : ''}
             <div>
               <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;">${companyName}</h2>
-              <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-top:2px;">EMPLOYEE PAYROLL HISTORY</div>
+              <div style="font-size:12px;font-weight:700;color:#1e3a8a;margin-top:2px;">EMPLOYEE PAYROLL HISTORY &middot; <span style="font-size:11px;color:#047857;">${periodTitle}</span></div>
             </div>
           </div>
           <div style="text-align:right;">
@@ -714,7 +840,7 @@ export default function EmployeeHistory() {
             </div>
             <div style="background:#fff;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;">
               <span style="font-size:9px;color:#64748b;font-weight:600;display:block;">ADVANCE BALANCE</span>
-              <strong style="color:${(targetEmp.advancePay || 0) > 0 ? '#b45309' : '#0f172a'};">${cur} ${(targetEmp.advancePay || 0).toLocaleString()}</strong>
+              <strong style="color:${currentAdvBalance > 0 ? '#b45309' : '#0f172a'};">${cur} ${currentAdvBalance.toLocaleString()}</strong>
             </div>
             <div style="background:#fff;padding:6px 8px;border-radius:6px;border:1px solid #e2e8f0;">
               <span style="font-size:9px;color:#64748b;font-weight:600;display:block;">LATEST NET PAID</span>
@@ -751,7 +877,8 @@ export default function EmployeeHistory() {
             <thead>
               <tr style="background:#dcfce7;color:#166534;font-size:9.5px;text-transform:uppercase;">
                 <th style="padding:5px;">#</th>
-                <th style="padding:5px;">Date</th>
+                <th style="padding:5px;">Period</th>
+                <th style="padding:5px;">Paid Date</th>
                 <th style="padding:5px;text-align:right;">Gross</th>
                 <th style="padding:5px;text-align:right;">Deduction</th>
                 <th style="padding:5px;text-align:right;">Net Paid</th>
@@ -786,6 +913,30 @@ export default function EmployeeHistory() {
               <span style="color:#166534;font-weight:700;display:block;">NET SALARY PAID</span>
               <strong style="font-size:12px;color:#15803d;">${cur} ${salTotal.toLocaleString()}</strong>
             </div>
+          </div>
+        </div>
+
+        <!-- Authority Verification Cards -->
+        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;margin-bottom:12px;border-top:1px solid #cbd5e1;padding-top:10px;">
+          <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;">
+            <div style="font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;padding-bottom:2px;margin-bottom:3px;">Prepared By</div>
+            <div style="font-size:10.5px;font-weight:800;color:#0f172a;">${preparedByName}</div>
+            <div style="font-size:8.5px;color:#64748b;">${preparedByRole}</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;">
+            <div style="font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;padding-bottom:2px;margin-bottom:3px;">Employee Name</div>
+            <div style="font-size:10.5px;font-weight:800;color:#0f172a;">${employeeFullName}</div>
+            <div style="font-size:8.5px;color:#64748b;">Position: ${targetEmp.role}</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;">
+            <div style="font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;padding-bottom:2px;margin-bottom:3px;">Authorized By</div>
+            <div style="font-size:10.5px;font-weight:800;color:#0f172a;">${authorizedByName}</div>
+            <div style="font-size:8.5px;color:#64748b;">${authorizedByRole}</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;">
+            <div style="font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:1px solid #e2e8f0;padding-bottom:2px;margin-bottom:3px;">Date</div>
+            <div style="font-size:10.5px;font-weight:800;color:#0f172a;">${currentDateFormatted}</div>
+            <div style="font-size:8.5px;color:#64748b;">Official Timestamp</div>
           </div>
         </div>
 
@@ -1060,6 +1211,17 @@ export default function EmployeeHistory() {
               </button>
               <button
                 type="button"
+                onClick={() => setHistoryPreset('MONTH')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  historyPreset === 'MONTH'
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'bg-card hover:bg-muted text-gray-700 border'
+                }`}
+              >
+                Specific Month
+              </button>
+              <button
+                type="button"
                 onClick={() => setHistoryPreset('CUSTOM')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   historyPreset === 'CUSTOM'
@@ -1083,6 +1245,21 @@ export default function EmployeeHistory() {
               />
             </div>
           </div>
+
+          {/* Specific Month Picker */}
+          {historyPreset === 'MONTH' && (
+            <div className="flex items-center gap-3 p-3 bg-muted/40 border rounded-xl flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-gray-500 font-medium">Select Month:</span>
+                <input
+                  type="month"
+                  value={historySelectedMonth}
+                  onChange={e => setHistorySelectedMonth(e.target.value)}
+                  className="px-2.5 py-1 text-xs border rounded-lg bg-card focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Custom Date Range Inputs */}
           {historyPreset === 'CUSTOM' && (
@@ -1328,7 +1505,8 @@ export default function EmployeeHistory() {
                       <thead>
                         <tr className="bg-green-50/80 text-green-950 font-bold uppercase tracking-wider border-b border-green-200">
                           <th className="py-2.5 px-3 w-12 text-center">#</th>
-                          <th className="py-2.5 px-3 w-28">Date</th>
+                          <th className="py-2.5 px-3 w-28">Date Paid</th>
+                          <th className="py-2.5 px-3 w-32">Salary Period</th>
                           <th className="py-2.5 px-3 w-32 text-right">Gross Salary</th>
                           <th className="py-2.5 px-3 w-36 text-right">Advances Deducted</th>
                           <th className="py-2.5 px-3 w-32 text-right">Net Paid</th>
@@ -1348,6 +1526,11 @@ export default function EmployeeHistory() {
                               </td>
                               <td className="py-2.5 px-3 font-semibold text-gray-800 font-mono">
                                 {rec.date}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-800 rounded-md border border-blue-200 text-[11px] font-bold">
+                                  {formatSalaryMonth(rec)}
+                                </span>
                               </td>
                               <td className="py-2.5 px-3 text-right font-mono font-semibold text-gray-700">
                                 {cur} {gross.toLocaleString()}
@@ -1381,7 +1564,7 @@ export default function EmployeeHistory() {
                       </tbody>
                       <tfoot>
                         <tr className="bg-green-50 border-t-2 border-green-300 font-bold text-green-950">
-                          <td colSpan={4} className="py-2.5 px-3 text-right uppercase text-[11px]">
+                          <td colSpan={5} className="py-2.5 px-3 text-right uppercase text-[11px]">
                             Total Net Salaries Paid:
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono text-sm text-green-900">
@@ -1456,6 +1639,35 @@ export default function EmployeeHistory() {
                 </span>
                 <div className="text-base sm:text-lg font-black font-mono text-emerald-700 mt-1">
                   {cur} {totalSalariesPaid.toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            {/* Official Authority Verification Section */}
+            <div className="mt-6 pt-5 border-t border-slate-200">
+              <div className="text-[11px] font-extrabold uppercase tracking-widest text-slate-500 mb-3">
+                Official Authorization &amp; Verification
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Prepared By</span>
+                  <div className="text-xs font-bold text-slate-900 mt-1 truncate">{user?.name || user?.email || 'Authorized Cashier'}</div>
+                  <div className="text-[10px] text-slate-500 uppercase">{user?.role || 'STAFF'}</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Employee Name</span>
+                  <div className="text-xs font-bold text-slate-900 mt-1 truncate">{emp.firstName} {emp.lastName}</div>
+                  <div className="text-[10px] text-slate-500">ID: {emp.id}</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Authorized By</span>
+                  <div className="text-xs font-bold text-slate-900 mt-1 truncate">{isAdmin ? (user?.name || 'Administrator') : 'Finance / Admin Directorate'}</div>
+                  <div className="text-[10px] text-slate-500">{isAdmin ? 'ADMINISTRATOR' : 'HEAD OFFICE'}</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Date / Timestamp</span>
+                  <div className="text-xs font-bold font-mono text-slate-900 mt-1">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                  <div className="text-[10px] text-slate-500">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
               </div>
             </div>

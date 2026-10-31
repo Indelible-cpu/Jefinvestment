@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, UserPlus, CheckCircle, Clock, Banknote, RotateCcw, PlusCircle,
   Trash2, Edit, Camera, Upload, Eye, X, Phone,
-  ShieldCheck, HeartHandshake, FileText, Search, Image as ImageIcon, History
+  ShieldCheck, HeartHandshake, FileText, Search, Image as ImageIcon, History,
+  AlertCircle, Calendar
 } from 'lucide-react';
 import { useEmployeeStore, useExpenseStore, type Employee } from '../store/dataStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -17,7 +18,8 @@ export default function Employees() {
   const {
     employees, isLoading, loadEmployees, addEmployee, updateEmployee,
     updateStatus, recordAdvancePay, recordSalaryPay, clearAdvancePay,
-    restoreClearedAdvancePay, deleteEmployee, getTotalAdvancePay
+    restoreClearedAdvancePay, deleteEmployee, getTotalAdvancePay,
+    loadSalaryHistory
   } = useEmployeeStore();
   const { loadExpenses } = useExpenseStore();
   const settings = useSettingsStore();
@@ -81,6 +83,10 @@ export default function Employees() {
 
   // Salary Pay Modal state
   const [selectedEmpForSalary, setSelectedEmpForSalary] = useState<Employee | null>(null);
+  const [salaryMonth, setSalaryMonth] = useState('');
+  const [salaryGross, setSalaryGross] = useState('');
+  const [salaryAdvanceDeduction, setSalaryAdvanceDeduction] = useState('');
+  const [salaryPaymentMethod, setSalaryPaymentMethod] = useState('CASH');
   const [salaryNotes, setSalaryNotes] = useState('');
   const [isSubmittingSalary, setIsSubmittingSalary] = useState(false);
 
@@ -332,17 +338,48 @@ export default function Employees() {
     }
   };
 
+  const openSalaryModal = (emp: Employee) => {
+    loadSalaryHistory(emp.id);
+    setSelectedEmpForSalary(emp);
+    const today = new Date();
+    let defaultMonth = '';
+    // In payroll practice, early in the month (day <= 15) settles the previous month's salary
+    if (today.getDate() <= 15) {
+      const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      defaultMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+    } else {
+      defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    }
+    setSalaryMonth(defaultMonth);
+    const baseSal = emp.salary || 0;
+    const currentAdv = Math.max(0, emp.advancePay || 0);
+    setSalaryGross(String(baseSal));
+    setSalaryAdvanceDeduction(String(Math.min(baseSal, currentAdv)));
+    setSalaryPaymentMethod('CASH');
+    setSalaryNotes('');
+  };
+
   const handleRecordSalary = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEmpForSalary) return;
 
-    const netAmount = selectedEmpForSalary.salary - (selectedEmpForSalary.advancePay || 0);
+    const gross = Number(salaryGross) || selectedEmpForSalary.salary;
+    const advDeduct = Number(salaryAdvanceDeduction) || 0;
+    const netAmount = Math.max(0, gross - advDeduct);
 
     setIsSubmittingSalary(true);
     try {
-      await recordSalaryPay(selectedEmpForSalary.id, netAmount, salaryNotes);
+      await recordSalaryPay(
+        selectedEmpForSalary.id,
+        netAmount,
+        salaryNotes,
+        salaryPaymentMethod,
+        salaryMonth,
+        gross,
+        advDeduct
+      );
       toast.success(`Salary payment of ${settings.currency} ${netAmount.toLocaleString()} recorded for ${selectedEmpForSalary.firstName}!`, {
-        description: 'Logged to expenses automatically.'
+        description: `Period: ${salaryMonth}. Logged to expenses automatically.`
       });
       setSelectedEmpForSalary(null);
       setSalaryNotes('');
@@ -661,9 +698,9 @@ export default function Employees() {
                   <FileText size={14} className="text-blue-700" /> Payslip
                 </button>
                 <button
-                  onClick={() => setSelectedEmpForSalary(emp)}
-                  className="flex items-center gap-1 text-xs bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-xl font-semibold transition shadow-sm"
-                  title="Pay Full Salary"
+                  onClick={() => openSalaryModal(emp)}
+                  className="flex items-center gap-1 text-xs bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-xl font-semibold transition shadow-sm cursor-pointer"
+                  title="Pay Monthly Salary"
                 >
                   <Banknote size={14} /> Pay Salary
                 </button>
@@ -1217,68 +1254,228 @@ export default function Employees() {
       )}
 
       {/* Record Salary Modal */}
-      {selectedEmpForSalary && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setSelectedEmpForSalary(null)}>
-          <div className="bg-card w-full max-w-md rounded-2xl shadow-lg border p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-2 text-green-700">
-              <Banknote size={24} />
-              <h2 className="text-xl font-bold text-foreground">Record Salary Payment</h2>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Recording final salary payment for <strong className="text-gray-900">{selectedEmpForSalary.firstName} {selectedEmpForSalary.lastName}</strong>.
-            </p>
+      {selectedEmpForSalary && (() => {
+        const monthFormatted = (() => {
+          if (!salaryMonth) return '';
+          const parts = salaryMonth.split('-');
+          if (parts.length === 2) {
+            const d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+            if (!isNaN(d.getTime())) {
+              return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+            }
+          }
+          return salaryMonth;
+        })();
 
-            <form onSubmit={handleRecordSalary} className="space-y-4">
-              <div className="bg-gray-50 border rounded-xl p-3 text-sm space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Base Salary:</span>
-                  <span className="font-medium">{settings.currency} {selectedEmpForSalary.salary.toLocaleString()}</span>
+        const duplicateSalary = (selectedEmpForSalary.salaryHistory || []).find(r => {
+          if (r.salaryMonth && r.salaryMonth === salaryMonth) return true;
+          if (r.date) {
+            const d = new Date(r.date);
+            const inferred = d.getDate() <= 15
+              ? `${new Date(d.getFullYear(), d.getMonth() - 1, 1).getFullYear()}-${String(new Date(d.getFullYear(), d.getMonth() - 1, 1).getMonth() + 1).padStart(2, '0')}`
+              : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return inferred === salaryMonth;
+          }
+          return false;
+        });
+
+        const grossVal = Number(salaryGross) || selectedEmpForSalary.salary;
+        const advDeductVal = Number(salaryAdvanceDeduction) || 0;
+        const netCalculated = Math.max(0, grossVal - advDeductVal);
+        const outstandingAdv = Math.max(0, selectedEmpForSalary.advancePay || 0);
+
+        return (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50" onClick={() => setSelectedEmpForSalary(null)}>
+            <div className="bg-card w-full max-w-lg rounded-2xl shadow-xl border p-5 sm:p-6 max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between pb-3 border-b mb-4">
+                <div className="flex items-center gap-2.5 text-green-700">
+                  <span className="p-2 bg-green-50 rounded-xl border border-green-200">
+                    <Banknote size={22} />
+                  </span>
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-bold text-foreground">Record Salary Payment</h2>
+                    <p className="text-xs text-gray-500">
+                      Settling payroll for <strong className="text-gray-900">{selectedEmpForSalary.firstName} {selectedEmpForSalary.lastName}</strong>
+                    </p>
+                  </div>
                 </div>
-                <div className="flex justify-between text-amber-700">
-                  <span>Less Advance Pay:</span>
-                  <span>- {settings.currency} {(selectedEmpForSalary.advancePay || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between font-bold text-base pt-2 border-t text-gray-900">
-                  <span>Net Payout:</span>
-                  <span>{settings.currency} {(selectedEmpForSalary.salary - (selectedEmpForSalary.advancePay || 0)).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold mb-1 text-gray-700">Reason / Notes <span className="font-normal text-gray-500">(Optional)</span></label>
-                <input
-                  type="text"
-                  placeholder="e.g. August 2026 Salary"
-                  className="w-full p-2.5 border rounded-xl text-sm bg-white"
-                  value={salaryNotes}
-                  onChange={e => setSalaryNotes(e.target.value)}
-                />
-              </div>
-
-              <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800 leading-relaxed">
-                💡 <strong>Note:</strong> Saving this will record a cash expense for the net payout and clear any pending advance balance for this employee.
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setSelectedEmpForSalary(null)}
-                  className="px-4 py-2 border rounded-xl text-gray-700 hover:bg-gray-100 text-xs font-semibold"
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-muted"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingSalary}
-                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 font-semibold text-xs shadow-sm transition disabled:opacity-50"
-                >
-                  {isSubmittingSalary ? 'Saving...' : 'Record Payment'}
+                  <X size={20} />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleRecordSalary} className="space-y-4">
+                {/* Salary Period / Month Selection */}
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 text-gray-800 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Calendar size={14} className="text-primary" /> Salary Month / Period
+                    </span>
+                    {monthFormatted && (
+                      <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                        For: {monthFormatted}
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="month"
+                    required
+                    value={salaryMonth}
+                    onChange={e => setSalaryMonth(e.target.value)}
+                    className="w-full p-2.5 border rounded-xl font-medium text-sm bg-background focus:ring-2 focus:ring-primary outline-none"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Select the exact payroll month this salary payment belongs to (e.g. September salary recorded in October).
+                  </p>
+                </div>
+
+                {/* Duplicate Salary Warning */}
+                {duplicateSalary && (
+                  <div className="p-3.5 bg-red-50 border-2 border-red-300 rounded-xl text-xs text-red-900 flex items-start gap-2.5 animate-in fade-in">
+                    <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold text-red-950 text-sm">
+                        Salary Already Paid for {monthFormatted}
+                      </strong>
+                      <p className="mt-0.5 leading-relaxed text-red-800">
+                        {selectedEmpForSalary.firstName}&apos;s salary for <strong>{monthFormatted}</strong> was already settled on <strong>{duplicateSalary.date}</strong> ({settings.currency} {duplicateSalary.netPaid.toLocaleString()}).
+                      </p>
+                      <p className="mt-1 font-bold text-red-700">
+                        ⛔ An employee cannot be paid twice for the same month. Please change the salary month above.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transparent Math Breakdown */}
+                <div className="bg-muted/30 border rounded-xl p-3.5 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                        Gross Salary ({settings.currency})
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={salaryGross}
+                        onChange={e => setSalaryGross(e.target.value)}
+                        className="w-full p-2 border rounded-lg text-sm font-mono font-bold bg-white"
+                        placeholder="Gross Amount"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-amber-800 mb-1">
+                        Deduct Advance ({settings.currency})
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={outstandingAdv}
+                        step="any"
+                        value={salaryAdvanceDeduction}
+                        onChange={e => setSalaryAdvanceDeduction(e.target.value)}
+                        className="w-full p-2 border border-amber-300 rounded-lg text-sm font-mono font-bold text-amber-900 bg-amber-50/50"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  {outstandingAdv > 0 && (
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-dashed">
+                      <span className="text-amber-800">
+                        Current Outstanding Advance: <strong>{settings.currency} {outstandingAdv.toLocaleString()}</strong>
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSalaryAdvanceDeduction(String(Math.min(grossVal, outstandingAdv)))}
+                          className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-semibold text-[11px]"
+                        >
+                          Deduct All
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSalaryAdvanceDeduction('0')}
+                          className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-semibold text-[11px]"
+                        >
+                          Deduct 0
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remaining Net Salary Display */}
+                  <div className="flex justify-between items-center font-bold pt-2.5 border-t border-gray-200">
+                    <span className="text-gray-800 text-sm">
+                      Net Payout to Employee:
+                    </span>
+                    <span className="text-lg font-mono font-black text-emerald-700">
+                      {settings.currency} {netCalculated.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Payment Method */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-gray-700">Payment Method</label>
+                  <select
+                    value={salaryPaymentMethod}
+                    onChange={e => setSalaryPaymentMethod(e.target.value)}
+                    className="w-full p-2.5 border rounded-xl text-sm bg-background font-medium"
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="AIRTEL_MONEY">Airtel Money</option>
+                    <option value="TNM_MPAMBA">TNM Mpamba</option>
+                  </select>
+                </div>
+
+                {/* Reason / Notes */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-gray-700">
+                    Payment Notes <span className="font-normal text-gray-500">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={`e.g. ${monthFormatted || 'Monthly'} salary payment`}
+                    className="w-full p-2.5 border rounded-xl text-sm bg-white"
+                    value={salaryNotes}
+                    onChange={e => setSalaryNotes(e.target.value)}
+                  />
+                </div>
+
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed">
+                  💡 <strong>Accurate Accounting:</strong> Net Payout = Total Earned ({settings.currency} {grossVal.toLocaleString()}) minus Advance Deducted ({settings.currency} {advDeductVal.toLocaleString()}) = <strong>{settings.currency} {netCalculated.toLocaleString()}</strong>. Logged to expenses automatically.
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEmpForSalary(null)}
+                    className="px-4 py-2 border rounded-xl text-gray-700 hover:bg-gray-100 text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingSalary || !!duplicateSalary || netCalculated < 0}
+                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold text-xs sm:text-sm shadow-sm transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingSalary ? 'Recording...' : duplicateSalary ? 'Already Paid for This Month' : `Record ${monthFormatted || 'Salary'} Payment`}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

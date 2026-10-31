@@ -5,64 +5,91 @@ export function passkeysAvailable() {
 }
 
 export interface DeviceBiometricInfo {
-  type: 'android' | 'ios' | 'windows' | 'mac' | 'generic';
+  type: 'fingerprint' | 'facelock' | 'windows-hello';
   label: string;
   shortLabel: string;
   defaultDeviceName: string;
+  configuredMode: 'fingerprint' | 'facelock';
+}
+
+export function getBiometricPreference(): 'fingerprint' | 'facelock' {
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem('msikaflo_biometric_preference');
+    if (saved === 'facelock' || saved === 'fingerprint') return saved;
+  }
+  return 'fingerprint';
+}
+
+export function setBiometricPreference(preference: 'fingerprint' | 'facelock') {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('msikaflo_biometric_preference', preference);
+  }
 }
 
 export function getDeviceBiometricInfo(): DeviceBiometricInfo {
+  const pref = getBiometricPreference();
   if (typeof navigator === 'undefined') {
     return {
-      type: 'generic',
-      label: 'Sign in with biometric / passkey',
-      shortLabel: 'Biometric / PIN',
-      defaultDeviceName: 'This device',
+      type: pref,
+      label: pref === 'facelock' ? 'Sign in with Face Lock' : 'Sign in with Fingerprint',
+      shortLabel: pref === 'facelock' ? 'Face Lock' : 'Fingerprint',
+      defaultDeviceName: pref === 'facelock' ? 'This device (Face Lock)' : 'This device (Fingerprint)',
+      configuredMode: pref,
     };
   }
   const ua = navigator.userAgent || '';
-  const isAndroid = /Android/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   const isWindows = /Windows/i.test(ua);
   const isMac = /Macintosh|Mac OS X/i.test(ua) && !isIOS;
 
-  if (isAndroid) {
-    return {
-      type: 'android',
-      label: 'Sign in with Face / Fingerprint',
-      shortLabel: 'Face / Fingerprint',
-      defaultDeviceName: 'Android (Face / Fingerprint)',
-    };
-  }
   if (isIOS) {
+    const isFaceID = pref === 'facelock' || (typeof window !== 'undefined' && window.screen.height / window.screen.width >= 2.0);
     return {
-      type: 'ios',
-      label: 'Sign in with Face ID / Touch ID',
-      shortLabel: 'Face ID / Touch ID',
-      defaultDeviceName: 'iPhone / iPad (Face ID / Touch ID)',
+      type: isFaceID ? 'facelock' : 'fingerprint',
+      label: isFaceID ? 'Sign in with Face ID' : 'Sign in with Touch ID',
+      shortLabel: isFaceID ? 'Face ID' : 'Touch ID',
+      defaultDeviceName: isFaceID ? 'iPhone / iPad (Face ID)' : 'iPhone / iPad (Touch ID)',
+      configuredMode: isFaceID ? 'facelock' : 'fingerprint',
     };
   }
+
   if (isWindows) {
     return {
-      type: 'windows',
-      label: 'Sign in with Windows Hello (Face / PIN)',
-      shortLabel: 'Windows Hello (Face / PIN)',
-      defaultDeviceName: 'Windows PC (Hello Face / PIN)',
+      type: 'windows-hello',
+      label: pref === 'facelock' ? 'Sign in with Windows Hello (Face)' : 'Sign in with Windows Hello / PIN',
+      shortLabel: pref === 'facelock' ? 'Windows Hello Face' : 'Windows Hello / PIN',
+      defaultDeviceName: pref === 'facelock' ? 'Windows PC (Hello Face)' : 'Windows PC (Hello PIN)',
+      configuredMode: pref,
     };
   }
+
   if (isMac) {
     return {
-      type: 'mac',
-      label: 'Sign in with Touch ID / Passkey',
-      shortLabel: 'Touch ID / Passkey',
-      defaultDeviceName: 'Mac (Touch ID / Passkey)',
+      type: 'fingerprint',
+      label: 'Sign in with Touch ID',
+      shortLabel: 'Touch ID',
+      defaultDeviceName: 'Mac (Touch ID)',
+      configuredMode: 'fingerprint',
     };
   }
+
+  // Android and other mobile devices
+  if (pref === 'facelock') {
+    return {
+      type: 'facelock',
+      label: 'Sign in with Face Lock',
+      shortLabel: 'Face Lock',
+      defaultDeviceName: 'Android (Face Lock)',
+      configuredMode: 'facelock',
+    };
+  }
+
   return {
-    type: 'generic',
-    label: 'Sign in with Biometrics (Face / Fingerprint)',
-    shortLabel: 'Face / Fingerprint',
-    defaultDeviceName: 'This device',
+    type: 'fingerprint',
+    label: 'Sign in with Fingerprint',
+    shortLabel: 'Fingerprint',
+    defaultDeviceName: 'Android (Fingerprint)',
+    configuredMode: 'fingerprint',
   };
 }
 

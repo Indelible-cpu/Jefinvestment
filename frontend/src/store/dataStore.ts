@@ -927,6 +927,7 @@ export interface SalaryPayRecord {
   advanceDeducted: number;
   netPaid: number;
   date: string;         // ISO date string YYYY-MM-DD
+  salaryMonth?: string; // e.g. "2026-09" (September 2026)
   notes?: string;
   loggedBy: string;
   createdAt: number;    // epoch ms for sorting
@@ -971,7 +972,15 @@ interface EmployeeState {
   updateEmployee: (id: string, emp: Partial<Employee>) => Promise<void>;
   deleteEmployee: (id: string) => void;
   recordAdvancePay: (id: string, amount: number, notes?: string) => Promise<void>;
-  recordSalaryPay: (id: string, netAmount: number, notes?: string, paymentMethod?: string) => Promise<void>;
+  recordSalaryPay: (
+    id: string,
+    netAmount: number,
+    notes?: string,
+    paymentMethod?: string,
+    salaryMonth?: string,
+    grossSalary?: number,
+    advanceDeducted?: number
+  ) => Promise<void>;
   clearAdvancePay: (id: string) => Promise<void>;
   restoreClearedAdvancePay: (id: string) => Promise<void>;
   deleteAdvancePay: (employeeId: string, advanceRecordId: string, amount: number) => Promise<void>;
@@ -1180,7 +1189,15 @@ export const useEmployeeStore = create<EmployeeState>()(
 
       await get().loadAdvanceHistory(employeeId);
     },
-    recordSalaryPay: async (id, netAmount, notes, paymentMethod = 'CASH') => {
+    recordSalaryPay: async (
+      id,
+      netAmount,
+      notes,
+      paymentMethod = 'CASH',
+      salaryMonth,
+      grossSalary,
+      advanceDeducted
+    ) => {
       const emp = get().employees.find(e => e.id === id);
       if (!emp) return;
 
@@ -1189,23 +1206,57 @@ export const useEmployeeStore = create<EmployeeState>()(
       const now = Date.now();
       const dateStr = new Date().toISOString().slice(0, 10);
 
-      // Reset advance pay since salary is settled
+      // Determine default salaryMonth if omitted
+      let finalSalaryMonth = salaryMonth;
+      if (!finalSalaryMonth) {
+        const today = new Date();
+        if (today.getDate() <= 15) {
+          const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          finalSalaryMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+        } else {
+          finalSalaryMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        }
+      }
+
+      // ── Duplicate Month Payment Prevention ──
+      // An employee must NEVER be paid twice for the same payroll month
+      const existingSal = emp.salaryHistory || [];
+      const isAlreadyPaid = existingSal.some(r => {
+        if (r.salaryMonth && r.salaryMonth === finalSalaryMonth) return true;
+        return false;
+      });
+      if (isAlreadyPaid) {
+        throw new Error(`Salary for ${finalSalaryMonth} has already been paid for ${emp.firstName} ${emp.lastName}. An employee cannot be paid twice for the same month.`);
+      }
+
+      // Accurate Math:
+      // Gross = explicitly passed or emp.salary
+      // Advance Deducted = explicitly passed or current outstanding advance
+      // Net Payout = gross - advanceDeducted
+      const finalGross = typeof grossSalary === 'number' && grossSalary > 0 ? grossSalary : (Number(netAmount) + (advanceDeducted || 0));
+      const actualDeduction = typeof advanceDeducted === 'number'
+        ? Math.max(0, advanceDeducted)
+        : Math.min(Math.max(0, emp.advancePay || 0), Math.max(0, finalGross - Number(netAmount)));
+
+      // Deduct from employee's advance balance
+      const newAdvanceBalance = Math.max(0, (emp.advancePay || 0) - actualDeduction);
       updateDoc(doc(db, 'employees', id), {
-        advancePay: 0
+        advancePay: newAdvanceBalance
       }).catch(e => console.warn('Offline write deferred or failed:', e));
 
       // ── Save to salary history subcollection (permanent record) ──
       const salaryRecord = {
-        grossSalary: emp.salary,
-        advanceDeducted: emp.advancePay || 0,
+        grossSalary: finalGross,
+        advanceDeducted: actualDeduction,
         netPaid: Number(netAmount),
+        salaryMonth: finalSalaryMonth,
         date: dateStr,
         notes: notes || '',
         loggedBy: currentUser,
         createdAt: now,
         paymentMethod: paymentMethod || 'CASH',
       };
-      addDoc(collection(db, 'employees', id, 'salaryHistory'), salaryRecord)
+      await addDoc(collection(db, 'employees', id, 'salaryHistory'), salaryRecord)
         .catch(e => console.warn('Offline write deferred or failed (salary history):', e));
 
       // Automatically record as an expense
@@ -1213,7 +1264,7 @@ export const useEmployeeStore = create<EmployeeState>()(
         title: `Salary Payment: ${emp.firstName} ${emp.lastName}`,
         amount: Number(netAmount),
         category: 'Salary / Advance Pay',
-        description: notes ? `Notes: ${notes}` : `Net salary payment to ${emp.firstName} ${emp.lastName}`,
+        description: notes ? `Notes: ${notes} (Period: ${finalSalaryMonth})` : `Net salary payment to ${emp.firstName} ${emp.lastName} for ${finalSalaryMonth}`,
         paymentMethod: paymentMethod || 'CASH',
         date: dateStr,
         loggedBy: currentUser,
@@ -1222,6 +1273,8 @@ export const useEmployeeStore = create<EmployeeState>()(
         createdAt: now,
         isDeleted: false,
       }).catch(e => console.warn('Offline write deferred or failed:', e));
+
+      await get().loadSalaryHistory(id);
     },
     getActiveCount: () => get().employees.filter(e => e.status === 'PRESENT').length,
     getTotalAdvancePay: () => get().employees.reduce((sum, e) => sum + (e.advancePay || 0), 0),
@@ -1361,19 +1414,43 @@ export const useEmployeeStore = create<EmployeeState>()(
             dateStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
           }
           const netPaid = Number(data.netPaid) || 0;
-          let grossSalary = Number(data.grossSalary) || (emp?.salary || 0);
-          let advanceDeducted = Number(data.advanceDeducted) || 0;
-          if (advanceDeducted === 0 && grossSalary > netPaid) {
-            advanceDeducted = grossSalary - netPaid;
+          // Advance deducted is strictly what was actually recorded, never phantom math
+          const advanceDeducted = typeof data.advanceDeducted === 'number' ? Math.max(0, data.advanceDeducted) : 0;
+          const grossSalary = Number(data.grossSalary) || (netPaid + advanceDeducted) || (emp?.salary || 0);
+
+          // Resolve salaryMonth: explicit field -> notes parsing -> early month heuristic (day <= 15 is prev month)
+          let salaryMonth = data.salaryMonth || '';
+          if (!salaryMonth) {
+            const notesText = `${data.notes || ''} ${data.description || ''}`;
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            for (let mIdx = 0; mIdx < months.length; mIdx++) {
+              const mName = months[mIdx];
+              if (new RegExp(`\\b${mName}\\b`, 'i').test(notesText)) {
+                const yearMatch = notesText.match(/\b(20\d{2})\b/);
+                const yr = yearMatch ? yearMatch[1] : (dateStr ? new Date(dateStr).getFullYear() : new Date().getFullYear());
+                salaryMonth = `${yr}-${String(mIdx + 1).padStart(2, '0')}`;
+                break;
+              }
+            }
+            if (!salaryMonth && dateStr) {
+              const dt = new Date(dateStr);
+              if (!isNaN(dt.getTime())) {
+                if (dt.getDate() <= 15) {
+                  const prev = new Date(dt.getFullYear(), dt.getMonth() - 1, 1);
+                  salaryMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+                } else {
+                  salaryMonth = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+                }
+              }
+            }
           }
-          if (grossSalary === 0) {
-            grossSalary = netPaid + advanceDeducted;
-          }
+
           return {
             id: d.id,
             grossSalary,
             advanceDeducted,
             netPaid,
+            salaryMonth,
             date: dateStr,
             notes: data.notes || '',
             loggedBy: data.loggedBy || 'System',
@@ -1432,13 +1509,39 @@ export const useEmployeeStore = create<EmployeeState>()(
               const netPaid = Number(data.amount) || 0;
               const alreadyHas = subRecords.some(r => r.date === expDate && r.netPaid === netPaid);
               if (!alreadyHas) {
-                const grossSalary = emp.salary || netPaid;
-                const advanceDeducted = grossSalary > netPaid ? (grossSalary - netPaid) : 0;
+                const advanceDeducted = 0;
+                const grossSalary = netPaid;
+
+                let salaryMonth = '';
+                const combinedText = `${data.title || ''} ${data.description || ''}`;
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                for (let mIdx = 0; mIdx < months.length; mIdx++) {
+                  const mName = months[mIdx];
+                  if (new RegExp(`\\b${mName}\\b`, 'i').test(combinedText)) {
+                    const yearMatch = combinedText.match(/\b(20\d{2})\b/);
+                    const yr = yearMatch ? yearMatch[1] : (expDate ? new Date(expDate).getFullYear() : new Date().getFullYear());
+                    salaryMonth = `${yr}-${String(mIdx + 1).padStart(2, '0')}`;
+                    break;
+                  }
+                }
+                if (!salaryMonth && expDate) {
+                  const dt = new Date(expDate);
+                  if (!isNaN(dt.getTime())) {
+                    if (dt.getDate() <= 15) {
+                      const prev = new Date(dt.getFullYear(), dt.getMonth() - 1, 1);
+                      salaryMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+                    } else {
+                      salaryMonth = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+                    }
+                  }
+                }
+
                 legacyRecords.push({
                   id: `exp_${ed.id}`,
                   grossSalary,
                   advanceDeducted,
                   netPaid,
+                  salaryMonth,
                   date: expDate,
                   notes: data.description || data.title || 'Salary Payment',
                   loggedBy: data.loggedBy || 'System',

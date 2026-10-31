@@ -10,10 +10,10 @@ import AuditLogs from '../components/AuditLogs';
 import ProfilePhotoModal from '../components/ProfilePhotoModal';
 import { useAuditStore } from '../store/auditStore';
 import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, ScanFace, Fingerprint } from 'lucide-react';
 import { checkForAppUpdates } from '../utils/pwaUpdate';
 import { APP_VERSION, APP_BUILD_DATE } from '../utils/version';
-import { listPasskeys, registerPasskey, removePasskey, passkeysAvailable, getDeviceBiometricInfo } from '../utils/passkeys';
+import { listPasskeys, registerPasskey, removePasskey, passkeysAvailable, getDeviceBiometricInfo, setBiometricPreference, getBiometricPreference } from '../utils/passkeys';
 import { useThemeStore } from '../store/themeStore';
 import {
   requestPushPermission,
@@ -59,6 +59,7 @@ export default function Settings() {
 
   const [registeredPasskeys, setRegisteredPasskeys] = useState<any[]>([]);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [biometricPref, setBiometricPref] = useState<'fingerprint' | 'facelock'>(getBiometricPreference);
   const refreshPasskeys = async () => {
     if (!token || !passkeysAvailable()) return;
     try { setRegisteredPasskeys(await listPasskeys(token)); }
@@ -835,11 +836,44 @@ export default function Settings() {
 
             <div className="p-6 border-t bg-gray-50/40 space-y-3">
               <div className="flex items-center gap-2 text-gray-800 font-bold">
-                <KeyRound size={18} /> Biometric Sign-in (Face Lock / Fingerprint / Passkey)
+                <KeyRound size={18} /> Biometric Sign-in
               </div>
               <p className="text-sm text-gray-600">
-                Register this device's Face Unlock, Fingerprint, or device PIN to sign into your personal account instantly.
+                Register this device's {biometricPref === 'facelock' ? 'Face Lock' : 'Fingerprint'} or screen-lock PIN to sign into your personal account instantly.
               </p>
+
+              {passkeysAvailable() && (
+                <div className="flex items-center gap-2 pt-1 pb-1">
+                  <span className="text-xs font-semibold text-gray-700">Sensor type:</span>
+                  <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBiometricPreference('fingerprint');
+                        setBiometricPref('fingerprint');
+                      }}
+                      className={`px-3 py-1 rounded-md font-medium transition flex items-center gap-1.5 cursor-pointer ${
+                        biometricPref === 'fingerprint' ? 'bg-white text-blue-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <Fingerprint size={14} /> Fingerprint
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBiometricPreference('facelock');
+                        setBiometricPref('facelock');
+                      }}
+                      className={`px-3 py-1 rounded-md font-medium transition flex items-center gap-1.5 cursor-pointer ${
+                        biometricPref === 'facelock' ? 'bg-white text-blue-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <ScanFace size={14} /> Face Lock
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {!passkeysAvailable() ? (
                 <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
                   Passkey service is not configured yet. Password sign-in remains available.
@@ -855,8 +889,9 @@ export default function Settings() {
                       await refreshPasskeys();
                     } catch (error: any) { toast.error(error?.message || 'Biometric registration failed.'); }
                     finally { setPasskeyBusy(false); }
-                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50 cursor-pointer">
-                    {passkeyBusy ? 'Please wait...' : `Add this device (${getDeviceBiometricInfo().shortLabel})`}
+                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50 cursor-pointer flex items-center gap-2">
+                    {biometricPref === 'facelock' ? <ScanFace size={16} /> : <Fingerprint size={16} />}
+                    <span>{passkeyBusy ? 'Please wait...' : `Add this device (${getDeviceBiometricInfo().shortLabel})`}</span>
                   </button>
                   <div className="space-y-2">
                     {registeredPasskeys.map((item: any) => (

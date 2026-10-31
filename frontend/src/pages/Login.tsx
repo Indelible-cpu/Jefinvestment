@@ -7,7 +7,7 @@ import { setPersistence, browserLocalPersistence, browserSessionPersistence, sen
 import { auth } from '../lib/firebase';
 import { APP_VERSION } from '../utils/version';
 import { Fingerprint, ScanFace } from 'lucide-react';
-import { authenticateWithPasskey, passkeysAvailable, getDeviceBiometricInfo } from '../utils/passkeys';
+import { authenticateWithPasskey, passkeysAvailable, getDeviceBiometricInfo, setBiometricPreference, getBiometricPreference } from '../utils/passkeys';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -19,6 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [biometricBusy, setBiometricBusy] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [biometricPref, setLocalBiometricPref] = useState<'fingerprint' | 'facelock'>(getBiometricPreference);
   const biometricInfo = getDeviceBiometricInfo();
   
   const navigate = useNavigate();
@@ -314,18 +315,35 @@ export default function Login() {
 
 
           {passkeysAvailable() && (
-            <button
-              type="button"
-              onClick={handlePasskeyLogin}
-              disabled={loading || biometricBusy}
-              className="w-full mt-3 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2.5 text-sm disabled:opacity-60 cursor-pointer"
-            >
-              <div className="flex items-center gap-1.5 text-[#1d64ec] shrink-0">
-                <ScanFace size={18} />
-                <Fingerprint size={18} />
+            <div className="w-full mt-3 space-y-1.5">
+              <button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={loading || biometricBusy}
+                className="w-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
+              >
+                {biometricInfo.type === 'facelock' ? (
+                  <ScanFace size={19} className="text-[#1d64ec] shrink-0" />
+                ) : (
+                  <Fingerprint size={19} className="text-[#1d64ec] shrink-0" />
+                )}
+                <span>{biometricInfo.label}</span>
+              </button>
+
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = biometricPref === 'facelock' ? 'fingerprint' : 'facelock';
+                    setBiometricPreference(next);
+                    setLocalBiometricPref(next);
+                  }}
+                  className="text-[11px] text-[#1d64ec] hover:text-blue-800 transition font-medium hover:underline cursor-pointer"
+                >
+                  {biometricPref === 'facelock' ? 'Switch to Fingerprint sign-in' : 'Switch to Face Lock sign-in'}
+                </button>
               </div>
-              <span>{biometricInfo.label}</span>
-            </button>
+            </div>
           )}
 
           {/* Legal Links */}

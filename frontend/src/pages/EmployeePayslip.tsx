@@ -84,8 +84,18 @@ export default function EmployeePayslip() {
   const companyName = settings.companyName || 'JEF INVESTMENT';
 
   // Format pay period: accurately identifies if salary paid early in month M is for month M-1
-  const formatPayPeriod = (dateStr: string, notesStr?: string) => {
-    // 1. If notes explicitly mention a month, honor it
+  const formatPayPeriod = (dateStr: string, notesStr?: string, salaryMonthStr?: string) => {
+    // 1. If salaryMonth is stored (e.g. "2026-09"), honor it
+    if (salaryMonthStr) {
+      const [y, m] = salaryMonthStr.split('-');
+      if (y && m) {
+        const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        }
+      }
+    }
+    // 2. If notes explicitly mention a month, honor it
     if (notesStr) {
       const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -129,13 +139,13 @@ export default function EmployeePayslip() {
   let defaultAuthorizer = '';
 
   if (selectedRecord) {
-    defaultPayPeriod = formatPayPeriod(selectedRecord.date, selectedRecord.notes);
+    defaultPayPeriod = formatPayPeriod(selectedRecord.date, selectedRecord.notes, selectedRecord.salaryMonth);
     paymentDate = selectedRecord.date;
-    basicSalary = selectedRecord.grossSalary || emp.salary;
-    advanceDeduction = selectedRecord.advanceDeducted > 0
+    advanceDeduction = typeof selectedRecord.advanceDeducted === 'number'
       ? selectedRecord.advanceDeducted
-      : Math.max(0, basicSalary - selectedRecord.netPaid);
-    grossSalary = basicSalary;
+      : 0;
+    grossSalary = selectedRecord.grossSalary || (selectedRecord.netPaid + advanceDeduction);
+    basicSalary = grossSalary;
     totalDeductions = advanceDeduction + otherDeductions;
     netPay = selectedRecord.netPaid;
     paymentMethod = selectedRecord.paymentMethod || 'Cash';
@@ -811,7 +821,7 @@ export default function EmployeePayslip() {
             >
               {sortedSalaryHistory.map(rec => (
                 <option key={rec.id} value={rec.id}>
-                  {formatPayPeriod(rec.date, rec.notes)} — Paid {cur} {rec.netPaid.toLocaleString()} ({rec.date})
+                  {formatPayPeriod(rec.date, rec.notes, rec.salaryMonth)} — Paid {cur} {rec.netPaid.toLocaleString()} ({rec.date})
                 </option>
               ))}
               <option value="CURRENT">
