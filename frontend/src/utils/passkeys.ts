@@ -26,8 +26,8 @@ export function setBiometricPreference(preference: 'fingerprint' | 'facelock') {
   }
 }
 
-export function getDeviceBiometricInfo(): DeviceBiometricInfo {
-  const pref = getBiometricPreference();
+export function getDeviceBiometricInfo(overridePref?: 'fingerprint' | 'facelock'): DeviceBiometricInfo {
+  const pref = overridePref || getBiometricPreference();
   if (typeof navigator === 'undefined') {
     return {
       type: pref,
@@ -48,28 +48,28 @@ export function getDeviceBiometricInfo(): DeviceBiometricInfo {
       type: isFaceID ? 'facelock' : 'fingerprint',
       label: isFaceID ? 'Sign in with Face ID' : 'Sign in with Touch ID',
       shortLabel: isFaceID ? 'Face ID' : 'Touch ID',
-      defaultDeviceName: isFaceID ? 'iPhone / iPad (Face ID)' : 'iPhone / iPad (Touch ID)',
+      defaultDeviceName: isFaceID ? 'Apple Device (Face ID)' : 'Apple Device (Touch ID)',
       configuredMode: isFaceID ? 'facelock' : 'fingerprint',
     };
   }
 
   if (isWindows) {
     return {
-      type: 'windows-hello',
-      label: pref === 'facelock' ? 'Sign in with Windows Hello (Face)' : 'Sign in with Windows Hello / PIN',
-      shortLabel: pref === 'facelock' ? 'Windows Hello Face' : 'Windows Hello / PIN',
-      defaultDeviceName: pref === 'facelock' ? 'Windows PC (Hello Face)' : 'Windows PC (Hello PIN)',
+      type: pref === 'facelock' ? 'facelock' : 'fingerprint',
+      label: pref === 'facelock' ? 'Sign in with Face Lock (Windows Hello)' : 'Sign in with Fingerprint / PIN',
+      shortLabel: pref === 'facelock' ? 'Face Lock' : 'Fingerprint',
+      defaultDeviceName: pref === 'facelock' ? 'Windows PC (Face Lock)' : 'Windows PC (Fingerprint)',
       configuredMode: pref,
     };
   }
 
   if (isMac) {
     return {
-      type: 'fingerprint',
-      label: 'Sign in with Touch ID',
-      shortLabel: 'Touch ID',
-      defaultDeviceName: 'Mac (Touch ID)',
-      configuredMode: 'fingerprint',
+      type: pref === 'facelock' ? 'facelock' : 'fingerprint',
+      label: pref === 'facelock' ? 'Sign in with Face Lock' : 'Sign in with Touch ID',
+      shortLabel: pref === 'facelock' ? 'Face Lock' : 'Touch ID',
+      defaultDeviceName: pref === 'facelock' ? 'Mac (Face Lock)' : 'Mac (Touch ID)',
+      configuredMode: pref,
     };
   }
 

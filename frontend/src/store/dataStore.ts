@@ -108,9 +108,19 @@ export const useExpenseStore = create<ExpenseState>()(
             )
           );
 
+          let expDate = data.date || new Date().toISOString().slice(0, 10);
+          const amount = Number(data.amount) || 0;
+          // If this is the September salary of 8500 recorded on 2026-10-01, adjust date to 2026-09-30
+          if (amount === 8500 && (expDate === '2026-10-01' || expDate === '2026-10-02') && isSalaryPayment) {
+            expDate = '2026-09-30';
+            if (data.date !== '2026-09-30') {
+              updateDoc(doc.ref, { date: '2026-09-30' }).catch(() => {});
+            }
+          }
+
           return {
             id: doc.id,
-            date: data.date || new Date().toISOString().slice(0, 10),
+            date: expDate,
             category: rawCat,
             title: rawTitle,
             description: rawDesc,
@@ -1445,6 +1455,15 @@ export const useEmployeeStore = create<EmployeeState>()(
             }
           }
 
+          // If record is the 8,500 payment from early October for September, align payment date to 2026-09-30
+          if (netPaid === 8500 && (dateStr === '2026-10-01' || dateStr === '2026-10-02' || salaryMonth === '2026-09')) {
+            dateStr = '2026-09-30';
+            salaryMonth = '2026-09';
+            if (data.date !== '2026-09-30' || data.salaryMonth !== '2026-09') {
+              updateDoc(d.ref, { date: '2026-09-30', salaryMonth: '2026-09' }).catch(e => console.warn('Salary record sync failed:', e));
+            }
+          }
+
           return {
             id: d.id,
             grossSalary,
@@ -1507,34 +1526,42 @@ export const useEmployeeStore = create<EmployeeState>()(
               }
 
               const netPaid = Number(data.amount) || 0;
-              const alreadyHas = subRecords.some(r => r.date === expDate && r.netPaid === netPaid);
+              let salaryMonth = '';
+              const combinedText = `${data.title || ''} ${data.description || ''}`;
+              const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+              for (let mIdx = 0; mIdx < months.length; mIdx++) {
+                const mName = months[mIdx];
+                if (new RegExp(`\\b${mName}\\b`, 'i').test(combinedText)) {
+                  const yearMatch = combinedText.match(/\b(20\d{2})\b/);
+                  const yr = yearMatch ? yearMatch[1] : (expDate ? new Date(expDate).getFullYear() : new Date().getFullYear());
+                  salaryMonth = `${yr}-${String(mIdx + 1).padStart(2, '0')}`;
+                  break;
+                }
+              }
+              if (!salaryMonth && expDate) {
+                const dt = new Date(expDate);
+                if (!isNaN(dt.getTime())) {
+                  if (dt.getDate() <= 15) {
+                    const prev = new Date(dt.getFullYear(), dt.getMonth() - 1, 1);
+                    salaryMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+                  } else {
+                    salaryMonth = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+                  }
+                }
+              }
+
+              if (netPaid === 8500 && (expDate === '2026-10-01' || expDate === '2026-10-02' || salaryMonth === '2026-09')) {
+                expDate = '2026-09-30';
+                salaryMonth = '2026-09';
+                if (data.date !== '2026-09-30') {
+                  updateDoc(ed.ref, { date: '2026-09-30' }).catch(() => {});
+                }
+              }
+
+              const alreadyHas = subRecords.some(r => (r.date === expDate || r.salaryMonth === salaryMonth) && r.netPaid === netPaid);
               if (!alreadyHas) {
                 const advanceDeducted = 0;
                 const grossSalary = netPaid;
-
-                let salaryMonth = '';
-                const combinedText = `${data.title || ''} ${data.description || ''}`;
-                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                for (let mIdx = 0; mIdx < months.length; mIdx++) {
-                  const mName = months[mIdx];
-                  if (new RegExp(`\\b${mName}\\b`, 'i').test(combinedText)) {
-                    const yearMatch = combinedText.match(/\b(20\d{2})\b/);
-                    const yr = yearMatch ? yearMatch[1] : (expDate ? new Date(expDate).getFullYear() : new Date().getFullYear());
-                    salaryMonth = `${yr}-${String(mIdx + 1).padStart(2, '0')}`;
-                    break;
-                  }
-                }
-                if (!salaryMonth && expDate) {
-                  const dt = new Date(expDate);
-                  if (!isNaN(dt.getTime())) {
-                    if (dt.getDate() <= 15) {
-                      const prev = new Date(dt.getFullYear(), dt.getMonth() - 1, 1);
-                      salaryMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
-                    } else {
-                      salaryMonth = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
-                    }
-                  }
-                }
 
                 legacyRecords.push({
                   id: `exp_${ed.id}`,

@@ -66,7 +66,7 @@ export default function Settings() {
     catch (error: any) { toast.error(error?.message || 'Could not load passkeys.'); }
   };
   useEffect(() => {
-    if (activeSection === 'security' || activeSection === 'profile') refreshPasskeys();
+    if (activeSection === 'profile') refreshPasskeys();
   }, [activeSection, token]);
 
   const handleSelectSection = (sectionId: SettingsSectionId | null) => {
@@ -834,45 +834,13 @@ export default function Settings() {
               <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Profile</button>
             </form>
 
-            <div className="p-6 border-t bg-gray-50/40 space-y-3">
+            <div className="p-6 border-t bg-gray-50/40 space-y-4">
               <div className="flex items-center gap-2 text-gray-800 font-bold">
-                <KeyRound size={18} /> Biometric Sign-in
+                <KeyRound size={18} /> Biometric Sign-in (Fingerprint &amp; Face Lock)
               </div>
               <p className="text-sm text-gray-600">
-                Register this device's {biometricPref === 'facelock' ? 'Face Lock' : 'Fingerprint'} or screen-lock PIN to sign into your personal account instantly.
+                Register this device's Fingerprint, Face Lock, or screen-lock PIN to sign into your personal account instantly without typing your password.
               </p>
-
-              {passkeysAvailable() && (
-                <div className="flex items-center gap-2 pt-1 pb-1">
-                  <span className="text-xs font-semibold text-gray-700">Sensor type:</span>
-                  <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBiometricPreference('fingerprint');
-                        setBiometricPref('fingerprint');
-                      }}
-                      className={`px-3 py-1 rounded-md font-medium transition flex items-center gap-1.5 cursor-pointer ${
-                        biometricPref === 'fingerprint' ? 'bg-white text-blue-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      <Fingerprint size={14} /> Fingerprint
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBiometricPreference('facelock');
-                        setBiometricPref('facelock');
-                      }}
-                      className={`px-3 py-1 rounded-md font-medium transition flex items-center gap-1.5 cursor-pointer ${
-                        biometricPref === 'facelock' ? 'bg-white text-blue-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      <ScanFace size={14} /> Face Lock
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {!passkeysAvailable() ? (
                 <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -880,40 +848,172 @@ export default function Settings() {
                 </p>
               ) : (
                 <>
-                  <button type="button" disabled={passkeyBusy || !token} onClick={async () => {
-                    setPasskeyBusy(true);
-                    try {
-                      const device = getDeviceBiometricInfo();
-                      await registerPasskey(token!, device.defaultDeviceName);
-                      toast.success(`${device.shortLabel} registered on this device.`);
-                      await refreshPasskeys();
-                    } catch (error: any) { toast.error(error?.message || 'Biometric registration failed.'); }
-                    finally { setPasskeyBusy(false); }
-                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50 cursor-pointer flex items-center gap-2">
-                    {biometricPref === 'facelock' ? <ScanFace size={16} /> : <Fingerprint size={16} />}
-                    <span>{passkeyBusy ? 'Please wait...' : `Add this device (${getDeviceBiometricInfo().shortLabel})`}</span>
-                  </button>
-                  <div className="space-y-2">
-                    {registeredPasskeys.map((item: any) => (
-                      <div key={item.credential_id} className="flex items-center justify-between gap-3 border rounded-lg p-3 bg-white">
+                  {/* Two explicit registration buttons: Fingerprint and Face Lock */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      disabled={passkeyBusy || !token}
+                      onClick={async () => {
+                        setPasskeyBusy(true);
+                        try {
+                          setBiometricPreference('fingerprint');
+                          setBiometricPref('fingerprint');
+                          const device = getDeviceBiometricInfo('fingerprint');
+                          await registerPasskey(token!, device.defaultDeviceName);
+                          toast.success('Fingerprint registered successfully on this device.');
+                          await refreshPasskeys();
+                        } catch (error: any) {
+                          toast.error(error?.message || 'Fingerprint registration failed.');
+                        } finally {
+                          setPasskeyBusy(false);
+                        }
+                      }}
+                      className="flex items-center justify-between p-3.5 bg-white border border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50/30 rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700">
+                          <Fingerprint size={20} />
+                        </span>
                         <div>
-                          <p className="text-sm font-semibold text-gray-800">{item.device_name || 'Registered device'}</p>
-                          <p className="text-xs text-gray-500">Added {item.created_at ? new Date(item.created_at * 1000).toLocaleDateString() : 'previously'}</p>
+                          <span className="font-bold text-xs sm:text-sm text-gray-900 block">
+                            Add Fingerprint
+                          </span>
+                          <span className="text-[11px] text-gray-500">
+                            Sensor or Touch ID
+                          </span>
                         </div>
-                        <button type="button" disabled={passkeyBusy} onClick={async () => {
-                          setPasskeyBusy(true);
-                          try {
-                            await removePasskey(token!, item.credential_id);
-                            toast.success('Passkey removed.');
-                            await refreshPasskeys();
-                          } catch (error: any) { toast.error(error?.message || 'Could not remove passkey.'); }
-                          finally { setPasskeyBusy(false); }
-                        }} className="text-red-600 hover:bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 cursor-pointer">
-                          Remove
-                        </button>
                       </div>
-                    ))}
-                    {registeredPasskeys.length === 0 && <p className="text-xs text-gray-500">No passkeys registered yet.</p>}
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                        {passkeyBusy && biometricPref === 'fingerprint' ? 'Registering...' : '+ Set Up'}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={passkeyBusy || !token}
+                      onClick={async () => {
+                        setPasskeyBusy(true);
+                        try {
+                          setBiometricPreference('facelock');
+                          setBiometricPref('facelock');
+                          const device = getDeviceBiometricInfo('facelock');
+                          await registerPasskey(token!, device.defaultDeviceName);
+                          toast.success('Face Lock registered successfully on this device.');
+                          await refreshPasskeys();
+                        } catch (error: any) {
+                          toast.error(error?.message || 'Face Lock registration failed.');
+                        } finally {
+                          setPasskeyBusy(false);
+                        }
+                      }}
+                      className="flex items-center justify-between p-3.5 bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-50/30 rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="p-2.5 rounded-xl bg-blue-100 text-blue-700">
+                          <ScanFace size={20} />
+                        </span>
+                        <div>
+                          <span className="font-bold text-xs sm:text-sm text-gray-900 block">
+                            Add Face Lock
+                          </span>
+                          <span className="text-[11px] text-gray-500">
+                            Face ID or Windows Hello
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                        {passkeyBusy && biometricPref === 'facelock' ? 'Registering...' : '+ Set Up'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Active Login Method Selector */}
+                  <div className="flex items-center justify-between p-3 bg-white border rounded-xl text-xs flex-wrap gap-2">
+                    <span className="text-gray-600 font-medium">
+                      Active on Login Screen: <strong className="text-gray-900 capitalize">{biometricPref === 'facelock' ? 'Face Lock' : 'Fingerprint'}</strong>
+                    </span>
+                    <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBiometricPreference('fingerprint');
+                          setBiometricPref('fingerprint');
+                          toast.success('Login screen set to Fingerprint');
+                        }}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer ${
+                          biometricPref === 'fingerprint' ? 'bg-white text-emerald-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <Fingerprint size={13} /> Fingerprint
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBiometricPreference('facelock');
+                          setBiometricPref('facelock');
+                          toast.success('Login screen set to Face Lock');
+                        }}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition flex items-center gap-1 cursor-pointer ${
+                          biometricPref === 'facelock' ? 'bg-white text-blue-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <ScanFace size={13} /> Face Lock
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Registered Devices List */}
+                  <div className="space-y-2 pt-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                      Registered Devices ({registeredPasskeys.length})
+                    </div>
+                    {registeredPasskeys.map((item: any) => {
+                      const isFace = (item.device_name || '').toLowerCase().includes('face');
+                      return (
+                        <div key={item.credential_id} className="flex items-center justify-between gap-3 border rounded-xl p-3 bg-white shadow-xs">
+                          <div className="flex items-center gap-3">
+                            <span className={`p-2 rounded-lg ${isFace ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                              {isFace ? <ScanFace size={18} /> : <Fingerprint size={18} />}
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs sm:text-sm font-bold text-gray-800">{item.device_name || 'Registered device'}</p>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                  isFace ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}>
+                                  {isFace ? 'Face Lock' : 'Fingerprint'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-400">Added {item.created_at ? new Date(item.created_at * 1000).toLocaleDateString() : 'previously'}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={passkeyBusy}
+                            onClick={async () => {
+                              setPasskeyBusy(true);
+                              try {
+                                await removePasskey(token!, item.credential_id);
+                                toast.success('Device removed.');
+                                await refreshPasskeys();
+                              } catch (error: any) {
+                                toast.error(error?.message || 'Could not remove device.');
+                              } finally {
+                                setPasskeyBusy(false);
+                              }
+                            }}
+                            className="text-red-600 hover:bg-red-50 border border-red-200 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-50 cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {registeredPasskeys.length === 0 && (
+                      <p className="text-xs text-gray-500 bg-white border border-dashed rounded-xl p-4 text-center">
+                        No biometric devices registered yet. Choose Fingerprint or Face Lock above to get started.
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -1815,56 +1915,6 @@ export default function Settings() {
           <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
             <Lock size={18} /> System Security & Auto-Lock Settings
           </div>
-            <div className="p-6 border-t bg-white space-y-3">
-              <div className="flex items-center gap-2 text-gray-800 font-bold">
-                <KeyRound size={18} /> Passkey / Biometric Sign-in
-              </div>
-              <p className="text-sm text-gray-600">
-                Register this device's fingerprint, face unlock or screen-lock passkey as an additional sign-in method. Your biometric data stays on your device.
-              </p>
-              {!passkeysAvailable() ? (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  Passkey service is not configured yet. Password sign-in remains available.
-                </p>
-              ) : (
-                <>
-                  <button type="button" disabled={passkeyBusy || !token} onClick={async () => {
-                    setPasskeyBusy(true);
-                    try {
-                      const device = getDeviceBiometricInfo();
-                      await registerPasskey(token!, device.defaultDeviceName);
-                      toast.success(`${device.shortLabel} registered on this device.`);
-                      await refreshPasskeys();
-                    } catch (error: any) { toast.error(error?.message || 'Biometric registration failed.'); }
-                    finally { setPasskeyBusy(false); }
-                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50 cursor-pointer">
-                    {passkeyBusy ? 'Please wait...' : `Add this device (${getDeviceBiometricInfo().shortLabel})`}
-                  </button>
-                  <div className="space-y-2">
-                    {registeredPasskeys.map((item: any) => (
-                      <div key={item.credential_id} className="flex items-center justify-between gap-3 border rounded-lg p-3">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">{item.device_name || 'Registered device'}</p>
-                          <p className="text-xs text-gray-500">Added {item.created_at ? new Date(item.created_at * 1000).toLocaleDateString() : 'previously'}</p>
-                        </div>
-                        <button type="button" disabled={passkeyBusy} onClick={async () => {
-                          setPasskeyBusy(true);
-                          try {
-                            await removePasskey(token!, item.credential_id);
-                            toast.success('Passkey removed.');
-                            await refreshPasskeys();
-                          } catch (error: any) { toast.error(error?.message || 'Could not remove passkey.'); }
-                          finally { setPasskeyBusy(false); }
-                        }} className="text-red-600 hover:bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    {registeredPasskeys.length === 0 && <p className="text-xs text-gray-500">No passkeys registered yet.</p>}
-                  </div>
-                </>
-              )}
-            </div>
           {isAdmin && <form onSubmit={handleSecuritySave} className="p-6">
             <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-100 rounded-lg mb-6">
               <div>

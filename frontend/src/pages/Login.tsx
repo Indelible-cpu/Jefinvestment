@@ -322,12 +322,12 @@ export default function Login() {
                 disabled={loading || biometricBusy}
                 className="w-full border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
               >
-                {biometricInfo.type === 'facelock' ? (
+                {biometricPref === 'facelock' || biometricInfo.type === 'facelock' ? (
                   <ScanFace size={19} className="text-[#1d64ec] shrink-0" />
                 ) : (
                   <Fingerprint size={19} className="text-[#1d64ec] shrink-0" />
                 )}
-                <span>{biometricInfo.label}</span>
+                <span>{biometricPref === 'facelock' ? 'Sign in with Face Lock' : biometricInfo.label}</span>
               </button>
 
               <div className="flex justify-center">

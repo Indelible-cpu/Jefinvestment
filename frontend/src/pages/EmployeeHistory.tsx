@@ -154,15 +154,33 @@ export default function EmployeeHistory() {
   const isMatchPeriod = (dateStr: string, createdAt?: number, salaryMonth?: string) => {
     if (historyPreset === 'ALL') return true;
     const norm = normalizeDate(dateStr, createdAt);
+
+    // If salary record has an explicit salary month attribution (e.g. "2026-09"),
+    // period matching strictly follows that salary month
+    if (salaryMonth) {
+      if (historyPreset === 'THIS_MONTH') return salaryMonth === thisMonthPrefix;
+      if (historyPreset === 'LAST_MONTH') return salaryMonth === lastMonthPrefix;
+      if (historyPreset === 'MONTH') {
+        if (!historySelectedMonth) return true;
+        return salaryMonth === historySelectedMonth;
+      }
+      if (historyPreset === 'CUSTOM') {
+        if (historyStartDate && norm && norm < historyStartDate) return false;
+        if (historyEndDate && norm && norm > historyEndDate) return false;
+        return true;
+      }
+      return true;
+    }
+
     if (historyPreset === 'THIS_MONTH') {
-      return norm.startsWith(thisMonthPrefix) || salaryMonth === thisMonthPrefix;
+      return norm.startsWith(thisMonthPrefix);
     }
     if (historyPreset === 'LAST_MONTH') {
-      return norm.startsWith(lastMonthPrefix) || salaryMonth === lastMonthPrefix;
+      return norm.startsWith(lastMonthPrefix);
     }
     if (historyPreset === 'MONTH') {
       if (!historySelectedMonth) return true;
-      return norm.startsWith(historySelectedMonth) || salaryMonth === historySelectedMonth;
+      return norm.startsWith(historySelectedMonth);
     }
     if (historyPreset === 'CUSTOM') {
       if (historyStartDate && norm && norm < historyStartDate) return false;
@@ -209,7 +227,6 @@ export default function EmployeeHistory() {
 
   // Salary records
   const allSal: SalaryPayRecord[] = emp.salaryHistory || [];
-  const sortedSalDesc = [...allSal].sort((a, b) => b.createdAt - a.createdAt);
   const filteredSal = allSal.length > 0
     ? [...allSal].reverse().filter(r => isMatchPeriod(r.date, r.createdAt, r.salaryMonth) && isMatchSearch(r.notes || '', r.loggedBy, r.netPaid))
     : [];
@@ -222,7 +239,9 @@ export default function EmployeeHistory() {
   const currentAdvanceBalance = Math.max(0, totalAdvances - totalAdvancesRecovered);
   // Salary After Advances = Monthly Salary minus current advance balance
   const salaryAfterAdvances = Math.max(0, emp.salary - currentAdvanceBalance);
-  const latestNetSalaryPaid = sortedSalDesc.length > 0 ? sortedSalDesc[0].netPaid : 0;
+  // Net salary paid specifically for this calendar month
+  const salariesThisMonth = allSal.filter(r => (r.salaryMonth ? r.salaryMonth === thisMonthPrefix : (r.date && r.date.startsWith(thisMonthPrefix))));
+  const netSalaryThisMonth = salariesThisMonth.reduce((s, r) => s + r.netPaid, 0);
 
   const hasActiveFilter = historyPreset !== 'ALL' || !!historyStartDate || !!historyEndDate || !!historySearch.trim();
 
@@ -1108,9 +1127,9 @@ export default function EmployeeHistory() {
               </span>
             </div>
             <div className="bg-white/10 rounded-xl px-3.5 py-2.5 border border-white/10 backdrop-blur-xs">
-              <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Latest Net Salary Paid</span>
-              <span className="font-bold font-mono text-sm sm:text-base text-emerald-300">
-                {cur} {latestNetSalaryPaid.toLocaleString()}
+              <span className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider block">Net Paid (This Month)</span>
+              <span className={`font-bold font-mono text-sm sm:text-base ${netSalaryThisMonth > 0 ? 'text-emerald-300' : 'text-slate-300'}`}>
+                {cur} {netSalaryThisMonth.toLocaleString()}
               </span>
             </div>
           </div>
@@ -1635,10 +1654,10 @@ export default function EmployeeHistory() {
 
               <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3.5 col-span-2 sm:col-span-1">
                 <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">
-                  NET SALARY PAID
+                  {hasActiveFilter ? 'NET PAID (PERIOD)' : 'NET SALARY PAID'}
                 </span>
                 <div className="text-base sm:text-lg font-black font-mono text-emerald-700 mt-1">
-                  {cur} {totalSalariesPaid.toLocaleString()}
+                  {cur} {(hasActiveFilter ? filteredSalTotal : totalSalariesPaid).toLocaleString()}
                 </div>
               </div>
             </div>
