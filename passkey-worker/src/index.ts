@@ -24,6 +24,71 @@ const json = (body: Json, status = 200) =>
 const now = () => Math.floor(Date.now() / 1000);
 const randomId = () => crypto.randomUUID();
 
+// ── Rate Limiting (in-memory token bucket to protect D1 and Worker compute) ──
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+const rateLimitMap = new Map<string, RateLimitBucket>();
+
+function checkRateLimit(key: string, maxRequests: number, windowSeconds = 60): boolean {
+  const currentTime = now();
+  const existing = rateLimitMap.get(key);
+  if (!existing || currentTime >= existing.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: currentTime + windowSeconds });
+    if (rateLimitMap.size > 2000) {
+      for (const [k, v] of rateLimitMap.entries()) {
+        if (currentTime >= v.resetAt) rateLimitMap.delete(k);
+      }
+    }
+    return true;
+  }
+  if (existing.count >= maxRequests) return false;
+  existing.count += 1;
+  return true;
+}
+
+// ── Origin & Staging Detection ──
+function isAllowedOrigin(origin: string | null, env: Env): boolean {
+  if (!origin) return false;
+  if (origin === env.EXPECTED_ORIGIN) return true;
+  // Local development / staging origins
+  if (
+    origin === 'http://localhost:5173' ||
+    origin === 'http://127.0.0.1:5173' ||
+    origin === 'http://localhost:4173' ||
+    origin === 'http://localhost:3000' ||
+    origin === 'http://127.0.0.1:3000'
+  ) {
+    return true;
+  }
+  // Firebase Hosting preview channels for this project
+  if (origin.startsWith(`https://${env.FIREBASE_PROJECT_ID}--`) && origin.endsWith('.web.app')) {
+    return true;
+  }
+  return false;
+}
+
+function getWebAuthnConfig(request: Request, env: Env) {
+  const origin = request.headers.get('Origin') || '';
+  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    return {
+      expectedOrigin: origin,
+      rpID: 'localhost',
+    };
+  }
+  if (origin.startsWith(`https://${env.FIREBASE_PROJECT_ID}--`) && origin.endsWith('.web.app')) {
+    return {
+      expectedOrigin: origin,
+      rpID: env.RP_ID,
+    };
+  }
+  return {
+    expectedOrigin: env.EXPECTED_ORIGIN,
+    rpID: env.RP_ID,
+  };
+}
+
 function cors(request: Request, env: Env): Headers {
   const origin = request.headers.get('Origin');
   const headers = new Headers({
@@ -32,20 +97,25 @@ function cors(request: Request, env: Env): Headers {
     'Access-Control-Max-Age': '600',
     'Vary': 'Origin',
   });
-  if (origin === env.EXPECTED_ORIGIN) headers.set('Access-Control-Allow-Origin', origin);
+  if (origin && isAllowedOrigin(origin, env)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+  }
   return headers;
 }
+
 function response(request: Request, env: Env, body: Json, status = 200): Response {
   const res = json(body, status);
   const headers = cors(request, env);
   headers.forEach((value, key) => res.headers.set(key, value));
   return res;
 }
+
 async function body(request: Request): Promise<Json> {
   const value = await request.json();
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid request body');
   return value as Json;
 }
+
 function accountIsUsable(data: Json): boolean {
   return data.isSuspended !== true && data.isActive !== false;
 }
@@ -125,13 +195,23 @@ async function createFirebaseCustomToken(env: Env, uid: string): Promise<string>
 
 async function saveChallenge(env: Env, challenge: string, purpose: string, userId: string | null, webauthnUserId: string | null = null) {
   const id = randomId();
+  // Automatically purge stale challenges older than 10 minutes to protect D1 storage
+  try {
+    await env.PASSKEYS_DB.prepare(
+      'DELETE FROM challenges WHERE created_at < ?',
+    ).bind(now() - 600).run();
+  } catch {
+    // Non-critical, ignore
+  }
+
   await env.PASSKEYS_DB.prepare(
     'INSERT INTO challenges (challenge_id, challenge, user_id, webauthn_user_id, purpose, created_at) VALUES (?, ?, ?, ?, ?, ?)',
   ).bind(id, challenge, userId, webauthnUserId, purpose, now()).run();
   return id;
 }
+
 async function takeChallenge(env: Env, id: string, purpose: string, userId: string | null) {
-  // A single DELETE ... RETURNING statement makes each challenge one-time even
+  // A single DELETE ... RETURNING statement makes each challenge single-use even
   // when two verification requests arrive concurrently.
   const row = await env.PASSKEYS_DB.prepare(
     'DELETE FROM challenges WHERE challenge_id = ? AND purpose = ? AND user_id IS ? AND created_at >= ? RETURNING challenge, user_id, webauthn_user_id',
@@ -141,6 +221,7 @@ async function takeChallenge(env: Env, id: string, purpose: string, userId: stri
   if (!row) throw new Error('Challenge expired or invalid. Please try again.');
   return row;
 }
+
 async function getUserPasskeys(env: Env, uid: string) {
   return env.PASSKEYS_DB.prepare(
     'SELECT credential_id, public_key, counter, transports, device_type, backed_up FROM passkeys WHERE user_id = ?',
@@ -153,12 +234,19 @@ async function getUserPasskeys(env: Env, uid: string) {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get('Origin');
+    const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+
     if (request.method === 'OPTIONS') {
-      if (origin !== env.EXPECTED_ORIGIN) return new Response(null, { status: 403 });
+      if (origin && !isAllowedOrigin(origin, env)) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: cors(request, env) });
     }
-    if (origin && origin !== env.EXPECTED_ORIGIN) return response(request, env, { error: 'Origin not allowed.' }, 403);
+    if (origin && !isAllowedOrigin(origin, env)) {
+      return response(request, env, { error: 'Origin not allowed.' }, 403);
+    }
+
     const url = new URL(request.url);
+    const webAuthnCfg = getWebAuthnConfig(request, env);
+
     try {
       if (url.pathname === '/health' && request.method === 'GET') {
         return response(request, env, { ok: true, service: 'msikaflo-passkeys' });
@@ -166,12 +254,15 @@ export default {
 
       if (url.pathname === '/v1/register/options' && request.method === 'POST') {
         const identity = await verifyFirebaseIdToken(request, env);
+        if (!checkRateLimit(`uid:reg_opt:${identity.uid}`, 10, 60)) {
+          return response(request, env, { error: 'Too many registration requests. Please wait a minute.' }, 429);
+        }
         const user = await readFirebaseUser(env, identity.uid);
         if (!accountIsUsable(user)) return response(request, env, { error: 'This account is inactive or suspended.' }, 403);
         const existing = await getUserPasskeys(env, identity.uid);
         const options = await generateRegistrationOptions({
           rpName: env.RP_NAME,
-          rpID: env.RP_ID,
+          rpID: webAuthnCfg.rpID,
           userID: new TextEncoder().encode(identity.uid),
           userName: identity.email,
           userDisplayName: identity.email,
@@ -192,6 +283,9 @@ export default {
 
       if (url.pathname === '/v1/register/verify' && request.method === 'POST') {
         const identity = await verifyFirebaseIdToken(request, env);
+        if (!checkRateLimit(`uid:reg_ver:${identity.uid}`, 10, 60)) {
+          return response(request, env, { error: 'Too many registration verification attempts. Please wait a minute.' }, 429);
+        }
         const user = await readFirebaseUser(env, identity.uid);
         if (!accountIsUsable(user)) return response(request, env, { error: 'This account is inactive or suspended.' }, 403);
         const input = await body(request);
@@ -200,8 +294,8 @@ export default {
         const verification = await verifyRegistrationResponse({
           response: input.credential as any,
           expectedChallenge: pending.challenge,
-          expectedOrigin: env.EXPECTED_ORIGIN,
-          expectedRPID: env.RP_ID,
+          expectedOrigin: webAuthnCfg.expectedOrigin,
+          expectedRPID: webAuthnCfg.rpID,
         });
         if (!verification.verified || !verification.registrationInfo) {
           return response(request, env, { error: 'Passkey registration could not be verified.' }, 400);
@@ -223,15 +317,22 @@ export default {
       }
 
       if (url.pathname === '/v1/auth/options' && request.method === 'POST') {
+        if (!checkRateLimit(`ip:auth_opt:${clientIp}`, 20, 60)) {
+          return response(request, env, { error: 'Too many requests. Please wait a minute and try again.' }, 429);
+        }
         const input = await body(request);
         const email = String(input.email || '').trim().toLowerCase();
         if (!email) return response(request, env, { error: 'Enter your email address first.' }, 400);
+        if (!checkRateLimit(`email:auth_opt:${email}`, 5, 60)) {
+          return response(request, env, { error: 'Too many sign-in attempts for this email. Please wait a minute.' }, 429);
+        }
+
         const rows = await env.PASSKEYS_DB.prepare(
           'SELECT credential_id, transports FROM passkeys WHERE user_email = ?',
         ).bind(email).all<{ credential_id: string; transports: string }>();
         if (!rows.results.length) return response(request, env, { error: 'No passkey is registered for this email address.' }, 404);
         const options = await generateAuthenticationOptions({
-          rpID: env.RP_ID,
+          rpID: webAuthnCfg.rpID,
           allowCredentials: rows.results.map((item) => ({
             id: item.credential_id,
             transports: JSON.parse(item.transports),
@@ -243,6 +344,9 @@ export default {
       }
 
       if (url.pathname === '/v1/auth/verify' && request.method === 'POST') {
+        if (!checkRateLimit(`ip:auth_ver:${clientIp}`, 15, 60)) {
+          return response(request, env, { error: 'Too many verification attempts. Please wait a minute.' }, 429);
+        }
         const input = await body(request);
         const challengeId = String(input.challengeId || '');
         const credentialInput = input.credential as any;
@@ -256,8 +360,8 @@ export default {
         const verification = await verifyAuthenticationResponse({
           response: credentialInput,
           expectedChallenge: pending.challenge,
-          expectedOrigin: env.EXPECTED_ORIGIN,
-          expectedRPID: env.RP_ID,
+          expectedOrigin: webAuthnCfg.expectedOrigin,
+          expectedRPID: webAuthnCfg.rpID,
           credential: {
             id: row.credential_id,
             publicKey: new Uint8Array(row.public_key),

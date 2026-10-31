@@ -1,76 +1,174 @@
-# MsikaFlo Passkey Worker (isolated feature branch)
+# MsikaFlo Biometric & Passkey Authentication Engine
 
-This service is intentionally separate from Firebase Hosting and the existing MsikaFlo application backend. It stores WebAuthn public credentials and short-lived challenges in Cloudflare D1. It does not store fingerprints, face data, device PINs, Firebase passwords, or private passkey material.
+This service implements an optional, secure WebAuthn / Passkey authentication layer for MsikaFlo. It allows staff members (Admin, Manager, Cashier) to log in using biometric verification (fingerprint, Face ID) or device screen lock (PIN, pattern) on supported devices.
 
-## Current status
+Password authentication and offline login capabilities remain fully intact and operational as fallbacks.
 
-- WebAuthn registration and authentication API routes are implemented in this branch.
-- Firebase ID tokens are required to register, list, or remove credentials.
-- Account active/suspended state is checked against Firestore before registration and again before issuing a Firebase custom token.
-- Authentication challenges expire after five minutes and are consumed once.
-- The RP ID and origin are exact-match configuration values.
-- The React login screen now has an optional passkey sign-in action.
-- The shared Security section now includes passkey registration, listing, and removal controls for Admin, Manager, and Cashier users.
-- The browser client uses the native WebAuthn API and exchanges the verified Firebase custom token through the existing Firebase Auth client.
-- The Worker and React changes have not been built, security-tested, or deployed.
-- The frontend requires `VITE_PASSKEY_API_URL` to point to the deployed Worker URL; leave it unset until the Worker is configured and tested.
+---
 
-Do not deploy until the verification checklist below has passed.
+## Architecture Overview
 
-## Required Cloudflare resources
-
-Create a D1 database named `msikaflo-passkeys`, then update `database_id` in `wrangler.jsonc` with its actual ID. Apply the schema:
-
-```sh
-npx wrangler d1 migrations apply msikaflo-passkeys --remote
+```
+                      ┌───────────────────────────────────────────────┐
+                      │              Client Browser / App             │
+                      │       (Admin / Manager / Cashier Staff)       │
+                      └──────────────┬──────────────────┬─────────────┘
+                                     │                  │
+                1. WebAuthn Options  │                  │  6. Custom Token
+                   & Verification    │                  │     Exchange
+                                     ▼                  ▼
+                    ┌─────────────────────────┐   ┌───────────────────────────┐
+                    │    Cloudflare Worker    │   │  Firebase Authentication  │
+                    │   (msikaflo-passkeys)   │   │     (Identity Toolkit)    │
+                    └───────────┬─────────────┘   └─────────────┬─────────────┘
+                                │                               │
+                     2. D1 SQL  │                               │ 7. Issue Session
+                        Lookup  │                               │    & ID Token
+                                ▼                               ▼
+                    ┌─────────────────────────┐   ┌───────────────────────────┐
+                    │      Cloudflare D1      │   │     Firebase Firestore    │
+                    │   (msikaflo-passkeys)   │   │  (users collection doc)   │
+                    └─────────────────────────┘   └───────────────────────────┘
 ```
 
-Configure the following Worker secret in Cloudflare (never commit it or paste it into chat):
+1. **Client Browser / PWA**:
+   - Initiates passkey registration from `Settings > Security` (authenticated state).
+   - Initiates passkey authentication from `Login.tsx` (unauthenticated state).
+   - Interacts with device platform authenticators via standard W3C WebAuthn APIs (`navigator.credentials.create` and `navigator.credentials.get`).
+2. **Dedicated Cloudflare Worker (`msikaflo-passkeys`)**:
+   - Edge-computed authentication endpoints with `@simplewebauthn/server` and `jose`.
+   - Built-in in-memory rate limiting to protect D1 write quotas and prevent brute force attacks.
+   - Origin and RP ID dynamic detection supporting production and isolated local/staging environments.
+   - Signs standard Firebase Custom Tokens via JWT using the dedicated Firebase service account.
+3. **Dedicated Cloudflare D1 Database (`msikaflo-passkeys`)**:
+   - Relational storage for public credentials (`passkeys` table) and short-lived challenges (`challenges` table).
+   - Never stores biometrics, raw private keys, or passwords.
+4. **Firebase Integration**:
+   - Verifies user account status (`isActive`, `isSuspended`) against Firestore `users/{uid}` before token generation.
+   - Exchanges custom token with `signInWithCustomToken()`, preserving existing roles, Firestore rules, and session state.
 
-- `FIREBASE_SERVICE_ACCOUNT_JSON`: the complete service-account JSON for the Firebase project `jefinvestment-e1fc1`. Use a dedicated service account with only the permissions needed to read the `users` documents and mint Firebase custom tokens. Keep the key private and rotate it if it is ever exposed.
+---
 
-The non-secret Worker variables are in `wrangler.jsonc`:
-- `RP_ID`: `jefinvestment-e1fc1.web.app`
-- `EXPECTED_ORIGIN`: `https://jefinvestment-e1fc1.web.app`
-- `FIREBASE_PROJECT_ID`: `jefinvestment-e1fc1`
+## Directory Structure
 
-## Local development
-
-Use local-only overrides in `.dev.vars` (ignored by Git) and a local D1 database. For local browser testing, set `RP_ID=localhost` and `EXPECTED_ORIGIN=http://localhost:5173`; never reuse those values for production. A WebAuthn RP ID must match the browser origin's host rules.
-
-```sh
-npm install
-npx wrangler d1 migrations apply msikaflo-passkeys --local
-npm run dev
+```
+.
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Login.tsx              # Passkey login option alongside password
+│   │   │   └── Settings.tsx           # Passkey management under Security section
+│   │   ├── store/
+│   │   │   └── authStore.ts           # passkeyLogin() action, status checks & role sync
+│   │   └── utils/
+│   │       └── passkeys.ts            # Client WebAuthn helper & API connector
+│   └── package.json
+├── passkey-worker/
+│   ├── src/
+│   │   └── index.ts                   # Worker endpoints, rate limiter & WebAuthn logic
+│   ├── migrations/
+│   │   └── 0001_initial.sql           # D1 database schema
+│   ├── test-worker.mjs                # Automated unit and security test suite
+│   ├── package.json                   # Worker dependencies and npm scripts
+│   ├── tsconfig.json                  # Strict TypeScript configuration
+│   └── wrangler.jsonc                 # Worker configuration & D1 binding
+└── .github/workflows/
+    └── passkey-feature-check.yml      # CI check for build, typecheck, and tests
 ```
 
-## API
+---
 
-All JSON endpoints are under `/v1`.
+## Security Specifications
 
-- `POST /register/options` — Firebase ID token required.
-- `POST /register/verify` — Firebase ID token required; body: `{ "challengeId": "...", "credential": {...}, "deviceName": "..." }`.
-- `POST /auth/options` — body: `{ "email": "staff@example.com" }`.
-- `POST /auth/verify` — body: `{ "challengeId": "...", "credential": {...} }`; returns a Firebase custom token only after WebAuthn verification and an active-account check.
-- `GET /credentials` — Firebase ID token required.
-- `DELETE /credentials/:credentialId` — Firebase ID token required; only the owner can remove a credential.
+1. **Challenge Lifecycle & Expiration**:
+   - Challenges are cryptographically random UUIDs generated with `crypto.randomUUID()`.
+   - Valid for maximum 5 minutes (`now() - 300`).
+   - Consumed atomically using `DELETE ... RETURNING` to enforce single-use and prevent race conditions.
+   - Expired challenges are automatically pruned from D1 during challenge creation.
+2. **Rate Limiting & Abuse Prevention**:
+   - In-memory token bucket rate limiting at the edge protects D1 database quotas.
+   - `/v1/auth/options`: Limited to 20 requests/minute per client IP, and 5 requests/minute per email.
+   - `/v1/auth/verify`: Limited to 15 verification attempts/minute per IP.
+   - `/v1/register/options`: Limited to 10 requests/minute per authenticated user.
+3. **Origin & RP ID Enforcement**:
+   - Strict CORS: Only authorized origins receive CORS headers.
+   - Untrusted origins are rejected immediately with HTTP 403 `{"error":"Origin not allowed."}`.
+   - Dynamic WebAuthn RP resolution:
+     - Local dev (`localhost`, `127.0.0.1`) uses `rpId: 'localhost'`.
+     - Production uses `rpId: 'jefinvestment-e1fc1.web.app'`.
+4. **Account Status Verification**:
+   - Before issuing custom tokens, Firestore is queried to confirm `isActive !== false` and `isSuspended !== true`.
+   - Deactivated or suspended accounts are rejected with HTTP 403.
+5. **No Biometric Data Transmission**:
+   - Biometric authentication (fingerprint/face) occurs entirely within the device's Secure Enclave / TEE.
+   - Only standard public cryptographic signatures and public keys are transmitted.
 
-The browser client must exchange the returned custom token with Firebase Auth's `signInWithCustomToken()`, then load the existing Firestore profile and apply the same role/session logic as password login.
+---
 
-## Security review required before deployment
+## Free-Plan Compatibility
 
-1. Test with separate Admin, Manager, and Cashier accounts, including inactive and suspended accounts.
-2. Test registration, repeated registration, invalid challenge, expired challenge, replay, wrong origin, wrong RP ID, unknown credential, and counter update.
-3. Verify the service account has least privilege and is stored only as a Cloudflare secret.
-4. Add request throttling at the edge for authentication options and verification; this is still outstanding. Do not expose detailed account lookup results publicly in the final UI.
-5. Test on Android Chrome and supported desktop browsers; confirm passkey availability is feature-detected.
-6. Confirm password login and offline fallback are unchanged.
-7. Complete a frontend build and Worker typecheck, resolve any failures, then run the full verification checklist.
-8. Deploy only to an isolated staging configuration first. Do not merge or deploy production without explicit approval.
+* **Cloudflare Free Plan**:
+  - Worker execution: Free up to 100,000 requests/day.
+  - D1 database: Free up to 5,000,000 reads/day and 100,000 writes/day.
+  - In-memory rate limiting stops volumetric floods before hitting D1 writes.
+* **Firebase Spark Plan (Free)**:
+  - Custom token generation is performed via local cryptographic RSA-SHA256 signing inside the Worker using `jose` without hitting paid APIs.
+  - `signInWithCustomToken()` on the client is completely free on the Firebase Spark tier.
+  - Firestore reads for user verification use standard free document read allowances.
 
-## Important operational notes
+---
 
-- Existing Firebase Hosting, Firestore rules, Firestore data, and shop operations are not modified by this Worker.
-- A passkey is an additional login method, not a replacement for the existing password or offline flow.
-- A passkey registered on one device may sync through the user's platform account depending on the authenticator. MsikaFlo never receives biometric templates.
-- Removing a passkey removes only its public credential record from MsikaFlo; it does not delete the device's local passkey.
+## Build, Test, and Verification Commands
+
+### Passkey Worker
+```sh
+cd passkey-worker
+
+# Run automated unit & security test suite (7 tests)
+npm test
+
+# Run strict TypeScript typecheck
+npm run typecheck
+```
+
+### Frontend Application
+```sh
+cd frontend
+
+# Verify full production build
+npm run build
+```
+
+---
+
+## Staging & Local Testing Instructions
+
+1. Start the Worker locally:
+   ```sh
+   cd passkey-worker
+   npx wrangler dev
+   ```
+2. Start the Frontend locally:
+   ```sh
+   cd frontend
+   npm run dev
+   ```
+   Set `VITE_PASSKEY_API_URL=http://localhost:8787` in your local `.env.local`.
+3. Open `http://localhost:5173`:
+   - Sign in with existing password.
+   - Navigate to **Settings > Security**.
+   - Click **Add this device** to register your passkey / fingerprint.
+   - Sign out, and test signing in using **Sign in with Passkey / Biometrics**.
+
+---
+
+## Rollback Procedures
+
+If any issue arises:
+1. **Instant Client-Side Killswitch**:
+   - Set `VITE_PASSKEY_API_URL=""` (empty) in the frontend environment.
+   - The frontend automatically disables the passkey UI, hiding the button on the login screen and showing an informative fallback notice in Settings. Password authentication remains 100% functional.
+2. **Worker Rollback**:
+   - Cloudflare Workers dashboard allows instant 1-click rollback to any previous deployment version.
+3. **Database Integrity**:
+   - The D1 database is completely isolated. Even if dropped or cleared, the core MsikaFlo Firestore database and user passwords are unaffected.

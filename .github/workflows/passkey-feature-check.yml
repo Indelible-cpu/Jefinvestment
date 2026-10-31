@@ -38,8 +38,8 @@ jobs:
         env:
           VITE_PASSKEY_API_URL: ''
 
-  worker-typecheck:
-    name: Passkey Worker typecheck (no deployment)
+  worker-validate:
+    name: Passkey Worker typecheck and security tests (no deployment)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,3 +51,4 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm test
