@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { setPersistence, browserLocalPersistence, browserSessionPersistence, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { APP_VERSION } from '../utils/version';
-import { Fingerprint } from 'lucide-react';
+import { Fingerprint, ScanFace } from 'lucide-react';
 import { authenticateWithPasskey, passkeysAvailable, getDeviceBiometricInfo } from '../utils/passkeys';
 
 export default function Login() {
@@ -318,9 +318,12 @@ export default function Login() {
               type="button"
               onClick={handlePasskeyLogin}
               disabled={loading || biometricBusy}
-              className="w-full mt-3 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
+              className="w-full mt-3 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2.5 text-sm disabled:opacity-60 cursor-pointer"
             >
-              <Fingerprint size={19} className="text-[#1d64ec]" />
+              <div className="flex items-center gap-1.5 text-[#1d64ec] shrink-0">
+                <ScanFace size={18} />
+                <Fingerprint size={18} />
+              </div>
               <span>{biometricInfo.label}</span>
             </button>
           )}

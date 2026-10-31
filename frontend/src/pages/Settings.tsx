@@ -835,10 +835,10 @@ export default function Settings() {
 
             <div className="p-6 border-t bg-gray-50/40 space-y-3">
               <div className="flex items-center gap-2 text-gray-800 font-bold">
-                <KeyRound size={18} /> Passkey / Biometric Sign-in
+                <KeyRound size={18} /> Biometric Sign-in (Face Lock / Fingerprint / Passkey)
               </div>
               <p className="text-sm text-gray-600">
-                Register this device's fingerprint, face unlock or screen-lock passkey to sign into your personal account securely.
+                Register this device's Face Unlock, Fingerprint, or device PIN to sign into your personal account instantly.
               </p>
               {!passkeysAvailable() ? (
                 <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">

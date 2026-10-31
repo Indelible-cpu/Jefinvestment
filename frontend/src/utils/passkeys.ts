@@ -29,9 +29,9 @@ export function getDeviceBiometricInfo(): DeviceBiometricInfo {
   if (isAndroid) {
     return {
       type: 'android',
-      label: 'Sign in with Fingerprint',
-      shortLabel: 'Fingerprint',
-      defaultDeviceName: 'Android (Fingerprint)',
+      label: 'Sign in with Face / Fingerprint',
+      shortLabel: 'Face / Fingerprint',
+      defaultDeviceName: 'Android (Face / Fingerprint)',
     };
   }
   if (isIOS) {
@@ -39,29 +39,29 @@ export function getDeviceBiometricInfo(): DeviceBiometricInfo {
       type: 'ios',
       label: 'Sign in with Face ID / Touch ID',
       shortLabel: 'Face ID / Touch ID',
-      defaultDeviceName: 'iPhone / iPad',
+      defaultDeviceName: 'iPhone / iPad (Face ID / Touch ID)',
     };
   }
   if (isWindows) {
     return {
       type: 'windows',
-      label: 'Sign in with Windows Hello / PIN',
-      shortLabel: 'Windows Hello / PIN',
-      defaultDeviceName: 'Windows PC (Hello / PIN)',
+      label: 'Sign in with Windows Hello (Face / PIN)',
+      shortLabel: 'Windows Hello (Face / PIN)',
+      defaultDeviceName: 'Windows PC (Hello Face / PIN)',
     };
   }
   if (isMac) {
     return {
       type: 'mac',
       label: 'Sign in with Touch ID / Passkey',
-      shortLabel: 'Touch ID',
-      defaultDeviceName: 'Mac (Touch ID)',
+      shortLabel: 'Touch ID / Passkey',
+      defaultDeviceName: 'Mac (Touch ID / Passkey)',
     };
   }
   return {
     type: 'generic',
-    label: 'Sign in with biometric / passkey',
-    shortLabel: 'Biometric / PIN',
+    label: 'Sign in with Biometrics (Face / Fingerprint)',
+    shortLabel: 'Face / Fingerprint',
     defaultDeviceName: 'This device',
   };
 }
