@@ -27,6 +27,8 @@ jobs:
           echo "VITE_FIREBASE_APP_ID=1:1088168942774:web:dc5461bed599c344f3da17" >> .env
           echo "VITE_FIREBASE_MEASUREMENT_ID=G-9J35QQ7V6C" >> .env
           echo "VITE_RECAPTCHA_SITE_KEY=6Ld1VKctAAAAAKumuGcc_7c7M7kn_EE9evkv7Duo" >> .env
+          echo "VITE_API_URL=https://jef-erp-backend.dicksonpetroj1.workers.dev" >> .env
+          echo "VITE_PASSKEY_API_URL=https://msikaflo-passkeys.dicksonpetroj1.workers.dev" >> .env
           npm install
           npm run build
 
@@ -35,7 +37,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JEFINVESTMENT }}'
         run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT" > service-account.json
+          printf "%s" "$FIREBASE_SERVICE_ACCOUNT" > service-account.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=${PWD}/service-account.json" >> $GITHUB_ENV
 
       # Install Firebase CLI
@@ -44,7 +46,7 @@ jobs:
 
       # Deploy the built frontend to Firebase Hosting
       - name: Deploy Hosting
-        run: firebase deploy --only hosting --project jefinvestment-e1fc1
+        run: firebase deploy --only hosting --project jefinvestment-e1fc1 --debug
 
       # Deploy Firestore security rules (non-blocking — if service account lacks
       # Cloud Datastore Owner role, rules can be published manually via Firebase Console)
