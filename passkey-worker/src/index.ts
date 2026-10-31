@@ -138,10 +138,39 @@ async function verifyFirebaseIdToken(request: Request, env: Env) {
   return { uid: payload.sub, email: payload.email };
 }
 
+function parseServiceAccount(raw: string): { client_email: string; private_key: string; project_id: string } {
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    try {
+      const sanitized = raw.replace(/\\([^"\\/bfnrtu])/g, '$1');
+      parsed = JSON.parse(sanitized);
+    } catch {
+      const emailMatch = raw.match(/"client_email"\s*:\s*"([^"]+)"/);
+      const projectMatch = raw.match(/"project_id"\s*:\s*"([^"]+)"/);
+      const keyMatch = raw.match(/"private_key"\s*:\s*"([^"]+)"/);
+      if (emailMatch && projectMatch && keyMatch) {
+        parsed = {
+          client_email: emailMatch[1],
+          project_id: projectMatch[1],
+          private_key: keyMatch[1],
+        };
+      } else {
+        throw new Error('Invalid Firebase service account format.');
+      }
+    }
+  }
+  let pk = String(parsed.private_key || '');
+  if (pk.includes('\\n')) {
+    pk = pk.replace(/\\n/g, '\n');
+  }
+  parsed.private_key = pk;
+  return parsed;
+}
+
 async function serviceAccount(env: Env) {
-  const account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON) as {
-    client_email: string; private_key: string; project_id: string;
-  };
+  const account = parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT_JSON);
   if (account.project_id !== env.FIREBASE_PROJECT_ID) throw new Error('Firebase service account project mismatch.');
   const key = await importPKCS8(account.private_key, 'RS256');
   const assertion = await new SignJWT({
