@@ -65,7 +65,7 @@ export default function Settings() {
     catch (error: any) { toast.error(error?.message || 'Could not load passkeys.'); }
   };
   useEffect(() => {
-    if (activeSection === 'security') refreshPasskeys();
+    if (activeSection === 'security' || activeSection === 'profile') refreshPasskeys();
   }, [activeSection, token]);
 
   const handleSelectSection = (sectionId: SettingsSectionId | null) => {
@@ -741,13 +741,13 @@ export default function Settings() {
         },
         {
           id: 'security',
-          title: isAdmin ? 'Security & Auto-Lock' : 'Security & Biometrics',
-          description: isAdmin ? 'Operating hours, idle lock & biometric passkeys' : 'Device biometrics & security passkeys',
+          title: 'System Security & Auto-Lock',
+          description: 'Operating hours and automatic idle lock',
           icon: <Lock size={20} className="text-rose-600" />,
           iconBg: 'bg-rose-50 text-rose-600 border border-rose-100',
-          badge: isAdmin ? (securityForm.autoLockEnabled ? 'Auto-Lock On' : 'Off') : undefined,
+          badge: securityForm.autoLockEnabled ? 'Auto-Lock On' : 'Off',
           badgeColor: securityForm.autoLockEnabled ? 'bg-rose-50 text-rose-800 border border-rose-200' : 'bg-gray-100 text-gray-600',
-          visible: true,
+          visible: isAdmin,
         },
       ],
     },
@@ -833,6 +833,56 @@ export default function Settings() {
               <button type="submit" className="w-full bg-primary text-white font-bold py-2.5 rounded-lg hover:bg-blue-700 transition active:scale-95">Save Profile</button>
             </form>
 
+            <div className="p-6 border-t bg-gray-50/40 space-y-3">
+              <div className="flex items-center gap-2 text-gray-800 font-bold">
+                <KeyRound size={18} /> Passkey / Biometric Sign-in
+              </div>
+              <p className="text-sm text-gray-600">
+                Register this device's fingerprint, face unlock or screen-lock passkey to sign into your personal account securely.
+              </p>
+              {!passkeysAvailable() ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  Passkey service is not configured yet. Password sign-in remains available.
+                </p>
+              ) : (
+                <>
+                  <button type="button" disabled={passkeyBusy || !token} onClick={async () => {
+                    setPasskeyBusy(true);
+                    try {
+                      const device = getDeviceBiometricInfo();
+                      await registerPasskey(token!, device.defaultDeviceName);
+                      toast.success(`${device.shortLabel} registered on this device.`);
+                      await refreshPasskeys();
+                    } catch (error: any) { toast.error(error?.message || 'Biometric registration failed.'); }
+                    finally { setPasskeyBusy(false); }
+                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50 cursor-pointer">
+                    {passkeyBusy ? 'Please wait...' : `Add this device (${getDeviceBiometricInfo().shortLabel})`}
+                  </button>
+                  <div className="space-y-2">
+                    {registeredPasskeys.map((item: any) => (
+                      <div key={item.credential_id} className="flex items-center justify-between gap-3 border rounded-lg p-3 bg-white">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{item.device_name || 'Registered device'}</p>
+                          <p className="text-xs text-gray-500">Added {item.created_at ? new Date(item.created_at * 1000).toLocaleDateString() : 'previously'}</p>
+                        </div>
+                        <button type="button" disabled={passkeyBusy} onClick={async () => {
+                          setPasskeyBusy(true);
+                          try {
+                            await removePasskey(token!, item.credential_id);
+                            toast.success('Passkey removed.');
+                            await refreshPasskeys();
+                          } catch (error: any) { toast.error(error?.message || 'Could not remove passkey.'); }
+                          finally { setPasskeyBusy(false); }
+                        }} className="text-red-600 hover:bg-red-50 border border-red-200 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 cursor-pointer">
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {registeredPasskeys.length === 0 && <p className="text-xs text-gray-500">No passkeys registered yet.</p>}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         );
 
@@ -1724,10 +1774,11 @@ export default function Settings() {
         );
 
       case 'security':
+        if (!isAdmin) return null;
         return (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
-            <Lock size={18} /> {isAdmin ? 'Security & Auto-Lock Settings' : 'Device Biometrics & Security'}
+            <Lock size={18} /> System Security & Auto-Lock Settings
           </div>
             <div className="p-6 border-t bg-white space-y-3">
               <div className="flex items-center gap-2 text-gray-800 font-bold">

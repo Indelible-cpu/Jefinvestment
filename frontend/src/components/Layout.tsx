@@ -284,10 +284,10 @@ export default function Layout() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [user?.id, user?.role]);
 
-  // System Lock Logic (Admin only)
+  // System Lock Logic
   useEffect(() => {
     const checkLockStatus = () => {
-      if (!autoLockEnabled || !isAdmin) {
+      if (!autoLockEnabled) {
         setIsSystemLocked(false);
         return;
       }
@@ -462,7 +462,7 @@ export default function Layout() {
       window.removeEventListener('keydown', handleActivity);
       window.removeEventListener('click', handleActivity);
     };
-  }, [autoLockEnabled, isAdmin, workTimeStart, workTimeEnd, idleLockMinutes]);
+  }, [autoLockEnabled, workTimeStart, workTimeEnd, idleLockMinutes]);
 
   const lowStockItems = useMemo(() => products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel), [products]);
   const lowStockCount = lowStockItems.length;
