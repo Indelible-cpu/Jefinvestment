@@ -13,7 +13,7 @@ import { clearEmbeddingCache } from '../hooks/useEmbeddingPrewarm';
 import { Sparkles } from 'lucide-react';
 import { checkForAppUpdates } from '../utils/pwaUpdate';
 import { APP_VERSION, APP_BUILD_DATE } from '../utils/version';
-import { listPasskeys, registerPasskey, removePasskey, passkeysAvailable } from '../utils/passkeys';
+import { listPasskeys, registerPasskey, removePasskey, passkeysAvailable, getDeviceBiometricInfo } from '../utils/passkeys';
 import { useThemeStore } from '../store/themeStore';
 import {
   requestPushPermission,
@@ -1745,13 +1745,14 @@ export default function Settings() {
                   <button type="button" disabled={passkeyBusy || !token} onClick={async () => {
                     setPasskeyBusy(true);
                     try {
-                      await registerPasskey(token!, 'MsikaFlo device');
-                      toast.success('Passkey registered on this device.');
+                      const device = getDeviceBiometricInfo();
+                      await registerPasskey(token!, device.defaultDeviceName);
+                      toast.success(`${device.shortLabel} registered on this device.`);
                       await refreshPasskeys();
-                    } catch (error: any) { toast.error(error?.message || 'Passkey registration failed.'); }
+                    } catch (error: any) { toast.error(error?.message || 'Biometric registration failed.'); }
                     finally { setPasskeyBusy(false); }
-                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50">
-                    {passkeyBusy ? 'Please wait...' : 'Add this device'}
+                  }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50 cursor-pointer">
+                    {passkeyBusy ? 'Please wait...' : `Add this device (${getDeviceBiometricInfo().shortLabel})`}
                   </button>
                   <div className="space-y-2">
                     {registeredPasskeys.map((item: any) => (

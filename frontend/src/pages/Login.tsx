@@ -7,7 +7,7 @@ import { setPersistence, browserLocalPersistence, browserSessionPersistence, sen
 import { auth } from '../lib/firebase';
 import { APP_VERSION } from '../utils/version';
 import { Fingerprint } from 'lucide-react';
-import { authenticateWithPasskey, passkeysAvailable } from '../utils/passkeys';
+import { authenticateWithPasskey, passkeysAvailable, getDeviceBiometricInfo } from '../utils/passkeys';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,6 +18,7 @@ export default function Login() {
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const biometricInfo = getDeviceBiometricInfo();
   
   const navigate = useNavigate();
 
@@ -89,12 +90,20 @@ export default function Login() {
 
 
   const handlePasskeyLogin = async () => {
-    if (!email.trim()) {
-      setError('Enter your email address first.');
+    let targetEmail = email.trim();
+    if (!targetEmail) {
+      const savedEmail = localStorage.getItem('jef_remembered_email');
+      if (savedEmail) {
+        targetEmail = savedEmail;
+        setEmail(savedEmail);
+      }
+    }
+    if (!targetEmail) {
+      setError('Please enter your email address to sign in.');
       return;
     }
     if (!passkeysAvailable()) {
-      setError('Passkey sign-in is not configured on this deployment or is not supported by this browser.');
+      setError('Biometric sign-in is not supported on this browser or deployment.');
       return;
     }
     setError('');
@@ -102,14 +111,14 @@ export default function Login() {
     setLoading(true);
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      const customToken = await authenticateWithPasskey(email);
+      const customToken = await authenticateWithPasskey(targetEmail);
       const result = await useAuthStore.getState().passkeyLogin(customToken);
-      if (!result.success) throw new Error(result.error || 'Passkey sign-in failed.');
+      if (!result.success) throw new Error(result.error || 'Biometric sign-in failed.');
       const signedInUser = useAuthStore.getState().user;
       toast.success(`Welcome back, ${signedInUser?.name || 'User'}!`, { description: `Signed in as ${signedInUser?.role?.toLowerCase()}` });
       navigate(signedInUser?.role === 'CASHIER' ? '/pos' : '/');
     } catch (err: any) {
-      setError(err?.name === 'NotAllowedError' ? 'Passkey sign-in was cancelled or not completed.' : (err?.message || 'Passkey sign-in failed.'));
+      setError(err?.name === 'NotAllowedError' ? 'Biometric verification was cancelled.' : (err?.message || 'Biometric sign-in failed.'));
     } finally {
       setLoading(false);
     }
@@ -303,15 +312,17 @@ export default function Login() {
           </form>
 
 
-          <button
-            type="button"
-            onClick={handlePasskeyLogin}
-            disabled={loading}
-            className="w-full mt-3 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-60"
-          >
-            <Fingerprint size={19} />
-            <span>Sign in with fingerprint / passkey</span>
-          </button>
+          {passkeysAvailable() && (
+            <button
+              type="button"
+              onClick={handlePasskeyLogin}
+              disabled={loading}
+              className="w-full mt-3 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
+            >
+              <Fingerprint size={19} className="text-[#1d64ec]" />
+              <span>{biometricInfo.label}</span>
+            </button>
+          )}
 
           {/* Legal Links */}
           <p className="text-center text-[11px] sm:text-xs text-slate-500 mt-4 leading-relaxed">

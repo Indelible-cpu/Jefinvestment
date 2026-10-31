@@ -4,6 +4,68 @@ export function passkeysAvailable() {
   return !!API_URL && typeof window !== 'undefined' && !!window.PublicKeyCredential && !!navigator.credentials;
 }
 
+export interface DeviceBiometricInfo {
+  type: 'android' | 'ios' | 'windows' | 'mac' | 'generic';
+  label: string;
+  shortLabel: string;
+  defaultDeviceName: string;
+}
+
+export function getDeviceBiometricInfo(): DeviceBiometricInfo {
+  if (typeof navigator === 'undefined') {
+    return {
+      type: 'generic',
+      label: 'Sign in with biometric / passkey',
+      shortLabel: 'Biometric / PIN',
+      defaultDeviceName: 'This device',
+    };
+  }
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isWindows = /Windows/i.test(ua);
+  const isMac = /Macintosh|Mac OS X/i.test(ua) && !isIOS;
+
+  if (isAndroid) {
+    return {
+      type: 'android',
+      label: 'Sign in with Fingerprint',
+      shortLabel: 'Fingerprint',
+      defaultDeviceName: 'Android (Fingerprint)',
+    };
+  }
+  if (isIOS) {
+    return {
+      type: 'ios',
+      label: 'Sign in with Face ID / Touch ID',
+      shortLabel: 'Face ID / Touch ID',
+      defaultDeviceName: 'iPhone / iPad',
+    };
+  }
+  if (isWindows) {
+    return {
+      type: 'windows',
+      label: 'Sign in with Windows Hello / PIN',
+      shortLabel: 'Windows Hello / PIN',
+      defaultDeviceName: 'Windows PC (Hello / PIN)',
+    };
+  }
+  if (isMac) {
+    return {
+      type: 'mac',
+      label: 'Sign in with Touch ID / Passkey',
+      shortLabel: 'Touch ID',
+      defaultDeviceName: 'Mac (Touch ID)',
+    };
+  }
+  return {
+    type: 'generic',
+    label: 'Sign in with biometric / passkey',
+    shortLabel: 'Biometric / PIN',
+    defaultDeviceName: 'This device',
+  };
+}
+
 const decode = (value: string): ArrayBuffer => {
   const binary = atob(value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '='));
   return Uint8Array.from(binary, c => c.charCodeAt(0)).buffer;
