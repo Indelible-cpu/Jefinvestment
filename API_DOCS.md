@@ -3,15 +3,34 @@
 **MsikaFlo** operates on a fully serverless architecture powered by **Firebase Authentication**, **Google Cloud Firestore**, **Firebase Storage**, **Firebase Cloud Messaging (FCM)**, and **Zustand** state management stores.
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
-> **Last updated:** 13 October 2026
+> **Last updated:** 31 October 2026
 
 ---
 
-## 1. Authentication Service (`authStore.ts`)
+## 1. Authentication Service (`authStore.ts` & `passkeys.ts`)
 
-### Sign In
+### Standard Sign In
 ```ts
 signInWithEmailAndPassword(auth, email, password)
+```
+
+### Biometric & Passkey Microservice (`https://msikaflo-passkeys.dicksonpetroj1.workers.dev`)
+The biometric passkey system operates as an isolated Cloudflare Worker with a dedicated D1 SQLite database (`msikaflo-passkeys`):
+
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `POST` | `/v1/auth/options` | Generates WebAuthn authentication challenge for a given email | No (rate limited) |
+| `POST` | `/v1/auth/verify` | Verifies cryptographic assertion signature and returns Firebase Custom Token | No (rate limited) |
+| `POST` | `/v1/register/options` | Generates WebAuthn registration options for logged-in user | Yes (Firebase ID Token) |
+| `POST` | `/v1/register/verify` | Verifies attestation and saves credential public key to D1 | Yes (Firebase ID Token) |
+| `GET` | `/v1/credentials` | Lists user's registered devices and passkeys | Yes (Firebase ID Token) |
+| `DELETE` | `/v1/credentials/:id` | Removes a registered passkey credential | Yes (Firebase ID Token) |
+| `GET` | `/health` | Microservice liveness and status check | No |
+
+```ts
+// Authenticate with hardware biometric
+const customToken = await authenticateWithPasskey(email);
+await useAuthStore.getState().passkeyLogin(customToken);
 ```
 
 ### Password Persistence

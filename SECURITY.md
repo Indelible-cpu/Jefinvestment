@@ -6,7 +6,8 @@ Built and maintained by **Indelible Technologies**.
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
 > **Jurisdiction:** Republic of Malawi  
-> **Last updated:** 13 October 2026
+> **Version:** 2.5.0 (Enterprise Biometric Release)  
+> **Last updated:** 31 October 2026
 
 ---
 
@@ -76,3 +77,27 @@ Access is strictly governed by user roles (`ADMIN`, `MANAGER`, `CASHIER`):
 - **Transparent Status Bar:** The MsikaFlo PWA uses `viewport-fit=cover` and `apple-mobile-web-app-status-bar-style: black-translucent` to extend the dark cosmic UI behind the Android/iOS status bar without exposing system UI elements inappropriately.
 - **Safe Area Insets:** Login interactive elements are protected by CSS `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)` padding, ensuring content is never obscured by system bars.
 - **Asset Integrity:** All static assets are precached by the Workbox PWA service worker and served from the local CacheStorage, eliminating network-related supply chain risks on each load.
+
+---
+
+## 8. Biometric & Passkey Security Architecture (WebAuthn / FIDO2)
+
+MsikaFlo implements enterprise-grade, hardware-backed biometric authentication adhering to W3C WebAuthn Level 3 and FIDO2 standards:
+
+- **Hardware Isolation (Zero Biometric Transmission):**
+  Raw biometric templates (fingerprint scans, facial geometry) **never leave the user's physical hardware** (Android KeyStore, Apple Secure Enclave, or Windows TPM). The device generates an asymmetric public/private key pair:
+  - Private key remains securely enclosed in device hardware and requires local biometric verification (`userVerification: "required"`).
+  - Only the public key is transmitted to and stored in the dedicated Cloudflare D1 database.
+- **Dedicated Passkey Microservice:**
+  All WebAuthn challenge generation and cryptographic assertion verification are handled by an isolated, stateless Cloudflare Worker (`msikaflo-passkeys`). This ensures the core ERP backend (`jef-erp-backend`) remains completely untouched.
+- **Phishing Resistance (RP ID Enforcement):**
+  WebAuthn credentials are mathematically bound to the domain (`RP_ID`). A passkey registered for `jefinvestment-e1fc1.web.app` cannot be intercepted, replayed, or used on phishing domains.
+- **Edge Rate Limiting & Storage Hygiene:**
+  - Token-bucket rate limiting enforces maximum request rates per IP and user account on auth and registration endpoints.
+  - Ephemeral challenges expire in 5 minutes and single-use `DELETE ... RETURNING` prevents replay attacks.
+  - Automatic challenge pruning purges records older than 10 minutes to protect D1 storage quotas.
+- **Firebase Auth Bridge:**
+  Upon successful assertion verification, the Worker mints a cryptographically signed Firebase Custom Token (RSA-256) using service account credentials. The frontend exchanges this token via `signInWithCustomToken` to obtain standard Firebase credentials, seamlessly integrating with existing Firestore security rules.
+- **Offline & Password Fallback:**
+  Biometric login is an optional, friction-free alternative. Traditional password login and SHA-256 salted offline credential caching remain 100% operational at all times.
+

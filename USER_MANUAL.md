@@ -6,13 +6,13 @@ Built and maintained by **Indelible Technologies**.
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
 > **Jurisdiction:** Republic of Malawi  
-> **Version:** 2.4.0 (Enterprise Release)  
-> **Last updated:** 13 October 2026
+> **Version:** 2.5.0 (Enterprise Biometric Release)  
+> **Last updated:** 31 October 2026
 
 ---
 
 ## Table of Contents
-1. [Logging In & Security](#1-logging-in--security)
+1. [Logging In & Biometric Security](#1-logging-in--biometric-security)
 2. [Dashboard Overview](#2-dashboard-overview)
 3. [Point of Sale (POS)](#3-point-of-sale-pos)
 4. [Stationery & Print Shop Services](#4-stationery--print-shop-services)
@@ -27,20 +27,42 @@ Built and maintained by **Indelible Technologies**.
 
 ---
 
-## 1. Logging In & Security
+## 1. Logging In & Biometric Security
 
 ![Login Screen](docs/images/login_screen.png)
 
 ### The Login Screen
 The MsikaFlo login screen features a premium dark cosmic design that extends edge-to-edge on Android devices, providing a native app experience.
 
-### Logging In
+### Standard Password Login
 1. Open the MsikaFlo application on your device (browser or installed PWA).
 2. Enter your registered **Email Address** and **Password**.
 3. **Remember Me Option:**
    - **Checked:** Your email address is securely remembered in local browser storage for quick login next time. Firebase session is set to `browserLocalPersistence` so you stay signed in across browser restarts.
    - **Unchecked:** No credentials are preserved in local storage. Firebase session is set to `browserSessionPersistence`. Input fields are cleared on logout for maximum privacy on shared devices.
 4. Click **Sign In**. Cashiers are automatically directed to the **POS**, while Managers and Admins land on the **Dashboard**.
+
+### Biometric & Passkey Sign-In (Fingerprint / PIN / Face ID)
+MsikaFlo automatically detects your device hardware and presents the native biometric option:
+* **Android Phones/Tablets:** Displays **`Sign in with Fingerprint`**
+* **Windows PCs:** Displays **`Sign in with Windows Hello / PIN`**
+* **iPhones / iPads:** Displays **`Sign in with Face ID / Touch ID`**
+* **Macs:** Displays **`Sign in with Touch ID / Passkey`**
+
+#### How to Sign In with Biometrics:
+1. Tap the biometric button on the login screen.
+2. If your email is remembered (via "Remember me"), the hardware scanner opens **instantly and silently** with zero typing required!
+3. Touch your registered fingerprint, glance at the camera, or enter your device PIN.
+4. You are immediately verified and redirected to your dashboard or POS terminal!
+
+#### How to Register Your Device Biometrics:
+Any staff member (**Cashier**, **Manager**, or **Admin**) can register their personal device:
+1. Sign in with your password.
+2. Go to **Settings → Personal Profile** (on mobile, tap **More → Settings → Personal Profile**).
+3. Scroll down to the **Passkey / Biometric Sign-in** card.
+4. Tap **`Add this device`** (e.g., `Add this device (Fingerprint)`).
+5. When prompted by your operating system, verify your fingerprint, face, or device PIN.
+6. Your device is now linked! You can register multiple devices (e.g., your personal phone and your shop workstation) and remove old devices at any time.
 
 ### Forgot Password
 If you forget your password:

@@ -4,13 +4,14 @@ A complete, production-ready, custom Enterprise Resource Planning (ERP) and Poin
 
 > **Developer:** Indelible Technologies — [indelibletechnologiesmw@gmail.com](mailto:indelibletechnologiesmw@gmail.com)  
 > **Jurisdiction:** Republic of Malawi  
-> **Version:** 2.4.0 (Enterprise Release)  
-> **Last updated:** 13 October 2026
+> **Version:** 2.5.0 (Enterprise Biometric Release)  
+> **Last updated:** 31 October 2026
 
 ---
 
 ## 🌟 Key Features
 
+- **Biometric & Passkey Authentication (WebAuthn / FIDO2):** Seamless, phishing-resistant hardware biometric sign-in across Android (Fingerprint), Windows (Windows Hello / PIN), and Apple iOS/macOS (Touch ID / Face ID). Auto-detects device hardware and provides one-tap silent verification backed by an isolated Cloudflare Worker and D1 edge database.
 - **Cinematic Premium Login:** Dark cosmic-themed login screen with transparent Android status bar, PWA-native edge-to-edge UI, Firebase-powered authentication, and self-service password reset via email.
 - **Offline-First Point of Sale (POS):** Works 100% offline using local browser storage, queues transactions, and automatically synchronizes with Firebase Firestore when the internet returns.
 - **Inventory & Stock Management:** Complete tracking of physical goods, SKUs, cost prices, selling prices, stock levels, reorder thresholds, and low-stock alerts.
@@ -22,7 +23,7 @@ A complete, production-ready, custom Enterprise Resource Planning (ERP) and Poin
 - **Online Storefront (WhatsApp Commerce):** Public-facing product catalog and storefront accessible at `/store` and `/shop` for customer self-ordering.
 - **Online Orders Management:** Dedicated module for managing customer orders received via the online storefront.
 - **Multi-Role Security (RBAC):** Granular permissions for Cashier, Manager, and Admin roles.
-- **System Locks & Audit Trails:** Automatic business-hours lock, configurable idle timeout lock, and full real-time Audit Logging.
+- **System Locks & Audit Trails:** Automatic business-hours lock (Admin-managed), configurable idle timeout lock, and full real-time Audit Logging.
 - **Progressive Web App (PWA):** Installable on Android and iOS home screens. Supports offline use, background sync, and push notifications via Firebase Cloud Messaging (FCM).
 
 ---
