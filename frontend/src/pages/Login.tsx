@@ -17,6 +17,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const biometricInfo = getDeviceBiometricInfo();
   
@@ -108,7 +109,7 @@ export default function Login() {
     }
     setError('');
     setIsNetworkError(false);
-    setLoading(true);
+    setBiometricBusy(true);
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       const customToken = await authenticateWithPasskey(targetEmail);
@@ -120,7 +121,7 @@ export default function Login() {
     } catch (err: any) {
       setError(err?.name === 'NotAllowedError' ? 'Biometric verification was cancelled.' : (err?.message || 'Biometric sign-in failed.'));
     } finally {
-      setLoading(false);
+      setBiometricBusy(false);
     }
   };
 
@@ -291,7 +292,7 @@ export default function Login() {
             {/* Sign In Button with Blue Gradient */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || biometricBusy}
               className="w-full mt-1.5 bg-gradient-to-r from-[#1d64ec] via-[#1a56db] to-[#0f3ea3] hover:from-[#1754c7] hover:to-[#0c3182] text-white font-bold py-3 sm:py-3.5 px-6 rounded-xl shadow-md shadow-blue-600/25 hover:shadow-blue-600/40 hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 text-sm sm:text-base tracking-wide disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
@@ -316,7 +317,7 @@ export default function Login() {
             <button
               type="button"
               onClick={handlePasskeyLogin}
-              disabled={loading}
+              disabled={loading || biometricBusy}
               className="w-full mt-3 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold py-3 px-5 rounded-xl transition flex items-center justify-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
             >
               <Fingerprint size={19} className="text-[#1d64ec]" />
