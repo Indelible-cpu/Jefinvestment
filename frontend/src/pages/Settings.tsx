@@ -741,11 +741,11 @@ export default function Settings() {
         },
         {
           id: 'security',
-          title: 'Security & Auto-Lock',
-          description: 'Operating hours and idle lock settings',
+          title: isAdmin ? 'Security & Auto-Lock' : 'Security & Biometrics',
+          description: isAdmin ? 'Operating hours, idle lock & biometric passkeys' : 'Device biometrics & security passkeys',
           icon: <Lock size={20} className="text-rose-600" />,
           iconBg: 'bg-rose-50 text-rose-600 border border-rose-100',
-          badge: securityForm.autoLockEnabled ? 'Auto-Lock On' : 'Off',
+          badge: isAdmin ? (securityForm.autoLockEnabled ? 'Auto-Lock On' : 'Off') : undefined,
           badgeColor: securityForm.autoLockEnabled ? 'bg-rose-50 text-rose-800 border border-rose-200' : 'bg-gray-100 text-gray-600',
           visible: true,
         },
@@ -1727,7 +1727,7 @@ export default function Settings() {
         return (
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="bg-gray-50 p-4 border-b font-bold text-gray-700 flex items-center gap-2">
-            <Lock size={18} /> Security & Access Control
+            <Lock size={18} /> {isAdmin ? 'Security & Auto-Lock Settings' : 'Device Biometrics & Security'}
           </div>
             <div className="p-6 border-t bg-white space-y-3">
               <div className="flex items-center gap-2 text-gray-800 font-bold">
