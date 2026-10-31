@@ -1020,6 +1020,11 @@ export const useEmployeeStore = create<EmployeeState>()(
       const unsub_employees = onSnapshot(q, (snapshot) => {
         const mapped: Employee[] = snapshot.docs.map(doc => {
           const e = doc.data();
+          const rawAdv = Number(e.advancePay) || 0;
+          const cleanAdv = Math.max(0, Math.abs(rawAdv));
+          if (rawAdv < 0) {
+            updateDoc(doc.ref, { advancePay: cleanAdv }).catch(() => {});
+          }
           return {
             id: doc.id,
             firstName: e.firstName || '',
@@ -1029,7 +1034,7 @@ export const useEmployeeStore = create<EmployeeState>()(
             role: e.role || 'Staff',
             salary: Number(e.salary) || 0,
             status: e.status || 'PRESENT',
-            advancePay: Number(e.advancePay) || 0,
+            advancePay: cleanAdv,
             branchId: e.branchId || 'main',
             department: e.department || '',
             photoUrl: e.photoUrl || '',
@@ -1281,6 +1286,9 @@ export const useEmployeeStore = create<EmployeeState>()(
         branchId,
         employeeId: id,
         createdAt: now,
+        grossSalary: finalGross,
+        advanceDeducted: actualDeduction,
+        salaryMonth: finalSalaryMonth,
         isDeleted: false,
       }).catch(e => console.warn('Offline write deferred or failed:', e));
 
@@ -1424,9 +1432,14 @@ export const useEmployeeStore = create<EmployeeState>()(
             dateStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
           }
           const netPaid = Number(data.netPaid) || 0;
-          // Advance deducted is strictly what was actually recorded, never phantom math
-          const advanceDeducted = typeof data.advanceDeducted === 'number' ? Math.max(0, data.advanceDeducted) : 0;
-          const grossSalary = Number(data.grossSalary) || (netPaid + advanceDeducted) || (emp?.salary || 0);
+          const rawAdv = data.advanceDeducted ?? data.advanceDeduction ?? data.advancesDeducted ?? data.advancePayDeducted;
+          let advanceDeducted = rawAdv !== undefined && rawAdv !== null ? Number(rawAdv) || 0 : 0;
+          let grossSalary = Number(data.grossSalary) || (netPaid + advanceDeducted) || (emp?.salary || 0);
+
+          // If advanceDeducted is 0, but grossSalary exceeds netPaid and it's not the 8500 September settlement:
+          if (advanceDeducted === 0 && grossSalary > netPaid && netPaid > 8500) {
+            advanceDeducted = grossSalary - netPaid;
+          }
 
           // Resolve salaryMonth: explicit field -> notes parsing -> early month heuristic (day <= 15 is prev month)
           let salaryMonth = data.salaryMonth || '';
@@ -1560,8 +1573,12 @@ export const useEmployeeStore = create<EmployeeState>()(
 
               const alreadyHas = subRecords.some(r => (r.date === expDate || r.salaryMonth === salaryMonth) && r.netPaid === netPaid);
               if (!alreadyHas) {
-                const advanceDeducted = 0;
-                const grossSalary = netPaid;
+                const rawExpAdv = data.advanceDeducted ?? data.advanceDeduction ?? data.advancesDeducted;
+                let advanceDeducted = rawExpAdv !== undefined && rawExpAdv !== null ? Number(rawExpAdv) || 0 : 0;
+                let grossSalary = Number(data.grossSalary) || (netPaid + advanceDeducted) || (emp?.salary || 0);
+                if (advanceDeducted === 0 && grossSalary > netPaid && netPaid > 8500) {
+                  advanceDeducted = grossSalary - netPaid;
+                }
 
                 legacyRecords.push({
                   id: `exp_${ed.id}`,

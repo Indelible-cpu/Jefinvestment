@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, History, Share2, Printer, Banknote, CheckCircle,
@@ -30,7 +30,7 @@ export default function EmployeeHistory() {
   const [historyTab, setHistoryTab] = useState<'advances' | 'salaries' | 'statement'>('advances');
   const [showDeletedAdv, setShowDeletedAdv] = useState(false);
   const [isSharingPayroll, setIsSharingPayroll] = useState(false);
-  const [historyPreset, setHistoryPreset] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'MONTH' | 'CUSTOM'>('ALL');
+  const [historyPreset, setHistoryPreset] = useState<'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'MONTH' | 'CUSTOM'>('THIS_MONTH');
   const [historySelectedMonth, setHistorySelectedMonth] = useState('');
   const [historyStartDate, setHistoryStartDate] = useState('');
   const [historyEndDate, setHistoryEndDate] = useState('');
@@ -92,6 +92,18 @@ export default function EmployeeHistory() {
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthName = lastMonthDate.toLocaleString('default', { month: 'short' });
   const lastMonthPrefix = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+  const pastMonths = useMemo(() => {
+    const list: Array<{ value: string; label: string }> = [];
+    const n = new Date();
+    for (let i = 2; i <= 14; i++) {
+      const d = new Date(n.getFullYear(), n.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      list.push({ value: val, label });
+    }
+    return list;
+  }, []);
 
   const normalizeDate = (dStr: string, createdAt?: number) => {
     if (!dStr && createdAt) {
@@ -235,6 +247,7 @@ export default function EmployeeHistory() {
 
   // Overall summary metrics
   const totalAdvancesRecovered = allSal.reduce((sum, r) => sum + getSalaryDeduction(r), 0);
+  const filteredAdvancesRecovered = filteredSal.reduce((sum, r) => sum + getSalaryDeduction(r), 0);
   // Current Advance Balance: Total Advances Taken minus Advances actually recovered (strictly non-negative)
   const currentAdvanceBalance = Math.max(0, totalAdvances - totalAdvancesRecovered);
   // Salary After Advances = Monthly Salary minus current advance balance
@@ -1190,15 +1203,70 @@ export default function EmployeeHistory() {
         {/* Filter Bar */}
         <div className="p-4 sm:p-5 bg-muted/15 border-b space-y-3">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Preset Buttons */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Filter Controls: Month Dropdown defaulting to This Month + All Time & Custom */}
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
-                <Filter size={13} /> Filter:
+                <Filter size={13} /> Month:
               </span>
+
+              {/* Month Dropdown List (defaults to This Month) */}
+              <select
+                value={
+                  historyPreset === 'THIS_MONTH'
+                    ? 'THIS_MONTH'
+                    : historyPreset === 'LAST_MONTH'
+                    ? 'LAST_MONTH'
+                    : historyPreset === 'MONTH'
+                    ? historySelectedMonth
+                    : 'ALL'
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'THIS_MONTH') {
+                    setHistoryPreset('THIS_MONTH');
+                    setHistoryStartDate('');
+                    setHistoryEndDate('');
+                  } else if (val === 'LAST_MONTH') {
+                    setHistoryPreset('LAST_MONTH');
+                    setHistoryStartDate('');
+                    setHistoryEndDate('');
+                  } else if (val === 'ALL') {
+                    setHistoryPreset('ALL');
+                    setHistoryStartDate('');
+                    setHistoryEndDate('');
+                  } else if (val === 'CUSTOM') {
+                    setHistoryPreset('CUSTOM');
+                  } else {
+                    setHistoryPreset('MONTH');
+                    setHistorySelectedMonth(val);
+                    setHistoryStartDate('');
+                    setHistoryEndDate('');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer shadow-xs ${
+                  historyPreset === 'THIS_MONTH' || historyPreset === 'LAST_MONTH' || historyPreset === 'MONTH'
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-card text-gray-700 border hover:bg-muted'
+                }`}
+              >
+                <option value="THIS_MONTH" className="bg-card text-foreground font-semibold">
+                  This Month ({thisMonthName})
+                </option>
+                <option value="LAST_MONTH" className="bg-card text-foreground font-semibold">
+                  Last Month ({lastMonthName})
+                </option>
+                {pastMonths.map(m => (
+                  <option key={m.value} value={m.value} className="bg-card text-foreground font-semibold">
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Quick pill for All Time */}
               <button
                 type="button"
                 onClick={() => { setHistoryPreset('ALL'); setHistoryStartDate(''); setHistoryEndDate(''); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                   historyPreset === 'ALL'
                     ? 'bg-primary text-white shadow-xs'
                     : 'bg-card hover:bg-muted text-gray-700 border'
@@ -1206,43 +1274,12 @@ export default function EmployeeHistory() {
               >
                 All Time
               </button>
-              <button
-                type="button"
-                onClick={() => { setHistoryPreset('THIS_MONTH'); setHistoryStartDate(''); setHistoryEndDate(''); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  historyPreset === 'THIS_MONTH'
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'bg-card hover:bg-muted text-gray-700 border'
-                }`}
-              >
-                This Month ({thisMonthName})
-              </button>
-              <button
-                type="button"
-                onClick={() => { setHistoryPreset('LAST_MONTH'); setHistoryStartDate(''); setHistoryEndDate(''); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  historyPreset === 'LAST_MONTH'
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'bg-card hover:bg-muted text-gray-700 border'
-                }`}
-              >
-                Last Month ({lastMonthName})
-              </button>
-              <button
-                type="button"
-                onClick={() => setHistoryPreset('MONTH')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  historyPreset === 'MONTH'
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'bg-card hover:bg-muted text-gray-700 border'
-                }`}
-              >
-                Specific Month
-              </button>
+
+              {/* Quick pill for Custom Range */}
               <button
                 type="button"
                 onClick={() => setHistoryPreset('CUSTOM')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                   historyPreset === 'CUSTOM'
                     ? 'bg-primary text-white shadow-xs'
                     : 'bg-card hover:bg-muted text-gray-700 border'
@@ -1264,21 +1301,6 @@ export default function EmployeeHistory() {
               />
             </div>
           </div>
-
-          {/* Specific Month Picker */}
-          {historyPreset === 'MONTH' && (
-            <div className="flex items-center gap-3 p-3 bg-muted/40 border rounded-xl flex-wrap">
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-gray-500 font-medium">Select Month:</span>
-                <input
-                  type="month"
-                  value={historySelectedMonth}
-                  onChange={e => setHistorySelectedMonth(e.target.value)}
-                  className="px-2.5 py-1 text-xs border rounded-lg bg-card focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
-                />
-              </div>
-            </div>
-          )}
 
           {/* Custom Date Range Inputs */}
           {historyPreset === 'CUSTOM' && (
@@ -1636,10 +1658,10 @@ export default function EmployeeHistory() {
 
               <div className="bg-muted/30 border rounded-xl p-3.5">
                 <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">
-                  Advances Recovered
+                  {hasActiveFilter ? 'Advances Recovered (Period)' : 'Advances Recovered'}
                 </span>
                 <div className="text-base font-extrabold font-mono text-amber-800 mt-1">
-                  {cur} {totalAdvancesRecovered.toLocaleString()}
+                  {cur} {(hasActiveFilter ? filteredAdvancesRecovered : totalAdvancesRecovered).toLocaleString()}
                 </div>
               </div>
 

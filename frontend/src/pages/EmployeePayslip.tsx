@@ -160,11 +160,11 @@ export default function EmployeePayslip() {
     paymentDate = now.toISOString().slice(0, 10);
     basicSalary = emp.salary || 0;
     grossSalary = basicSalary;
-    advanceDeduction = emp.advancePay || 0;
+    advanceDeduction = Math.max(0, Math.abs(emp.advancePay || 0));
     totalDeductions = advanceDeduction;
     netPay = Math.max(0, grossSalary - totalDeductions);
     paymentMethod = 'Cash';
-    paymentStatus = advanceDeduction > 0 || netPay > 0 ? 'Pending Settlement' : 'Up to Date';
+    paymentStatus = 'Pending Settlement';
     payrollRef = `DRAFT-${emp.id.slice(-4).toUpperCase()}`;
     notes = '';
     defaultAuthorizer = currentUser?.name || 'Administrator';
@@ -173,7 +173,6 @@ export default function EmployeePayslip() {
   // Active pay period and authorizer (allows user override if needed)
   const payPeriod = customPayPeriod || defaultPayPeriod;
   const authorizer = customAuthorizer || defaultAuthorizer;
-  const authDate = paymentDate || new Date().toISOString().slice(0, 10);
   const generatedDateTime = new Date().toLocaleString();
 
   // Print Payslip
@@ -438,6 +437,10 @@ export default function EmployeePayslip() {
         <span class="info-value">${paymentStatus}</span>
       </div>
       <div class="info-item">
+        <span class="info-label">Authorized By:</span>
+        <span class="info-value">${authorizer}</span>
+      </div>
+      <div class="info-item">
         <span class="info-label">Payroll Reference:</span>
         <span class="info-value">${payrollRef}</span>
       </div>
@@ -487,9 +490,12 @@ export default function EmployeePayslip() {
     </div>
 
     <!-- Prominent Net Pay -->
-    <div class="net-pay-banner">
-      <div class="net-pay-label">NET PAY</div>
-      <div class="net-pay-amount">${cur} ${netPay.toLocaleString()}</div>
+    <div class="net-pay-banner" style="${paymentStatus !== 'Paid' ? 'background:#fffbeb;border:2px solid #f59e0b;' : ''}">
+      <div>
+        <div class="net-pay-label" style="${paymentStatus !== 'Paid' ? 'color:#92400e;' : ''}">${paymentStatus === 'Paid' ? 'NET PAY' : 'EXPECTED NET PAY'}</div>
+        <div style="font-size:11px;color:${paymentStatus === 'Paid' ? '#15803d' : '#b45309'};margin-top:2px;">${paymentStatus === 'Paid' ? 'Net salary settled to employee' : 'Expected net payout (Pending settlement)'}</div>
+      </div>
+      <div class="net-pay-amount" style="${paymentStatus !== 'Paid' ? 'color:#b45309;' : ''}">${cur} ${netPay.toLocaleString()}</div>
     </div>
 
     ${notes ? `
@@ -497,19 +503,6 @@ export default function EmployeePayslip() {
       <strong>NOTES:</strong> ${notes}
     </div>` : ''}
 
-    <!-- Autofilled Authorization Section (Employee Signature & Prepared By removed) -->
-    <div class="authorization-section">
-      <div class="auth-block">
-        <div class="auth-value">${authorizer}</div>
-        <div class="auth-line"></div>
-        <div class="auth-label">Authorized By</div>
-      </div>
-      <div class="auth-block">
-        <div class="auth-value font-mono">${authDate}</div>
-        <div class="auth-line"></div>
-        <div class="auth-label">Date</div>
-      </div>
-    </div>
 
     <div class="footer">
       <span>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved. Powered by MsikaFlo . Indelible Technologies</span>
@@ -589,6 +582,10 @@ export default function EmployeePayslip() {
               <strong style="color:#0f172a;">${paymentStatus}</strong>
             </div>
             <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
+              <span style="color:#64748b;font-weight:600;">Authorized By:</span>
+              <strong style="color:#0f172a;">${authorizer}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #e2e8f0;padding-bottom:3px;">
               <span style="color:#64748b;font-weight:600;">Payroll Reference:</span>
               <strong style="font-family:monospace;color:#0f172a;">${payrollRef}</strong>
             </div>
@@ -638,32 +635,18 @@ export default function EmployeePayslip() {
         </div>
 
         <!-- Net Pay Banner -->
-        <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="background:${paymentStatus === 'Paid' ? '#f0fdf4' : '#fffbeb'};border:2px solid ${paymentStatus === 'Paid' ? '#16a34a' : '#f59e0b'};border-radius:8px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
           <div>
-            <div style="font-size:13px;font-weight:800;color:#166534;letter-spacing:1px;">NET PAY</div>
-            <div style="font-size:11px;color:#15803d;">Net salary settled to employee</div>
+            <div style="font-size:13px;font-weight:800;color:${paymentStatus === 'Paid' ? '#166534' : '#92400e'};letter-spacing:1px;">${paymentStatus === 'Paid' ? 'NET PAY' : 'EXPECTED NET PAY'}</div>
+            <div style="font-size:11px;color:${paymentStatus === 'Paid' ? '#15803d' : '#b45309'};">${paymentStatus === 'Paid' ? 'Net salary settled to employee' : 'Expected net payout (Pending settlement)'}</div>
           </div>
-          <div style="font-size:24px;font-weight:900;color:#15803d;font-family:monospace;">${cur} ${netPay.toLocaleString()}</div>
+          <div style="font-size:24px;font-weight:900;color:${paymentStatus === 'Paid' ? '#15803d' : '#b45309'};font-family:monospace;">${cur} ${netPay.toLocaleString()}</div>
         </div>
 
         ${notes ? `
         <div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:6px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:14px;">
           <strong>NOTES:</strong> ${notes}
         </div>` : ''}
-
-        <!-- Authorization Section -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px;padding-top:12px;border-top:1px solid #e2e8f0;">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:#0f172a;min-height:20px;padding-bottom:2px;">${authorizer}</div>
-            <div style="border-bottom:1.5px solid #0f172a;margin-bottom:4px;"></div>
-            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Authorized By</div>
-          </div>
-          <div>
-            <div style="font-size:13px;font-weight:700;color:#0f172a;font-family:monospace;min-height:20px;padding-bottom:2px;">${authDate}</div>
-            <div style="border-bottom:1.5px solid #0f172a;margin-bottom:4px;"></div>
-            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Date</div>
-          </div>
-        </div>
 
         <!-- Footer -->
         <div style="margin-top:16px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9.5px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center;">
@@ -923,6 +906,10 @@ export default function EmployeePayslip() {
                 </strong>
               </div>
               <div className="flex justify-between border-b border-dashed border-slate-200 pb-1">
+                <span className="text-slate-500 font-medium">Authorized By:</span>
+                <strong className="text-slate-900">{authorizer}</strong>
+              </div>
+              <div className="flex justify-between border-b border-dashed border-slate-200 pb-1">
                 <span className="text-slate-500 font-medium">Payroll Reference:</span>
                 <strong className="font-mono text-slate-900">{payrollRef}</strong>
               </div>
@@ -973,12 +960,16 @@ export default function EmployeePayslip() {
           </div>
 
           {/* Prominent Net Pay Banner */}
-          <div className="bg-emerald-50 border-2 border-emerald-600 rounded-xl p-4 sm:p-5 flex items-center justify-between mb-6 shadow-xs">
+          <div className={`${paymentStatus === 'Paid' ? 'bg-emerald-50 border-emerald-600' : 'bg-amber-50 border-amber-500'} border-2 rounded-xl p-4 sm:p-5 flex items-center justify-between mb-6 shadow-xs`}>
             <div>
-              <div className="text-xs font-black uppercase tracking-wider text-emerald-800">NET PAY</div>
-              <div className="text-xs text-emerald-700 font-medium">Net salary settled to employee</div>
+              <div className={`text-xs font-black uppercase tracking-wider ${paymentStatus === 'Paid' ? 'text-emerald-800' : 'text-amber-800'}`}>
+                {paymentStatus === 'Paid' ? 'NET PAY' : 'EXPECTED NET PAY'}
+              </div>
+              <div className={`text-xs font-medium ${paymentStatus === 'Paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                {paymentStatus === 'Paid' ? 'Net salary settled to employee' : 'Expected net payout (Pending settlement)'}
+              </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-700">
+            <div className={`text-2xl sm:text-3xl font-black font-mono ${paymentStatus === 'Paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
               {cur} {netPay.toLocaleString()}
             </div>
           </div>
@@ -990,27 +981,6 @@ export default function EmployeePayslip() {
             </div>
           )}
 
-          {/* Autofilled Authorization Section (Employee Signature and Prepared By removed) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-6 border-t border-slate-200 mt-8">
-            <div>
-              <div className="text-sm font-bold text-slate-900 pb-1 min-h-[22px]">
-                {authorizer}
-              </div>
-              <div className="border-b-2 border-slate-900 mb-1.5"></div>
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                Authorized By
-              </span>
-            </div>
-            <div>
-              <div className="text-sm font-bold text-slate-900 font-mono pb-1 min-h-[22px]">
-                {authDate}
-              </div>
-              <div className="border-b-2 border-slate-900 mb-1.5"></div>
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                Date
-              </span>
-            </div>
-          </div>
 
           {/* System Footer matching system standards */}
           <div className="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-500 space-y-1">
