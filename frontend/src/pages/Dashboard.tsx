@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { useSaleStore, useCreditStore, useEmployeeStore, useExpenseStore } from '../store/dataStore';
+import { useSaleStore, useCreditStore, useEmployeeStore, useExpenseStore, getLocalDateString } from '../store/dataStore';
 import { useProductStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
@@ -109,7 +109,7 @@ export default function Dashboard() {
   const todayTotal = getTodayTotal();
   const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString();
   const todaysSales = sales.filter(s => s.date === today);
   
   let serviceIncome = 0;

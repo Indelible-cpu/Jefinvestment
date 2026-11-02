@@ -22,7 +22,6 @@ import { db } from '../lib/firebase';
 import { registerListener, useAuthStore } from './authStore';
 import { 
   saveSaleToOfflineBackup, 
-  removeSaleFromOfflineBackup, 
   removeSalesFromOfflineBackup,
   getOfflineSalesBackup,
   useSyncQueueStore 
@@ -270,9 +269,38 @@ interface SaleState {
   syncPendingSales: () => Promise<void>;
 }
 
+// ─── Local Date Utility & Persistent Sales Cache ──────────────────────────────
+export const getLocalDateString = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const CACHED_SALES_STORAGE_KEY = 'msikaflo_cached_sales';
+
+const getInitialSales = (): SaleRecord[] => {
+  try {
+    const raw = localStorage.getItem(CACHED_SALES_STORAGE_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveSalesToCache = (sales: SaleRecord[]) => {
+  try {
+    localStorage.setItem(CACHED_SALES_STORAGE_KEY, JSON.stringify(sales.slice(0, 100)));
+  } catch {
+    // Non-blocking quota safe
+  }
+};
+
 export const useSaleStore = create<SaleState>()(
   (set, get) => ({
-    sales: [],
+    sales: getInitialSales(),
     isLoading: false,
     loadSales: async () => {
       set({ isLoading: true });
@@ -366,6 +394,7 @@ export const useSaleStore = create<SaleState>()(
           console.warn('Snapshot backup purge notice:', purgeErr);
         }
 
+        saveSalesToCache(mappedSales);
         set({ sales: mappedSales, isLoading: false });
         useSyncQueueStore.getState().setPendingSales(pendingSalesList);
       };
@@ -426,9 +455,9 @@ export const useSaleStore = create<SaleState>()(
       const saleId = saleRef.id;
 
       // Build explicit date + time strings so Dashboard and Sales page can find this sale
-      // immediately offline — they filter by `s.date === today` not `createdAt`
+      // immediately offline — using accurate local date (YYYY-MM-DD)
       const now = new Date();
-      const saleDate = now.toISOString().slice(0, 10); // "YYYY-MM-DD"
+      const saleDate = getLocalDateString(now);
       const saleTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // "HH:MM"
 
       const newSale: Record<string, any> = {
@@ -459,32 +488,17 @@ export const useSaleStore = create<SaleState>()(
         syncStatus: 'pending' as const,
         branch: branchId,
       };
-      set((state) => ({
-        sales: [optimisticRecord as any, ...state.sales.filter(s => s.id !== saleId)],
-      }));
+      set((state) => {
+        const nextSales = [optimisticRecord as any, ...state.sales.filter(s => s.id !== saleId)];
+        saveSalesToCache(nextSales);
+        return { sales: nextSales };
+      });
 
-      // Step 3: Write sale document via setDoc to Firestore persistent cache
-      // By separating the sale document write from inventory updates, we guarantee
-      // that the financial record is 100% committed to persistent cache and will NEVER
-      // be aborted by an inventory rule or missing product error!
-      setDoc(saleRef, newSale)
-        .then(() => {
-          removeSaleFromOfflineBackup(saleId);
-          // Mark synced in local state
-          set((state) => ({
-            sales: state.sales.map((s) =>
-              s.id === saleId ? { ...s, syncStatus: 'synced' as const } : s
-            ),
-          }));
-        })
-        .catch(e => {
-          if (e?.code === 'permission-denied') {
-            // Already created on Firestore server; cashiers cannot update
-            removeSaleFromOfflineBackup(saleId);
-          } else {
-            console.warn('Offline sale write queued or deferred:', e);
-          }
-        });
+      // Step 3: Write sale document to Firestore persistent cache
+      // The backup is retained in LocalStorage until cloud receipt is confirmed by syncAll or snapshot
+      setDoc(saleRef, newSale).catch(e => {
+        console.warn('Offline sale write queued or deferred:', e);
+      });
 
       // Step 4: Optimistically decrement product stock in memory immediately
       // This makes the stock counter update on POS screen right away, offline or online
@@ -513,10 +527,8 @@ export const useSaleStore = create<SaleState>()(
         });
       }
 
-      // Step 5: If online, immediately kick off background auto-sync flush
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
-        useSyncQueueStore.getState().syncAll(false).catch(() => {});
-      }
+      // Step 5: Immediately trigger sync to upload this and any queued sales
+      useSyncQueueStore.getState().syncAll(false).catch(() => {});
     },
     restoreStationeryMaterials: async (saleId) => {
       try {
@@ -674,11 +686,11 @@ export const useSaleStore = create<SaleState>()(
     },
 
     getTodaySales: () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getLocalDateString();
       return get().sales.filter(s => s.date === today && (s.status ?? 'completed') === 'completed');
     },
     getTodayCashTotal: () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getLocalDateString();
       const daySales = get().getTodaySales();
       const directCash = daySales.filter(s => s.paymentMethod === 'CASH' && !s.isCredit).reduce((sum, s) => sum + s.total, 0);
       const creditInitialCash = daySales.filter(s => s.paymentMethod === 'CREDIT' || s.isCredit).reduce((sum, s) => sum + (s.amountPaid || 0), 0);
@@ -701,7 +713,7 @@ export const useSaleStore = create<SaleState>()(
         .reduce((sum, s) => sum + Math.max(0, s.total - (s.amountPaid || 0)), 0);
     },
     getTodayTransferTotal: () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getLocalDateString();
       const daySales = get().getTodaySales();
       const directTransfers = daySales
         .filter(s => s.paymentMethod !== 'CASH' && s.paymentMethod !== 'CREDIT' && !s.isCredit)
@@ -719,7 +731,7 @@ export const useSaleStore = create<SaleState>()(
       return directTransfers + repaymentTransfers;
     },
     getTodayTotal: () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getLocalDateString();
       const daySales = get().getTodaySales();
       // Cash basis total collections: direct non-credit + credit initial deposits + credit repayments collected today
       let total = daySales.reduce((sum, s) => {

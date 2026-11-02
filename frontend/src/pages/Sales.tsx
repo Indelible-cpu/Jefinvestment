@@ -452,14 +452,29 @@ export default function Sales() {
           <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900">Sales Transactions</h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-0.5">{isAdmin ? 'All sales across the system' : 'Your personal sales history'}</p>
         </div>
-        {isAdmin && (
+        <div className="flex items-center gap-2 self-start flex-wrap">
           <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-3.5 py-2 bg-white border rounded-xl text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-xs sm:shadow-sm transition self-start"
+            onClick={async () => {
+              toast.info('Synchronizing with cloud...');
+              await syncAll(true);
+              await useSaleStore.getState().loadSales();
+            }}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-xs sm:shadow-sm transition cursor-pointer disabled:opacity-50"
+            title="Force refresh and synchronize with cloud"
           >
-            <Download size={15} /> Export CSV
+            <CloudUpload size={15} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Syncing...' : 'Sync Cloud'}
           </button>
-        )}
+          {isAdmin && (
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-3.5 py-2 bg-white border rounded-xl text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 shadow-xs sm:shadow-sm transition"
+            >
+              <Download size={15} /> Export CSV
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Pending Offline Sales Sync Alert Banner */}

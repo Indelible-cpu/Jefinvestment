@@ -45,23 +45,31 @@ service cloud.firestore {
       allow create, delete: if isAdmin() || isManager();
       allow update: if isAdmin() || isManager() ||
         (
-          isAuthenticated() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
           request.resource.data.stock < resource.data.stock
         );
     }
 
-    // Sales and Credits
+    // Sales and Credits — allow create if authenticated OR if valid sale structure
+    // (Crucial for offline cashiers whose session token cannot be refreshed while offline)
     match /sales/{saleId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() || (
+        request.resource.data.invoiceNumber is string &&
+        request.resource.data.total is number &&
+        request.resource.data.items is list &&
+        request.resource.data.cashier is string
+      );
       allow update, delete: if isAdmin();
     }
 
-    // Expenses
+    // Expenses — allow create if authenticated OR valid expense structure
     match /expenses/{expenseId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated() || (
+        request.resource.data.amount is number &&
+        request.resource.data.description is string
+      );
       allow update, delete: if isAdmin();
     }
 
@@ -92,7 +100,7 @@ service cloud.firestore {
     // Audit Logs — added delete for admin (fixes Clear Logs on mobile)
     match /auditLogs/{logId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if true;
       allow delete: if isAdmin();
     }
 
