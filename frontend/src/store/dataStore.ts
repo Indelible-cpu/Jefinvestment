@@ -425,6 +425,8 @@ export const useSaleStore = create<SaleState>()(
           }
         });
         registerListener(unsub_sales);
+        // Automatically trigger sync for any queued or locally held sales
+        useSyncQueueStore.getState().syncAll(false).catch(() => {});
       } catch (err) {
         console.error('Failed to initialize loadSales query:', err);
         set({ isLoading: false });

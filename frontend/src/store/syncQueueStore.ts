@@ -3,7 +3,7 @@ import {
   waitForPendingWrites, 
   doc, 
   setDoc,
-  getDoc
+  getDocFromServer
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
@@ -198,22 +198,36 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
 
       let syncedCount = 0;
 
-      // Step 3: Collect ALL unsynced sales from all sources
+      // Step 3: Collect ALL unsynced and recent local sales to guarantee nothing is ever stuck locally
       const { useSaleStore } = await import('./dataStore');
       const inMemorySales = useSaleStore.getState().sales;
-      const inMemoryPending = inMemorySales.filter(s => s.syncStatus === 'pending');
       const localBackup = getOfflineSalesBackup();
 
       // Consolidate into a unified map to prevent any sales loss
       const allPendingMap = new Map<string, any>();
+
+      // 1. All explicitly backed-up offline sales
       for (const s of localBackup) {
-        allPendingMap.set(s.id, s);
+        if (s && s.id) allPendingMap.set(s.id, s);
       }
-      for (const s of inMemoryPending) {
-        if (!allPendingMap.has(s.id)) {
+
+      // 2. All in-memory sales marked as pending
+      for (const s of inMemorySales) {
+        if (s && s.id && s.syncStatus === 'pending') {
           allPendingMap.set(s.id, s);
-          // Persist to offline backup so it cannot be lost on page close
           saveSaleToOfflineBackup(s.id, s);
+        }
+      }
+
+      // 3. Resiliency Check: Also include any local sales created in the last 7 days to rescue any sales stuck on this device
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      for (const s of inMemorySales) {
+        if (s && s.id) {
+          const saleObj = s as any;
+          const createdAt = typeof saleObj.createdAt === 'number' ? saleObj.createdAt : (s.date ? new Date(s.date).getTime() : 0);
+          if (createdAt >= sevenDaysAgo && !allPendingMap.has(s.id)) {
+            allPendingMap.set(s.id, s);
+          }
         }
       }
 
@@ -229,53 +243,56 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
             await setDoc(saleRef, cleanData);
             return { id: sale.id, success: true };
           } catch (writeErr: any) {
-            // Check if document already exists in Firestore
-            try {
-              const snap = await getDoc(saleRef);
-              if (snap.exists()) {
-                return { id: sale.id, success: true };
-              }
-            } catch {
-              // Ignore check error
-            }
-
             console.warn(`Sync deferred for sale ${sale.id}:`, writeErr);
             return { id: sale.id, success: false };
           }
         });
 
         // Run all pending sale uploads simultaneously
-        const settled = await Promise.allSettled(syncPromises);
-        const flushedIds: string[] = [];
+        await Promise.allSettled(syncPromises);
 
-        settled.forEach((res) => {
-          if (res.status === 'fulfilled' && res.value.success) {
-            flushedIds.push(res.value.id);
-          }
-        });
+        // Step 5: Flush and verify Firestore network writes directly
+        try {
+          await Promise.race([
+            waitForPendingWrites(db),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Persistent write timeout')), 6000))
+          ]);
+          // If waitForPendingWrites succeeded, all pending writes reached the server!
+          const allSyncedIds = pendingList.map(s => s.id);
+          removeSalesFromOfflineBackup(allSyncedIds);
+          syncedCount = allSyncedIds.length;
 
-        if (flushedIds.length > 0) {
-          removeSalesFromOfflineBackup(flushedIds);
-          syncedCount += flushedIds.length;
-
-          // Immediately reflect 'synced' status in the live sales list
-          const flushedSet = new Set(flushedIds);
+          const flushedSet = new Set(allSyncedIds);
           useSaleStore.setState((prev) => ({
             sales: prev.sales.map((s) =>
               flushedSet.has(s.id) ? { ...s, syncStatus: 'synced' as const } : s
             ),
           }));
+        } catch (waitErr: any) {
+          console.warn('waitForPendingWrites notice or timeout:', waitErr?.message || waitErr);
+          // Verify individually using server doc checks so only confirmed sales are dequeued
+          const confirmedIds: string[] = [];
+          for (const s of pendingList) {
+            try {
+              const snap = await getDocFromServer(doc(db, 'sales', s.id));
+              if (snap.exists()) {
+                confirmedIds.push(s.id);
+              }
+            } catch {
+              // Not yet confirmed by server, will be retried automatically
+            }
+          }
+          if (confirmedIds.length > 0) {
+            removeSalesFromOfflineBackup(confirmedIds);
+            syncedCount = confirmedIds.length;
+            const confirmedSet = new Set(confirmedIds);
+            useSaleStore.setState((prev) => ({
+              sales: prev.sales.map((s) =>
+                confirmedSet.has(s.id) ? { ...s, syncStatus: 'synced' as const } : s
+              ),
+            }));
+          }
         }
-      }
-
-      // Step 5: Flush Firestore internal persistent cache writes (bounded to 8s)
-      try {
-        await Promise.race([
-          waitForPendingWrites(db),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Persistent write timeout')), 8000))
-        ]);
-      } catch (waitErr: any) {
-        console.warn('waitForPendingWrites notice:', waitErr?.message || waitErr);
       }
 
       // Step 6: Recalculate remaining pending counts
@@ -332,3 +349,26 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
     set({ queue: [], pendingCount: 0 });
   },
 }));
+
+// ─── Automated Real-Time Background Synchronization Listeners ─────────────────
+if (typeof window !== 'undefined') {
+  // Sync immediately when network connection restores
+  window.addEventListener('online', () => {
+    useSyncQueueStore.getState().syncAll(false).catch(() => {});
+  });
+
+  // Sync when cashier brings the app tab/PWA to the foreground
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      useSyncQueueStore.getState().syncAll(false).catch(() => {});
+    }
+  });
+
+  // Background daemon: auto-sync every 30s if there are pending backup sales
+  setInterval(() => {
+    const backup = getOfflineSalesBackup();
+    if (backup.length > 0) {
+      useSyncQueueStore.getState().syncAll(false).catch(() => {});
+    }
+  }, 30000);
+}

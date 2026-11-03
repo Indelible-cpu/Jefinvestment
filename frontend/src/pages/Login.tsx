@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Lock, User, Eye, EyeOff, ShieldCheck, WifiOff, AlertCircle, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
-import { setPersistence, browserLocalPersistence, browserSessionPersistence, sendPasswordResetEmail } from 'firebase/auth';
+import { setPersistence, browserLocalPersistence, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { APP_VERSION } from '../utils/version';
 import { Fingerprint, ScanFace } from 'lucide-react';
@@ -66,7 +66,7 @@ export default function Login() {
 
     try {
       // Set Firebase persistence based on Remember Me checkbox
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      await setPersistence(auth, browserLocalPersistence);
     } catch {
       // Non-critical, continue anyway
     }
@@ -112,7 +112,7 @@ export default function Login() {
     setIsNetworkError(false);
     setBiometricBusy(true);
     try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      await setPersistence(auth, browserLocalPersistence);
       const customToken = await authenticateWithPasskey(targetEmail);
       const result = await useAuthStore.getState().passkeyLogin(customToken);
       if (!result.success) throw new Error(result.error || 'Biometric sign-in failed.');
