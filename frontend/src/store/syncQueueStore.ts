@@ -311,7 +311,9 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
         pendingCount: finalRemainingBackup.length,
       });
 
-      if (force || syncedCount > 0) {
+      // Only show user notification when explicitly requested via "Sync Cloud" button.
+      // Background and refresh syncs remain completely silent to keep the UI clean.
+      if (force) {
         toast.success('Synced with Cloud', {
           description: syncedCount > 0 
             ? `${syncedCount} queued sale(s) uploaded successfully.` 
