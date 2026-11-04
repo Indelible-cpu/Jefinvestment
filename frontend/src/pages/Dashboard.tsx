@@ -242,8 +242,12 @@ export default function Dashboard() {
   ].filter(stat => isAdmin || !stat.adminOnly);
 
   const recentSales = sales
-    .filter(s => (s.status || 'completed') === 'completed')
-    .sort((a, b) => new Date(b.date + 'T' + b.time).getTime() - new Date(a.date + 'T' + a.time).getTime())
+    .filter(s => (s.status || 'completed').toLowerCase() === 'completed')
+    .sort((a, b) => {
+      const timeA = new Date(`${a.date}T${a.time || '00:00'}`).getTime() || (a.createdAt || 0);
+      const timeB = new Date(`${b.date}T${b.time || '00:00'}`).getTime() || (b.createdAt || 0);
+      return timeB - timeA;
+    })
     .slice(0, 5);
 
   return (

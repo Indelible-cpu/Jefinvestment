@@ -145,7 +145,7 @@ export const useExpenseStore = create<ExpenseState>()(
       const newExpense = {
         ...expense,
         branchId,
-        date: new Date().toISOString().slice(0, 10),
+        date: expense.date || getLocalDateString(),
         createdAt: Date.now(),
         isDeleted: false,
       };
@@ -343,8 +343,8 @@ export const useSaleStore = create<SaleState>()(
           const isPending = doc.metadata.hasPendingWrites;
           const rec: SaleRecord = {
             id: doc.id,
-            invoiceNumber: s.invoiceNumber,
-            date: s.date || d.toISOString().slice(0, 10),
+            invoiceNumber: s.invoiceNumber || doc.id,
+            date: s.date || getLocalDateString(d),
             time: s.time || d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
             cashier: s.cashier || 'Unknown',
             items: s.items || [],
