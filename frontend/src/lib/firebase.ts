@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth';
 import {
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager
+  persistentSingleTabManager
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
@@ -31,7 +31,7 @@ const storage = getStorage(app);
 // Initialize Firestore with persistent cache for offline capabilities
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
+    tabManager: persistentSingleTabManager()
   })
 });
 

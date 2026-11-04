@@ -50,10 +50,10 @@ service cloud.firestore {
         );
     }
 
-    // Sales and Credits — allow read & create directly for zero-latency POS syncing
+    // Sales and Credits — allow read, create, update directly for zero-latency POS syncing & credit repayments
     match /sales/{saleId} {
-      allow read, create: if true;
-      allow update, delete: if isAdmin();
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
     }
 
     // Expenses — allow create if authenticated OR valid expense structure

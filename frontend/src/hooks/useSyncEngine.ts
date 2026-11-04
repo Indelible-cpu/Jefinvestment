@@ -1,6 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { enableNetwork } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { useSyncQueueStore, checkRealConnectivity } from '../store/syncQueueStore';
 
 export const useSyncEngine = () => {
@@ -29,10 +27,6 @@ export const useSyncEngine = () => {
       const realOnline = await checkRealConnectivity();
       setOnline(realOnline);
 
-      if (realOnline) {
-        enableNetwork(db).catch(() => {});
-      }
-
       // If we are online and have pending writes or are not currently syncing, auto-flush!
       if (realOnline && pendingCountRef.current > 0 && !isSyncingRef.current) {
         syncAll().catch(e => console.warn('Auto-sync cycle notice:', e));
@@ -48,7 +42,6 @@ export const useSyncEngine = () => {
 
     // ─── Event-Driven Triggers (Immediate Reaction) ──────────────────────────
     const handleOnline = () => {
-      enableNetwork(db).catch(() => {});
       setOnline(true);
       // Immediately flush upon network return with force flag
       syncAll(true).catch(e => console.warn('Online event sync notice:', e));

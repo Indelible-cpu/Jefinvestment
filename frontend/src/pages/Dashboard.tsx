@@ -108,7 +108,7 @@ export default function Dashboard() {
   const lowStockCount = products.filter(p => !p.isService && !p.isEquipment && p.stock <= p.reorderLevel).length;
 
   const today = getLocalDateString();
-  const todaysSales = sales.filter(s => s.date === today);
+  const todaysSales = sales.filter(s => (s.date === today || (typeof s.date === 'string' && s.date.startsWith(today))) && (s.status ?? 'completed') === 'completed');
   
   let serviceIncome = 0;
   let productsIncome = 0;

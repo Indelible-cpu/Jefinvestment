@@ -175,15 +175,7 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
     }, 15000);
 
     try {
-      // Step 1: Ensure Firestore network is actively connected
-      try {
-        const { enableNetwork } = await import('firebase/firestore');
-        await enableNetwork(db).catch(() => {});
-      } catch {
-        // Non-critical
-      }
-
-      // Step 2: Verify internet connectivity
+      // Step 1: Verify internet connectivity
       const online = await checkRealConnectivity();
       set({ isOnline: online });
 
@@ -198,12 +190,11 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
 
       let syncedCount = 0;
 
-      // Step 3: Collect ALL unsynced and recent local sales to guarantee nothing is ever stuck locally
+      // Step 2: Collect ONLY unsynced pending sales
       const { useSaleStore } = await import('./dataStore');
       const inMemorySales = useSaleStore.getState().sales;
       const localBackup = getOfflineSalesBackup();
 
-      // Consolidate into a unified map to prevent any sales loss
       const allPendingMap = new Map<string, any>();
 
       // 1. All explicitly backed-up offline sales
@@ -219,19 +210,7 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
         }
       }
 
-      // 3. Resiliency Check: Also include any local sales created in the last 7 days to rescue any sales stuck on this device
-      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      for (const s of inMemorySales) {
-        if (s && s.id) {
-          const saleObj = s as any;
-          const createdAt = typeof saleObj.createdAt === 'number' ? saleObj.createdAt : (s.date ? new Date(s.date).getTime() : 0);
-          if (createdAt >= sevenDaysAgo && !allPendingMap.has(s.id)) {
-            allPendingMap.set(s.id, s);
-          }
-        }
-      }
-
-      // Step 4: Parallel flush of pending sales to Firestore
+      // Step 3: Parallel flush of pending sales to Firestore
       const pendingList = Array.from(allPendingMap.values());
       if (pendingList.length > 0) {
         const syncPromises = pendingList.map(async (sale) => {
@@ -239,8 +218,7 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
           const saleRef = doc(db, 'sales', sale.id);
 
           try {
-            // Write to Firestore cloud
-            await setDoc(saleRef, cleanData);
+            await setDoc(saleRef, cleanData, { merge: true });
             return { id: sale.id, success: true };
           } catch (writeErr: any) {
             console.warn(`Sync deferred for sale ${sale.id}:`, writeErr);
@@ -248,54 +226,45 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
           }
         });
 
-        // Run all pending sale uploads simultaneously
-        await Promise.allSettled(syncPromises);
+        const writeResults = await Promise.allSettled(syncPromises);
+        const confirmedIds: string[] = [];
 
-        // Step 5: Flush and verify Firestore network writes directly
+        for (const res of writeResults) {
+          if (res.status === 'fulfilled' && res.value.success) {
+            confirmedIds.push(res.value.id);
+          }
+        }
+
+        // Also check if any pending writes in Firestore have completed
         try {
           await Promise.race([
             waitForPendingWrites(db),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Persistent write timeout')), 6000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
           ]);
-          // If waitForPendingWrites succeeded, all pending writes reached the server!
-          const allSyncedIds = pendingList.map(s => s.id);
-          removeSalesFromOfflineBackup(allSyncedIds);
-          syncedCount = allSyncedIds.length;
+          // If waitForPendingWrites succeeded, all items in pendingList reached server
+          for (const s of pendingList) {
+            if (!confirmedIds.includes(s.id)) {
+              confirmedIds.push(s.id);
+            }
+          }
+        } catch {
+          // Non-blocking fallback
+        }
 
-          const flushedSet = new Set(allSyncedIds);
+        if (confirmedIds.length > 0) {
+          removeSalesFromOfflineBackup(confirmedIds);
+          syncedCount = confirmedIds.length;
+
+          const flushedSet = new Set(confirmedIds);
           useSaleStore.setState((prev) => ({
             sales: prev.sales.map((s) =>
               flushedSet.has(s.id) ? { ...s, syncStatus: 'synced' as const } : s
             ),
           }));
-        } catch (waitErr: any) {
-          console.warn('waitForPendingWrites notice or timeout:', waitErr?.message || waitErr);
-          // Verify individually using server doc checks so only confirmed sales are dequeued
-          const confirmedIds: string[] = [];
-          for (const s of pendingList) {
-            try {
-              const snap = await getDocFromServer(doc(db, 'sales', s.id));
-              if (snap.exists()) {
-                confirmedIds.push(s.id);
-              }
-            } catch {
-              // Not yet confirmed by server, will be retried automatically
-            }
-          }
-          if (confirmedIds.length > 0) {
-            removeSalesFromOfflineBackup(confirmedIds);
-            syncedCount = confirmedIds.length;
-            const confirmedSet = new Set(confirmedIds);
-            useSaleStore.setState((prev) => ({
-              sales: prev.sales.map((s) =>
-                confirmedSet.has(s.id) ? { ...s, syncStatus: 'synced' as const } : s
-              ),
-            }));
-          }
         }
       }
 
-      // Step 6: Recalculate remaining pending counts
+      // Step 4: Recalculate remaining pending counts
       clearTimeout(watchdog);
       const finalRemainingBackup = getOfflineSalesBackup();
       const stillPendingSales = useSaleStore.getState().sales.filter(s =>
@@ -311,8 +280,6 @@ export const useSyncQueueStore = create<SyncQueueState>()((set, get) => ({
         pendingCount: finalRemainingBackup.length,
       });
 
-      // Only show user notification when explicitly requested via "Sync Cloud" button.
-      // Background and refresh syncs remain completely silent to keep the UI clean.
       if (force) {
         toast.success('Synced with Cloud', {
           description: syncedCount > 0 

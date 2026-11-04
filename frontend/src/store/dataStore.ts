@@ -282,9 +282,14 @@ const CACHED_SALES_STORAGE_KEY = 'msikaflo_cached_sales';
 const getInitialSales = (): SaleRecord[] => {
   try {
     const raw = localStorage.getItem(CACHED_SALES_STORAGE_KEY);
-    if (!raw) return [];
-    const list = JSON.parse(raw);
-    return Array.isArray(list) ? list : [];
+    const cachedList: SaleRecord[] = raw ? JSON.parse(raw) : [];
+    const backups = getOfflineSalesBackup();
+    const cachedIds = new Set(cachedList.map(s => s.id));
+    const missingBackups = backups.filter(b => !cachedIds.has(b.id)).map(b => ({
+      ...b,
+      syncStatus: 'pending' as const
+    }));
+    return [...missingBackups as any, ...cachedList];
   } catch {
     return [];
   }
@@ -298,11 +303,19 @@ const saveSalesToCache = (sales: SaleRecord[]) => {
   }
 };
 
+let currentSalesUnsub: (() => void) | null = null;
+
 export const useSaleStore = create<SaleState>()(
   (set, get) => ({
     sales: getInitialSales(),
     isLoading: false,
     loadSales: async () => {
+      // Clean up any existing sales listener to prevent duplicate subscriptions
+      if (currentSalesUnsub) {
+        try { currentSalesUnsub(); } catch {}
+        currentSalesUnsub = null;
+      }
+
       set({ isLoading: true });
       // Limit to last 90 days for performance — Reports page can query further back if needed
       const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -362,8 +375,48 @@ export const useSaleStore = create<SaleState>()(
           return rec;
         });
 
+        // Merge any uncommitted local emergency backup sales so offline sales NEVER vanish
+        const backupSales = getOfflineSalesBackup();
+        const serverDocIds = new Set(mappedSales.map(d => d.id));
+        const uncommittedBackups: SaleRecord[] = [];
+        
+        for (const b of backupSales) {
+          if (!serverDocIds.has(b.id)) {
+            const bSale: SaleRecord = {
+              id: b.id,
+              invoiceNumber: b.invoiceNumber || 'INV-OFFLINE',
+              date: b.date || getLocalDateString(new Date(b.createdAt || b.backupAt || Date.now())),
+              time: b.time || new Date(b.createdAt || b.backupAt || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+              cashier: b.cashier || 'Staff',
+              items: b.items || [],
+              subtotal: Number(b.subtotal) || Number(b.total) || 0,
+              discount: Number(b.discount) || 0,
+              taxAmount: Number(b.taxAmount) || 0,
+              taxName: b.taxName,
+              taxType: b.taxType,
+              total: Number(b.total) || 0,
+              paymentMethod: b.paymentMethod || 'CASH',
+              amountPaid: (b.amountPaid !== undefined && b.amountPaid !== null) ? Number(b.amountPaid) : Number(b.total),
+              customerName: b.customerName,
+              customerPhone: b.customerPhone,
+              customerId: b.customerId,
+              isCredit: b.isCredit || false,
+              dueDate: b.dueDate,
+              creditPaid: b.creditPaid !== undefined ? Number(b.creditPaid) : undefined,
+              repayments: Array.isArray(b.repayments) ? b.repayments : undefined,
+              status: (b.status || 'completed').toLowerCase() as SaleRecord['status'],
+              syncStatus: 'pending',
+              branch: b.branch || b.branchId || branchId,
+            };
+            uncommittedBackups.push(bSale);
+            pendingSalesList.push(bSale);
+          }
+        }
+
+        const consolidatedSales = [...uncommittedBackups, ...mappedSales];
+
         // Always sort descending by createdAt / date+time
-        mappedSales.sort((a, b) => {
+        consolidatedSales.sort((a, b) => {
           const timeA = new Date(`${a.date}T${a.time || '00:00'}`).getTime();
           const timeB = new Date(`${b.date}T${b.time || '00:00'}`).getTime();
           return timeB - timeA;
@@ -373,7 +426,6 @@ export const useSaleStore = create<SaleState>()(
         // As soon as Firestore commits writes to the cloud (!hasPendingWrites),
         // immediately purge them from localStorage emergency backup so pendingCount drops to 0.
         try {
-          const backupSales = getOfflineSalesBackup();
           if (backupSales.length > 0) {
             const syncedDocIds = new Set(
               snapshot.docs
@@ -394,8 +446,8 @@ export const useSaleStore = create<SaleState>()(
           console.warn('Snapshot backup purge notice:', purgeErr);
         }
 
-        saveSalesToCache(mappedSales);
-        set({ sales: mappedSales, isLoading: false });
+        saveSalesToCache(consolidatedSales);
+        set({ sales: consolidatedSales, isLoading: false });
         useSyncQueueStore.getState().setPendingSales(pendingSalesList);
       };
 
@@ -416,14 +468,17 @@ export const useSaleStore = create<SaleState>()(
                 console.error('All sales queries failed:', rawErr);
                 set({ isLoading: false });
               });
+              currentSalesUnsub = rawUnsub;
               registerListener(rawUnsub);
             });
+            currentSalesUnsub = fallbackUnsub;
             registerListener(fallbackUnsub);
           } catch (e) {
             console.error('Error attaching fallback sales listener:', e);
             set({ isLoading: false });
           }
         });
+        currentSalesUnsub = unsub_sales;
         registerListener(unsub_sales);
         // Automatically trigger sync for any queued or locally held sales
         useSyncQueueStore.getState().syncAll(false).catch(() => {});
@@ -689,7 +744,7 @@ export const useSaleStore = create<SaleState>()(
 
     getTodaySales: () => {
       const today = getLocalDateString();
-      return get().sales.filter(s => s.date === today && (s.status ?? 'completed') === 'completed');
+      return get().sales.filter(s => (s.date === today || (typeof s.date === 'string' && s.date.startsWith(today))) && (s.status ?? 'completed') === 'completed');
     },
     getTodayCashTotal: () => {
       const today = getLocalDateString();
