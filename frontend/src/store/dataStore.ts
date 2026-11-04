@@ -744,7 +744,7 @@ export const useSaleStore = create<SaleState>()(
 
     getTodaySales: () => {
       const today = getLocalDateString();
-      return get().sales.filter(s => (s.date === today || (typeof s.date === 'string' && s.date.startsWith(today))) && (s.status ?? 'completed') === 'completed');
+      return get().sales.filter(s => (s.date === today || (typeof s.date === 'string' && s.date.startsWith(today))) && (s.status || 'completed').toLowerCase() === 'completed');
     },
     getTodayCashTotal: () => {
       const today = getLocalDateString();

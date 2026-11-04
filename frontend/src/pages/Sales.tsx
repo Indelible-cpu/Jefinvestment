@@ -85,7 +85,8 @@ function SaleDetailModal({ sale, onClose, isAdmin, onUpdateStatus, onViewReceipt
     onClose();
   };
 
-  const StatusCfg = STATUS_CONFIG[sale.status ?? 'completed'];
+  const saleStatus = ((sale.status || 'completed').toLowerCase() as keyof typeof STATUS_CONFIG);
+  const StatusCfg = STATUS_CONFIG[saleStatus] || STATUS_CONFIG.completed;
 
   return (
     <div
@@ -399,7 +400,7 @@ export default function Sales() {
     if (dateTo) result = result.filter(s => s.date <= dateTo);
     if (paymentFilter !== 'ALL') result = result.filter(s => s.paymentMethod === paymentFilter);
     if (cashierFilter !== 'ALL') result = result.filter(s => s.cashier === cashierFilter);
-    if (statusFilter !== 'ALL') result = result.filter(s => s.status === statusFilter);
+    if (statusFilter !== 'ALL') result = result.filter(s => (s.status || 'completed').toLowerCase() === statusFilter.toLowerCase());
 
     result.sort((a, b) => {
       const da = new Date(`${a.date}T${a.time}`).getTime();
@@ -414,12 +415,12 @@ export default function Sales() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const totalRevenue = filtered.reduce((s, r) => {
-    if ((r.status ?? 'completed') !== 'completed') return s;
+    if ((r.status || 'completed').toLowerCase() !== 'completed') return s;
     if (r.paymentMethod === 'CREDIT') return s + (r.amountPaid || 0);
     return s + r.total;
   }, 0);
-  const totalVoided = filtered.filter(s => (s.status ?? 'completed') === 'voided').length;
-  const totalRefunded = filtered.filter(s => (s.status ?? 'completed') === 'refunded').length;
+  const totalVoided = filtered.filter(s => (s.status || 'completed').toLowerCase() === 'voided').length;
+  const totalRefunded = filtered.filter(s => (s.status || 'completed').toLowerCase() === 'refunded').length;
 
   const handleSort = () => {
     setSortOrder(o => o === 'newest' ? 'oldest' : 'newest');
@@ -635,8 +636,8 @@ export default function Sales() {
               </thead>
               <tbody>
                 {paginated.map((sale) => {
-                  const saleStatus = sale.status ?? 'completed';
-                  const StatusCfg = STATUS_CONFIG[saleStatus];
+                  const saleStatus = ((sale.status || 'completed').toLowerCase() as keyof typeof STATUS_CONFIG);
+                  const StatusCfg = STATUS_CONFIG[saleStatus] || STATUS_CONFIG.completed;
                   const isVoidedOrRefunded = saleStatus !== 'completed';
                   return (
                     <tr
