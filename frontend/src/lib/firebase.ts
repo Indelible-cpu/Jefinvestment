@@ -31,7 +31,7 @@ const storage = getStorage(app);
 // Initialize Firestore with persistent cache for offline capabilities
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
-    tabManager: persistentSingleTabManager()
+    tabManager: persistentSingleTabManager({})
   })
 });
 

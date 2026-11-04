@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import { 
   waitForPendingWrites, 
   doc, 
-  setDoc,
-  getDocFromServer
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
